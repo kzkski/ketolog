@@ -86,9 +86,11 @@ menu_items
 - name
 - p100g / f100g / c100g
 - default_grams（1切れ・1単位のデフォルト重量）
-- order_count（注文回数・ソート用）
+- order_count（注文回数・現在はソートに未使用）
 - notes
 - rank（1=最優先, 2=おすすめ, 3=控えめ, 4=避ける）
+- group_name（グループ名・nullable）
+- group_order（グループ表示順）
 ```
 
 ---
@@ -170,7 +172,7 @@ menu_items
 
 ---
 
-## v1.0.0 実装済み機能（2026-04-09）
+## v1.2.0 実装済み機能（2026-04-09）
 
 ### 主要ファイル構成
 
@@ -181,6 +183,9 @@ src/
       page.tsx          # サーバーコンポーネント（Supabase fetch・初期データ渡し）
       TodayClient.tsx   # メイン画面（全UIロジック）
       actions.ts        # Server Actions（DB操作）
+    api/
+      presets/[file]/
+        route.ts        # プリセット配信 API（廃止予定・public/ 移行済み）
     login/page.tsx
     signup/page.tsx
     auth/callback/route.ts  # OAuth コールバック + 初回シード
@@ -188,14 +193,15 @@ src/
   lib/
     supabase/client.ts  # ブラウザ用 Supabase クライアント
     supabase/server.ts  # サーバー用 Supabase クライアント
-    seed.ts             # 初回ログイン時に user_settings を作成
+    seed.ts             # 初回ログイン時に user_settings・マイフードを作成
   types/database.ts     # FoodLogEntry 等の型定義
-presets/
-  tenryu.json           # 天竜（焼肉・28アイテム）✅
-  myfood-keto.json      # ケト定番マイフード（17アイテム）✅
-  7eleven-keto.json     # セブンイレブン 🚧
-  familymart-keto.json  # ファミリーマート 🚧
-  lawson-keto.json      # ローソン 🚧
+public/
+  presets/              # プリセット JSON（Vercel 静的配信）
+    tenryu.json           # ホルモン焼肉 天竜 高円寺（28アイテム・グループ化済み）✅
+    myfood-keto.json      # ケト定番マイフード（17アイテム・グループ化済み）✅
+    7eleven-keto.json     # セブンイレブン 🚧
+    familymart-keto.json  # ファミリーマート 🚧
+    lawson-keto.json      # ローソン 🚧
 ```
 
 ### 実装済み機能一覧
@@ -203,8 +209,9 @@ presets/
 - 食事ログ記録（朝食/昼食/夕食/間食・PFCバーリアルタイム表示）
 - 日付ナビゲーション（過去ログ閲覧・編集・削除・過去日への追加）
 - レストラン管理（追加・削除・JSON エクスポート/インポート）
-- メニュー管理（追加・編集・削除・ランク・100g換算入力切替）
-- プリセット（GitHub raw URL から一覧取得・ワンタップインポート）
+- メニュー管理（追加・編集・削除・ランク・グループ名・100g換算入力切替）
+- メニューグループ化・折り畳み表示（「控えめ」「避ける」グループはデフォルト折り畳み）
+- プリセット（Vercel 静的配信 /presets/ から一覧取得・ワンタップインポート）
 - ユーザー設定（PFC目標値カスタマイズ・全データエクスポート）
 - 認証（Google OAuth・`@civictech.tv` ドメイン限定）
 
@@ -222,13 +229,13 @@ presets/
 
 ---
 
-## 既存の天竜メニュープリセット（参考）
+## ホルモン焼肉 天竜 高円寺 メニュープリセット（参考）
 
-ホルモン系（rank1）: ハツ・ミノ・ハチノス・センマイ・ギアラ・コブクロ・シマチョウ・マルチョウ・レバー・ハラミ・キクアブラ・ホルモン盛り合わせ（味噌ダレ）
-定番焼肉（rank2）: タン・カルビ・ロース・ザブトン・イチボ・ミスジ・ランプ
-控えめ（rank3）: ブタバラ・トントロ・キムチ
-避ける（rank4）: ご飯・麺類・焼肉のタレ
-サイド（rank2）: 冷奴・生野菜サラダ・わかめスープ
+ホルモン系: ハツ・ミノ・ハチノス・センマイ・ギアラ・コブクロ・シマチョウ・マルチョウ・レバー・ハラミ・キクアブラ・ホルモン盛り合わせ（味噌ダレ）
+定番焼肉: タン・カルビ・ロース・ザブトン・イチボ・ミスジ・ランプ
+サイド: 冷奴・生野菜サラダ・わかめスープ
+控えめ（デフォルト折り畳み）: ブタバラ・トントロ・キムチ
+避ける（デフォルト折り畳み）: ご飯・麺類・焼肉のタレ
 
 1切れデフォルト15g（ホルモン盛り合わせのみ25g）。
 

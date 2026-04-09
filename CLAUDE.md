@@ -170,16 +170,55 @@ menu_items
 
 ---
 
-## 現行プロトタイプ（アーティファクト）の課題
+## v1.0.0 実装済み機能（2026-04-09）
 
-1. リロードで入力値がリセットされる
-2. メニュー写真AI分析が公開アーティファクトでは動かない（fetch制限）
-3. 残枠が自動セットされない
-4. 手動追加メニューのPFC値を後から編集できない
-5. 「とりあえず名前だけ登録→PFCは後で」ができない
-6. セッションをまたいだメニュー履歴の保持ができない
+### 主要ファイル構成
 
-→ 上記は全て外部アプリ化で解決する。
+```
+src/
+  app/
+    today/
+      page.tsx          # サーバーコンポーネント（Supabase fetch・初期データ渡し）
+      TodayClient.tsx   # メイン画面（全UIロジック）
+      actions.ts        # Server Actions（DB操作）
+    login/page.tsx
+    signup/page.tsx
+    auth/callback/route.ts  # OAuth コールバック + 初回シード
+  proxy.ts              # ミドルウェア（認証チェック + ドメイン制限）
+  lib/
+    supabase/client.ts  # ブラウザ用 Supabase クライアント
+    supabase/server.ts  # サーバー用 Supabase クライアント
+    seed.ts             # 初回ログイン時に user_settings を作成
+  types/database.ts     # FoodLogEntry 等の型定義
+presets/
+  tenryu.json           # 天竜（焼肉・28アイテム）✅
+  myfood-keto.json      # ケト定番マイフード（17アイテム）✅
+  7eleven-keto.json     # セブンイレブン 🚧
+  familymart-keto.json  # ファミリーマート 🚧
+  lawson-keto.json      # ローソン 🚧
+```
+
+### 実装済み機能一覧
+
+- 食事ログ記録（朝食/昼食/夕食/間食・PFCバーリアルタイム表示）
+- 日付ナビゲーション（過去ログ閲覧・編集・削除・過去日への追加）
+- レストラン管理（追加・削除・JSON エクスポート/インポート）
+- メニュー管理（追加・編集・削除・ランク・100g換算入力切替）
+- プリセット（GitHub raw URL から一覧取得・ワンタップインポート）
+- ユーザー設定（PFC目標値カスタマイズ・全データエクスポート）
+- 認証（Google OAuth・`@civictech.tv` ドメイン限定）
+
+### 認証・セキュリティ
+
+- Supabase Auth + Google OAuth のみ（Email 無効）
+- `proxy.ts` で `@civictech.tv` 以外は signOut してリダイレクト
+- RLS: 全テーブルで `auth.uid() = user_id`
+
+### デプロイ
+
+- Vercel: `https://ketlog.vercel.app`
+- Supabase プロジェクト: `yeqoowzlqzsjvhmjdxbw`
+- GitHub: `https://github.com/kzkski/ketolog`
 
 ---
 

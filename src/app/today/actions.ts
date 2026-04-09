@@ -142,3 +142,70 @@ export async function deleteRestaurant(
   if (error) return { error: error.message };
   return { error: null };
 }
+
+// ─── エクスポート／インポート ──────────────────────────────────────────────────
+
+export type ImportRestaurantItem = {
+  name: string;
+  protein_per_100g: number | null;
+  fat_per_100g: number | null;
+  carbs_per_100g: number | null;
+  default_grams: number;
+  rank: number;
+  notes: string | null;
+};
+
+export type ImportRestaurantEntry = {
+  name: string;
+  category: string;
+  menuItems: ImportRestaurantItem[];
+};
+
+export type ImportData = {
+  version: number;
+  restaurants: ImportRestaurantEntry[];
+};
+
+export async function importRestaurantData(data: ImportData): Promise<{
+  added: number;
+  skipped: string[];
+  newRestaurants: Restaurant[];
+  newMenuItems: MenuItem[];
+  error: string | null;
+}> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { added: 0, skipped: [], newRestaurants: [], newMenuItems: [], error: "認証が必要です" };
+
+  const { data: existing } = await supabase
+    .from("restaurants")
+    .select("name")
+    .eq("user_id", user.id);
+  const existingNames = new Set((existing ?? []).map((r: { name: string }) => r.name));
+
+  const skipped: string[] = [];
+  const newRestaurants: Restaurant[] = [];
+  const newMenuItems: MenuItem[] = [];
+
+  for (const r of data.restaurants) {
+    if (existingNames.has(r.name)) { skipped.push(r.name); continue; }
+
+    const { data: newR, error: rErr } = await supabase
+      .from("restaurants")
+      .insert({ user_id: user.id, name: r.name, category: r.category })
+      .select()
+      .single();
+    if (rErr || !newR) { skipped.push(r.name); continue; }
+    newRestaurants.push(newR as Restaurant);
+
+    if (r.menuItems.length > 0) {
+      const { data: items } = await supabase
+        .from("menu_items")
+        .insert(r.menuItems.map((item) => ({ user_id: user.id, restaurant_id: newR.id, ...item })))
+        .select();
+      if (items) newMenuItems.push(...(items as MenuItem[]));
+    }
+  }
+
+  return { added: newRestaurants.length, skipped, newRestaurants, newMenuItems, error: null };
+}

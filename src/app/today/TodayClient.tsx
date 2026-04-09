@@ -10,7 +10,9 @@ import {
   deleteMenuItem,
   addRestaurant,
   deleteRestaurant,
+  importRestaurantData,
   type MenuItemUpdate,
+  type ImportData,
 } from "./actions";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
@@ -363,6 +365,185 @@ function AddRestaurantDrawer({
   );
 }
 
+// ─── エクスポートユーティリティ ────────────────────────────────────────────────
+
+function downloadExport(restaurants: Restaurant[], menuItems: MenuItem[]) {
+  const payload: ImportData = {
+    version: 1,
+    restaurants: restaurants.map((r) => ({
+      name: r.name,
+      category: r.category,
+      menuItems: menuItems
+        .filter((m) => m.restaurant_id === r.id)
+        .map((m) => ({
+          name: m.name,
+          protein_per_100g: m.protein_per_100g,
+          fat_per_100g: m.fat_per_100g,
+          carbs_per_100g: m.carbs_per_100g,
+          default_grams: m.default_grams,
+          rank: m.rank,
+          notes: m.notes,
+        })),
+    })),
+  };
+  const date = new Date().toISOString().split("T")[0];
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ketolog-restaurants-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── データ管理ドロワー ────────────────────────────────────────────────────────
+
+type ImportPreview = {
+  toAdd: { name: string; itemCount: number }[];
+  toSkip: string[];
+  raw: ImportData;
+};
+
+function DataManagementDrawer({
+  restaurants,
+  menuItems,
+  onClose,
+  onImported,
+}: {
+  restaurants: Restaurant[];
+  menuItems: MenuItem[];
+  onClose: () => void;
+  onImported: (newRestaurants: Restaurant[], newMenuItems: MenuItem[]) => void;
+}) {
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<{ added: number; skipped: string[] } | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParseError(null);
+    setPreview(null);
+    setResult(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const raw = JSON.parse(reader.result as string) as ImportData;
+        if (!raw.version || !Array.isArray(raw.restaurants)) throw new Error("フォーマットが不正です");
+        const existingNames = new Set(restaurants.map((r) => r.name));
+        const toAdd = raw.restaurants
+          .filter((r) => !existingNames.has(r.name))
+          .map((r) => ({ name: r.name, itemCount: r.menuItems?.length ?? 0 }));
+        const toSkip = raw.restaurants
+          .filter((r) => existingNames.has(r.name))
+          .map((r) => r.name);
+        setPreview({ toAdd, toSkip, raw });
+      } catch {
+        setParseError("JSONの読み込みに失敗しました。ファイルを確認してください。");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleImport() {
+    if (!preview) return;
+    setImporting(true);
+    const res = await importRestaurantData(preview.raw);
+    if (res.error) { setParseError(res.error); setImporting(false); return; }
+    setResult({ added: res.added, skipped: res.skipped });
+    onImported(res.newRestaurants, res.newMenuItems);
+    setImporting(false);
+    setPreview(null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[80svh]">
+        <div className="flex-none flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-600 rounded-full" />
+        </div>
+        <div className="flex-none flex items-center justify-between px-4 pb-3 border-b border-gray-800">
+          <h2 className="text-base font-semibold text-white">データ管理</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">閉じる</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {/* エクスポート */}
+          <div>
+            <h3 className="text-sm font-medium text-white mb-1">エクスポート</h3>
+            <p className="text-xs text-gray-400 mb-3">
+              全レストラン（{restaurants.length}店舗・{menuItems.length}アイテム）をJSONファイルで書き出します。
+            </p>
+            <button
+              onClick={() => downloadExport(restaurants, menuItems)}
+              className="w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors">
+              JSONをダウンロード
+            </button>
+          </div>
+
+          {/* インポート */}
+          <div>
+            <h3 className="text-sm font-medium text-white mb-1">インポート</h3>
+            <p className="text-xs text-gray-400 mb-3">
+              同名のレストランはスキップされます。新しいレストランとそのメニューが追加されます。
+            </p>
+            <label className="block w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg text-center cursor-pointer transition-colors">
+              JSONファイルを選択
+              <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={handleFileChange} />
+            </label>
+
+            {parseError && <p className="mt-2 text-red-400 text-xs">{parseError}</p>}
+
+            {preview && !result && (
+              <div className="mt-3 bg-gray-800 rounded-lg p-3 space-y-2">
+                {preview.toAdd.length > 0 ? (
+                  <>
+                    <p className="text-xs text-emerald-400 font-medium">追加される店舗（{preview.toAdd.length}件）:</p>
+                    <ul className="text-xs text-gray-300 space-y-0.5">
+                      {preview.toAdd.map((r) => (
+                        <li key={r.name}>• {r.name}（{r.itemCount}アイテム）</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400">追加できる新しい店舗はありません。</p>
+                )}
+                {preview.toSkip.length > 0 && (
+                  <>
+                    <p className="text-xs text-amber-400 font-medium mt-1">スキップ（既存）:</p>
+                    <p className="text-xs text-gray-400">{preview.toSkip.join("、")}</p>
+                  </>
+                )}
+                {preview.toAdd.length > 0 && (
+                  <button onClick={handleImport} disabled={importing}
+                    className="mt-2 w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+                    {importing ? "インポート中..." : "インポート実行"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {result && (
+              <div className="mt-3 bg-gray-800 rounded-lg p-3">
+                <p className="text-sm text-emerald-400 font-medium">
+                  {result.added}店舗をインポートしました
+                </p>
+                {result.skipped.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">スキップ: {result.skipped.join("、")}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── メニューアイテム行 ────────────────────────────────────────────────────────
 
 const RANK_ICON: Record<number, { icon: string; className: string }> = {
@@ -474,6 +655,7 @@ export default function TodayClient({
   const [showAddRestaurant, setShowAddRestaurant] = useState(false);
   const [deletingRestaurant, setDeletingRestaurant] = useState(false);
   const [confirmDeleteRestaurant, setConfirmDeleteRestaurant] = useState(false);
+  const [showDataManagement, setShowDataManagement] = useState(false);
 
   const selectedRestaurant = restaurants.find((r) => r.id === selectedRestaurantId);
 
@@ -626,6 +808,10 @@ export default function TodayClient({
             className="px-3 py-2.5 text-gray-500 hover:text-white shrink-0 transition-colors text-lg leading-none">
             ＋
           </button>
+          <button onClick={() => setShowDataManagement(true)}
+            className="px-3 py-2.5 text-gray-500 hover:text-white shrink-0 transition-colors text-sm leading-none">
+            ⚙
+          </button>
         </div>
 
         {/* メニューリスト */}
@@ -774,6 +960,20 @@ export default function TodayClient({
           onAdded={(r) => {
             setRestaurants((prev) => [...prev, r]);
             setSelectedRestaurantId(r.id);
+          }}
+        />
+      )}
+
+      {/* データ管理ドロワー */}
+      {showDataManagement && (
+        <DataManagementDrawer
+          restaurants={restaurants}
+          menuItems={menuItems}
+          onClose={() => setShowDataManagement(false)}
+          onImported={(newRestaurants, newMenuItems) => {
+            setRestaurants((prev) => [...prev, ...newRestaurants]);
+            setMenuItems((prev) => [...prev, ...newMenuItems]);
+            if (newRestaurants.length > 0) setSelectedRestaurantId(newRestaurants[0].id);
           }}
         />
       )}

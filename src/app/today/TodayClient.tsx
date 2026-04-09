@@ -369,9 +369,25 @@ function AddRestaurantDrawer({
 
 // ─── エクスポートユーティリティ ────────────────────────────────────────────────
 
+const EXPORT_SCHEMA = {
+  _schema: {
+    description: "Ketolog restaurant export v1 — このファイルをそのまま編集してインポートできます",
+    name: "string (必須, 最大50文字) — お店の名前",
+    category: "string (必須) — external（外食）/ homemade（自炊）/ convenience（コンビニ）/ other（その他）のいずれか",
+    "menuItems[].name": "string (必須, 最大100文字) — メニューアイテム名",
+    "menuItems[].protein_per_100g": "number or null — 100gあたりタンパク質 (g)",
+    "menuItems[].fat_per_100g": "number or null — 100gあたり脂質 (g)",
+    "menuItems[].carbs_per_100g": "number or null — 100gあたり糖質 (g)",
+    "menuItems[].default_grams": "number (必須, 1以上) — 1回分のデフォルト重量 (g)",
+    "menuItems[].rank": "1〜4の整数 (必須) — 1=◎最優先 / 2=○通常 / 3=△控えめ / 4=✕避ける",
+    "menuItems[].notes": "string or null — メモ（任意）",
+  },
+} as const;
+
 function downloadRestaurantJson(restaurant: Restaurant, menuItems: MenuItem[]) {
   const payload = {
     version: 1,
+    ...EXPORT_SCHEMA,
     name: restaurant.name,
     category: restaurant.category,
     menuItems: menuItems
@@ -405,13 +421,27 @@ type SingleRestaurantJson = {
   menuItems: ImportRestaurantItem[];
 };
 
-function parseSingleRestaurantJson(text: string): SingleRestaurantJson | null {
+function parseSingleRestaurantJson(text: string): SingleRestaurantJson | { error: string } {
   try {
     const raw = JSON.parse(text);
-    if (!raw.version || typeof raw.name !== "string" || !Array.isArray(raw.menuItems)) return null;
+    if (!raw.version || typeof raw.name !== "string" || !Array.isArray(raw.menuItems)) {
+      return { error: "フォーマットが正しくありません（version / name / menuItems が必要です）" };
+    }
+    const invalidItems = (raw.menuItems as ImportRestaurantItem[])
+      .map((item, i) => {
+        if (item.rank < 1 || item.rank > 4 || !Number.isInteger(item.rank)) {
+          return `${i + 1}番目「${item.name}」の rank が不正です（1〜4の整数を指定してください）`;
+        }
+        if (typeof item.default_grams !== "number" || item.default_grams <= 0) {
+          return `${i + 1}番目「${item.name}」の default_grams が不正です（1以上の数値を指定してください）`;
+        }
+        return null;
+      })
+      .filter(Boolean);
+    if (invalidItems.length > 0) return { error: invalidItems.join("\n") };
     return raw as SingleRestaurantJson;
   } catch {
-    return null;
+    return { error: "JSONの解析に失敗しました。ファイルの形式を確認してください。" };
   }
 }
 
@@ -470,7 +500,7 @@ function ImportRestaurantDrawer({
     const reader = new FileReader();
     reader.onload = () => {
       const result = parseSingleRestaurantJson(reader.result as string);
-      if (!result) { setParseError("JSONの形式が正しくありません。"); return; }
+      if ("error" in result) { setParseError(result.error); return; }
       setParsed(result);
     };
     reader.readAsText(file);
@@ -550,7 +580,7 @@ function ImportMenuItemsDrawer({
     const reader = new FileReader();
     reader.onload = () => {
       const result = parseSingleRestaurantJson(reader.result as string);
-      if (!result) { setParseError("JSONの形式が正しくありません。"); return; }
+      if ("error" in result) { setParseError(result.error); return; }
       setParsed(result);
     };
     reader.readAsText(file);

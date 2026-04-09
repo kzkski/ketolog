@@ -135,6 +135,9 @@ function MenuItemDrawer({
   const [groupName, setGroupName] = useState(existing?.group_name ?? "");
   const [notes, setNotes]         = useState(existing?.notes ?? "");
   const [mode, setMode]       = useState<NutrientMode>("per100g");
+  const [rawP, setRawP]       = useState<string | null>(null);
+  const [rawF, setRawF]       = useState<string | null>(null);
+  const [rawC, setRawC]       = useState<string | null>(null);
   const [saving, setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -144,11 +147,17 @@ function MenuItemDrawer({
   const displayF = mode === "per100g" ? fat     : toServing(fat,     grams);
   const displayC = mode === "per100g" ? carbs   : toServing(carbs,   grams);
 
-  function handleNutrientChange(field: "p" | "f" | "c", val: string) {
-    const stored = mode === "per100g" ? val : to100g(val, grams);
-    if (field === "p") setProtein(stored);
-    if (field === "f") setFat(stored);
-    if (field === "c") setCarbs(stored);
+  function handleModeChange(m: NutrientMode) {
+    setRawP(null); setRawF(null); setRawC(null);
+    setMode(m);
+  }
+
+  function commitNutrient(field: "p" | "f" | "c", raw: string | null) {
+    if (raw === null) return;
+    const stored = mode === "per100g" ? raw : to100g(raw, grams);
+    if (field === "p") { setProtein(stored); setRawP(null); }
+    if (field === "f") { setFat(stored);     setRawF(null); }
+    if (field === "c") { setCarbs(stored);   setRawC(null); }
   }
 
   async function handleSave() {
@@ -227,7 +236,7 @@ function MenuItemDrawer({
               <label className="text-xs text-gray-400">栄養素</label>
               <div className="flex rounded-lg overflow-hidden border border-gray-700 text-xs">
                 {(["per100g", "perServing"] as NutrientMode[]).map((m) => (
-                  <button key={m} onClick={() => setMode(m)}
+                  <button key={m} onClick={() => handleModeChange(m)}
                     className={`px-2.5 py-1 transition-colors ${mode === m ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>
                     {m === "per100g" ? "100gあたり" : `1回分（${isNaN(gramsNum) ? "?" : gramsNum}g）`}
                   </button>
@@ -235,15 +244,16 @@ function MenuItemDrawer({
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "P タンパク質", display: displayP, field: "p" as const },
-                { label: "F 脂質",       display: displayF, field: "f" as const },
-                { label: "C 糖質",       display: displayC, field: "c" as const },
-              ].map(({ label, display, field }) => (
+              {([
+                { label: "P タンパク質", display: displayP, field: "p" as const, raw: rawP, setRaw: setRawP },
+                { label: "F 脂質",       display: displayF, field: "f" as const, raw: rawF, setRaw: setRawF },
+                { label: "C 糖質",       display: displayC, field: "c" as const, raw: rawC, setRaw: setRawC },
+              ] as const).map(({ label, display, field, raw, setRaw }) => (
                 <div key={field}>
                   <p className="text-xs text-gray-500 mb-1">{label}</p>
-                  <input type="number" value={display} placeholder="—"
-                    onChange={(e) => handleNutrientChange(field, e.target.value)}
+                  <input type="number" value={raw ?? display} placeholder="—"
+                    onChange={(e) => setRaw(e.target.value)}
+                    onBlur={() => commitNutrient(field, raw)}
                     className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-white text-sm text-center focus:outline-none focus:border-emerald-500" />
                 </div>
               ))}
@@ -779,14 +789,15 @@ const RANK_ICON: Record<number, { icon: string; className: string }> = {
 
 function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit }: {
   item: MenuItem; entry: CartEntry | undefined;
-  onAdd: () => void; onRemove: () => void;
+  onAdd: (grams: number) => void; onRemove: () => void;
   onChangeGrams: (g: number) => void; onEdit: () => void;
 }) {
   const [editingGrams, setEditingGrams] = useState(false);
   const [gramsInput, setGramsInput] = useState("");
+  const [localGrams, setLocalGrams] = useState(item.default_grams);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const displayGrams = entry?.gramsPerServing ?? item.default_grams;
+  const displayGrams = entry?.gramsPerServing ?? localGrams;
   const serving = pfc(item, displayGrams);
   const count = entry?.count ?? 0;
   const rank = RANK_ICON[item.rank] ?? RANK_ICON[2];
@@ -799,7 +810,13 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit }: {
 
   function commitGramsEdit() {
     const val = parseFloat(gramsInput);
-    if (!isNaN(val) && val > 0) onChangeGrams(val);
+    if (!isNaN(val) && val > 0) {
+      if (entry) {
+        onChangeGrams(val);
+      } else {
+        setLocalGrams(val);
+      }
+    }
     setEditingGrams(false);
   }
 
@@ -831,7 +848,7 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit }: {
       </div>
 
       {count === 0 ? (
-        <button onClick={onAdd}
+        <button onClick={() => onAdd(displayGrams)}
           className="w-8 h-8 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-lg font-bold shrink-0">
           +
         </button>
@@ -840,7 +857,7 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit }: {
           <button onClick={onRemove}
             className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-white">−</button>
           <span className="w-5 text-center text-sm font-bold text-emerald-400 tabular-nums">{count}</span>
-          <button onClick={onAdd}
+          <button onClick={() => onAdd(displayGrams)}
             className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white">+</button>
         </div>
       )}
@@ -1199,12 +1216,12 @@ export default function TodayClient({
   }, [menuItems, selectedRestaurantId]);
 
   // ── カート操作 ──────────────────────────────────────────────────────────────
-  function addItem(item: MenuItem) {
+  function addItem(item: MenuItem, grams: number) {
     setCart((prev) => {
       const next = new Map(prev);
       const existing = next.get(item.id);
       if (existing) next.set(item.id, { ...existing, count: existing.count + 1 });
-      else next.set(item.id, { item, count: 1, gramsPerServing: item.default_grams });
+      else next.set(item.id, { item, count: 1, gramsPerServing: grams });
       return next;
     });
   }
@@ -1237,12 +1254,12 @@ export default function TodayClient({
       if (idx >= 0) return prev.map((m) => m.id === saved.id ? saved : m);
       return [...prev, saved]; // 追加の場合
     });
-    // カートにあれば更新
+    // カートにあれば item を更新（gramsPerServing はユーザーの手動編集値を保持）
     setCart((prev) => {
       const entry = prev.get(saved.id);
       if (!entry) return prev;
       const next = new Map(prev);
-      next.set(saved.id, { ...entry, item: saved, gramsPerServing: saved.default_grams });
+      next.set(saved.id, { ...entry, item: saved });
       return next;
     });
   }
@@ -1419,7 +1436,7 @@ export default function TodayClient({
             if (group.groupName === null) {
               return group.items.map((item) => (
                 <MenuItemRow key={item.id} item={item} entry={cart.get(item.id)}
-                  onAdd={() => addItem(item)} onRemove={() => removeItem(item.id)}
+                  onAdd={(g) => addItem(item, g)} onRemove={() => removeItem(item.id)}
                   onChangeGrams={(g) => updateGrams(item.id, g)}
                   onEdit={() => setItemDrawer({ kind: "edit", item })} />
               ));
@@ -1446,7 +1463,7 @@ export default function TodayClient({
                 </button>
                 {!isCollapsed && group.items.map((item) => (
                   <MenuItemRow key={item.id} item={item} entry={cart.get(item.id)}
-                    onAdd={() => addItem(item)} onRemove={() => removeItem(item.id)}
+                    onAdd={(g) => addItem(item, g)} onRemove={() => removeItem(item.id)}
                     onChangeGrams={(g) => updateGrams(item.id, g)}
                     onEdit={() => setItemDrawer({ kind: "edit", item })} />
                 ))}

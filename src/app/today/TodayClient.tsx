@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import type { MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
+import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 import {
   saveMealToLog,
   updateMenuItem,
@@ -12,6 +12,9 @@ import {
   deleteRestaurant,
   importRestaurantData,
   importMenuItemsToRestaurant,
+  getFoodLogForDate,
+  deleteFoodLogEntry,
+  updateFoodLogEntry,
   type MenuItemUpdate,
   type ImportData,
   type ImportRestaurantItem,
@@ -744,6 +747,128 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit }: {
   );
 }
 
+// ─── 日付ユーティリティ ────────────────────────────────────────────────────────
+
+const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
+function formatNavDate(dateStr: string, today: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  const label = `${d.getMonth() + 1}/${d.getDate()}（${DAY_LABELS[d.getDay()]}）`;
+  return dateStr === today ? `今日 ${label}` : label;
+}
+
+function addDays(dateStr: string, delta: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + delta);
+  return d.toLocaleDateString("sv-SE");
+}
+
+// ─── 食事ログ エントリ行 ────────────────────────────────────────────────────────
+
+function LogEntryRow({
+  entry,
+  onEdit,
+  onDelete,
+}: {
+  entry: FoodLogEntry;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-800/40">
+      <span className="flex-1 text-sm text-white truncate">{entry.item_name}</span>
+      <span className="text-xs text-gray-400 shrink-0">{entry.grams}g</span>
+      <span className="text-xs text-gray-500 shrink-0 tabular-nums w-28 text-right">
+        P{fmt(entry.protein_g)} F{fmt(entry.fat_g)} C{fmt(entry.carbs_g)}
+      </span>
+      <button onClick={onEdit} className="text-gray-400 hover:text-white text-xs px-1 shrink-0">✎</button>
+      <button onClick={onDelete} className="text-red-400 hover:text-red-300 text-xs px-1 shrink-0">✕</button>
+    </div>
+  );
+}
+
+// ─── 食事ログ エントリ編集ドロワー ─────────────────────────────────────────────
+
+function EditEntryDrawer({
+  entry,
+  onClose,
+  onSaved,
+}: {
+  entry: FoodLogEntry;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [grams, setGrams]       = useState(entry.grams.toString());
+  const [mealType, setMealType] = useState(entry.meal_type);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+
+  const gramsNum = parseFloat(grams);
+  const oldGrams = entry.grams || 1;
+  const pPer100 = (entry.protein_g ?? 0) * 100 / oldGrams;
+  const fPer100 = (entry.fat_g ?? 0) * 100 / oldGrams;
+  const cPer100 = (entry.carbs_g ?? 0) * 100 / oldGrams;
+  const preview = isNaN(gramsNum) || gramsNum <= 0 ? null : {
+    p: pPer100 * gramsNum / 100,
+    f: fPer100 * gramsNum / 100,
+    c: cPer100 * gramsNum / 100,
+  };
+
+  async function handleSave() {
+    if (isNaN(gramsNum) || gramsNum <= 0) { setError("グラム数を正しく入力してください"); return; }
+    setSaving(true); setError(null);
+    const result = await updateFoodLogEntry(entry.id, gramsNum, mealType);
+    if (result.error) { setError(result.error); setSaving(false); return; }
+    onSaved();
+    onClose();
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col">
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-600 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between px-4 pb-3 border-b border-gray-800">
+          <h2 className="text-base font-semibold text-white truncate pr-4">{entry.item_name}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm shrink-0">キャンセル</button>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">食事タイプ</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {(Object.keys(MEAL_LABELS) as MealType[]).map((t) => (
+                <button key={t} onClick={() => setMealType(t)}
+                  className={`py-2 rounded-lg text-xs font-medium transition-colors ${mealType === t ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>
+                  {MEAL_LABELS[t]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">グラム数</label>
+            <input type="number" value={grams} onChange={(e) => setGrams(e.target.value)}
+              className="w-28 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+            {preview && (
+              <p className="text-xs text-gray-500 mt-1.5 tabular-nums">
+                → P{fmt(preview.p)} / F{fmt(preview.f)} / C{fmt(preview.c)}g
+              </p>
+            )}
+          </div>
+          {error && <p className="text-red-400 text-xs">{error}</p>}
+        </div>
+        <div className="px-4 py-4 border-t border-gray-800">
+          <button onClick={handleSave} disabled={saving}
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors text-sm">
+            {saving ? "保存中..." : "保存する"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── メインコンポーネント ───────────────────────────────────────────────────────
 
 interface Props {
@@ -752,6 +877,7 @@ interface Props {
   settings: UserSettings;
   todayConsumed: TodayConsumed;
   today: string;
+  initialLogEntries: FoodLogEntry[];
 }
 
 export default function TodayClient({
@@ -760,6 +886,7 @@ export default function TodayClient({
   settings,
   todayConsumed,
   today,
+  initialLogEntries,
 }: Props) {
   const router = useRouter();
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
@@ -775,6 +902,14 @@ export default function TodayClient({
   const [deletingRestaurant, setDeletingRestaurant] = useState(false);
   const [confirmDeleteRestaurant, setConfirmDeleteRestaurant] = useState(false);
   const [showImportMenuItems, setShowImportMenuItems] = useState(false);
+
+  // ── 日付ナビゲーション ────────────────────────────────────────────────────
+  const [selectedDate, setSelectedDate]       = useState(today);
+  const [consumedForDate, setConsumedForDate] = useState(todayConsumed);
+  const [logEntries, setLogEntries]           = useState<FoodLogEntry[]>(initialLogEntries);
+  const [loadingDate, setLoadingDate]         = useState(false);
+  const [showLogEntries, setShowLogEntries]   = useState(false);
+  const [editingEntry, setEditingEntry]       = useState<FoodLogEntry | null>(null);
 
   type RestaurantAddSheet = "choice" | "manual" | "import" | null;
   const [restaurantAddSheet, setRestaurantAddSheet] = useState<RestaurantAddSheet>(null);
@@ -794,9 +929,9 @@ export default function TodayClient({
   }, [cart]);
 
   const totalPFC = {
-    p: todayConsumed.protein + cartPFC.p,
-    f: todayConsumed.fat + cartPFC.f,
-    c: todayConsumed.carbs + cartPFC.c,
+    p: consumedForDate.protein + cartPFC.p,
+    f: consumedForDate.fat + cartPFC.f,
+    c: consumedForDate.carbs + cartPFC.c,
   };
 
   const cartEntries = useMemo(() => Array.from(cart.values()).filter((e) => e.count > 0), [cart]);
@@ -881,6 +1016,35 @@ export default function TodayClient({
     setDeletingRestaurant(false);
   }
 
+  // ── 日付ナビ ────────────────────────────────────────────────────────────────
+  async function navigateDate(delta: number) {
+    const newDate = addDays(selectedDate, delta);
+    if (newDate > today) return;
+    setSelectedDate(newDate);
+    setLoadingDate(true);
+    const result = await getFoodLogForDate(newDate);
+    setLoadingDate(false);
+    if (!result.error) {
+      setConsumedForDate(result.consumed);
+      setLogEntries(result.entries);
+      setShowLogEntries(newDate !== today);
+    }
+  }
+
+  async function refreshLogForDate(date: string) {
+    const result = await getFoodLogForDate(date);
+    if (!result.error) {
+      setConsumedForDate(result.consumed);
+      setLogEntries(result.entries);
+    }
+  }
+
+  async function handleDeleteEntry(id: string) {
+    const result = await deleteFoodLogEntry(id);
+    if (result.error) { alert(result.error); return; }
+    await refreshLogForDate(selectedDate);
+  }
+
   // ── 食事記録保存 ────────────────────────────────────────────────────────────
   async function handleSave() {
     if (!hasCart || saving) return;
@@ -890,23 +1054,70 @@ export default function TodayClient({
       const v = pfc(entry.item, totalGrams);
       return { menuItemId: entry.item.id, name: entry.item.name, totalGrams, proteinG: v.p, fatG: v.f, carbsG: v.c, restaurantId: entry.item.restaurant_id };
     });
-    const { error } = await saveMealToLog(items, mealType, today);
+    const { error } = await saveMealToLog(items, mealType, selectedDate);
     if (error) { alert(`保存に失敗しました: ${error}`); setSaving(false); return; }
     setCart(new Map());
+    await refreshLogForDate(selectedDate);
     setSaving(false);
-    router.refresh();
   }
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
     <>
       <div className="flex-1 flex flex-col min-h-0">
+        {/* 日付ナビゲーション */}
+        <div className="flex-none flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-900">
+          <button onClick={() => navigateDate(-1)} disabled={loadingDate}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-lg">
+            ‹
+          </button>
+          <span className="text-sm font-medium text-white">
+            {loadingDate ? "読込中..." : formatNavDate(selectedDate, today)}
+          </span>
+          <button onClick={() => navigateDate(1)} disabled={selectedDate >= today || loadingDate}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-lg">
+            ›
+          </button>
+        </div>
+
         {/* PFCバー */}
         <div className="flex-none px-4 py-3 bg-gray-900 border-b border-gray-800 space-y-1.5">
           <PFCBar label="P" current={totalPFC.p} target={settings.protein_target_g} color="bg-blue-500" />
           <PFCBar label="F" current={totalPFC.f} target={settings.fat_target_g}     color="bg-yellow-500" />
           <PFCBar label="C" current={totalPFC.c} target={settings.carbs_target_g}   color="bg-emerald-500" />
         </div>
+
+        {/* 記録済みパネル */}
+        {logEntries.length > 0 && (
+          <div className="flex-none border-b border-gray-800">
+            <button onClick={() => setShowLogEntries((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-400 hover:text-white transition-colors">
+              <span>この日の記録（{logEntries.length}件）</span>
+              <span>{showLogEntries ? "▲" : "▼"}</span>
+            </button>
+            {showLogEntries && (
+              <div className="max-h-52 overflow-y-auto">
+                {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map((mt) => {
+                  const items = logEntries.filter((e) => e.meal_type === mt);
+                  if (!items.length) return null;
+                  return (
+                    <div key={mt}>
+                      <p className="px-4 py-1 text-xs text-gray-500 bg-gray-900/50">{MEAL_LABELS[mt]}</p>
+                      {items.map((entry) => (
+                        <LogEntryRow
+                          key={entry.id}
+                          entry={entry}
+                          onEdit={() => setEditingEntry(entry)}
+                          onDelete={() => handleDeleteEntry(entry.id)}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 食事タイプ タブ */}
         <div className="flex-none flex border-b border-gray-800">
@@ -1130,6 +1341,15 @@ export default function TodayClient({
             setMenuItems((prev) => [...prev, ...items]);
             setShowImportMenuItems(false);
           }}
+        />
+      )}
+
+      {/* 食事ログ エントリ編集 */}
+      {editingEntry && (
+        <EditEntryDrawer
+          entry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSaved={() => refreshLogForDate(selectedDate)}
         />
       )}
     </>

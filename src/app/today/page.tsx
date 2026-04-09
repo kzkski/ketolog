@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
 import LogoutButton from "./LogoutButton";
-import type { MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
+import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 
 export default async function TodayPage() {
   const supabase = await createClient();
@@ -24,9 +24,10 @@ export default async function TodayPage() {
       .order("order_count", { ascending: false }),
     supabase
       .from("food_log")
-      .select("protein_g, fat_g, carbs_g")
+      .select("*")
       .eq("user_id", user.id)
-      .eq("date", today),
+      .eq("date", today)
+      .order("created_at", { ascending: true }),
   ]);
 
   const settings: UserSettings = settingsRes.data ?? {
@@ -47,7 +48,8 @@ export default async function TodayPage() {
 
   const menuItems: MenuItem[] = menuItemsRes.data ?? [];
 
-  const todayConsumed: TodayConsumed = (foodLogRes.data ?? []).reduce(
+  const logEntries: FoodLogEntry[] = (foodLogRes.data ?? []) as FoodLogEntry[];
+  const todayConsumed: TodayConsumed = logEntries.reduce(
     (acc, row) => ({
       protein: acc.protein + (row.protein_g ?? 0),
       fat: acc.fat + (row.fat_g ?? 0),
@@ -57,8 +59,7 @@ export default async function TodayPage() {
   );
 
   return (
-    // max-w-md でモバイルサイズに制限、デスクトップでは中央寄せ＋サイドボーダー
-    <div className="flex flex-col h-svh bg-gray-950 max-w-md mx-auto border-x border-gray-800">
+    <div className="flex flex-col h-svh bg-gray-950 w-full">
       <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <h1 className="text-base font-bold text-white">Ketolog</h1>
         <LogoutButton />
@@ -69,6 +70,7 @@ export default async function TodayPage() {
         settings={settings}
         todayConsumed={todayConsumed}
         today={today}
+        initialLogEntries={logEntries}
       />
     </div>
   );

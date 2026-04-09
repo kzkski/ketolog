@@ -30,3 +30,16 @@ export type TodayConsumed = {
   fat: number;
   carbs: number;
 };
+
+export type FoodLogEntry = {
+  id: string;
+  date: string;
+  meal_type: string;
+  item_name: string;
+  grams: number;
+  protein_g: number;
+  fat_g: number;
+  carbs_g: number;
+  source: string | null;
+  menu_item_id: string | null;
+};

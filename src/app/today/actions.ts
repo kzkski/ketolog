@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import type { MenuItem, Restaurant } from "@/types/database";
+import type { FoodLogEntry, MenuItem, Restaurant, TodayConsumed } from "@/types/database";
 
 export type SaveItem = {
   menuItemId: string;
@@ -36,6 +36,92 @@ export async function saveMealToLog(
       menu_item_id: item.menuItemId,
     }))
   );
+
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+// ─── 食事ログ操作 ─────────────────────────────────────────────────────────────
+
+export async function getFoodLogForDate(date: string): Promise<{
+  entries: FoodLogEntry[];
+  consumed: TodayConsumed;
+  error: string | null;
+}> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { entries: [], consumed: { protein: 0, fat: 0, carbs: 0 }, error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("food_log")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("date", date)
+    .order("created_at", { ascending: true });
+
+  if (error) return { entries: [], consumed: { protein: 0, fat: 0, carbs: 0 }, error: error.message };
+
+  const entries = (data ?? []) as FoodLogEntry[];
+  const consumed = entries.reduce(
+    (acc, row) => ({
+      protein: acc.protein + (row.protein_g ?? 0),
+      fat: acc.fat + (row.fat_g ?? 0),
+      carbs: acc.carbs + (row.carbs_g ?? 0),
+    }),
+    { protein: 0, fat: 0, carbs: 0 }
+  );
+  return { entries, consumed, error: null };
+}
+
+export async function deleteFoodLogEntry(id: string): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "認証が必要です" };
+
+  const { error } = await supabase
+    .from("food_log")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+export async function updateFoodLogEntry(
+  id: string,
+  newGrams: number,
+  newMealType: string
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "認証が必要です" };
+
+  const { data: entry, error: fetchError } = await supabase
+    .from("food_log")
+    .select("grams, protein_g, fat_g, carbs_g")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (fetchError || !entry) return { error: fetchError?.message ?? "記録が見つかりません" };
+
+  const oldGrams = entry.grams || 1;
+  const pPer100 = (entry.protein_g ?? 0) * 100 / oldGrams;
+  const fPer100 = (entry.fat_g ?? 0) * 100 / oldGrams;
+  const cPer100 = (entry.carbs_g ?? 0) * 100 / oldGrams;
+
+  const { error } = await supabase
+    .from("food_log")
+    .update({
+      grams: newGrams,
+      meal_type: newMealType,
+      protein_g: pPer100 * newGrams / 100,
+      fat_g: fPer100 * newGrams / 100,
+      carbs_g: cPer100 * newGrams / 100,
+    })
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) return { error: error.message };
   return { error: null };

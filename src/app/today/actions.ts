@@ -209,3 +209,20 @@ export async function importRestaurantData(data: ImportData): Promise<{
 
   return { added: newRestaurants.length, skipped, newRestaurants, newMenuItems, error: null };
 }
+
+export async function importMenuItemsToRestaurant(
+  restaurantId: string,
+  items: ImportRestaurantItem[]
+): Promise<{ newMenuItems: MenuItem[]; error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { newMenuItems: [], error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("menu_items")
+    .insert(items.map((item) => ({ user_id: user.id, restaurant_id: restaurantId, ...item })))
+    .select();
+
+  if (error) return { newMenuItems: [], error: error.message };
+  return { newMenuItems: (data ?? []) as MenuItem[], error: null };
+}

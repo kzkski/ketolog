@@ -23,6 +23,8 @@ export type MenuItem = {
   order_count: number;
   rank: number;
   notes: string | null;
+  group_name: string | null;
+  group_order: number;
 };
 
 export type TodayConsumed = {

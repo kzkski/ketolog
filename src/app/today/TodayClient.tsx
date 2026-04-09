@@ -131,8 +131,9 @@ function MenuItemDrawer({
   const [fat, setFat]         = useState(existing?.fat_per_100g?.toString() ?? "");
   const [carbs, setCarbs]     = useState(existing?.carbs_per_100g?.toString() ?? "");
   const [grams, setGrams]     = useState(existing?.default_grams?.toString() ?? "100");
-  const [rank, setRank]       = useState(existing?.rank ?? 2);
-  const [notes, setNotes]     = useState(existing?.notes ?? "");
+  const [rank, setRank]           = useState(existing?.rank ?? 2);
+  const [groupName, setGroupName] = useState(existing?.group_name ?? "");
+  const [notes, setNotes]         = useState(existing?.notes ?? "");
   const [mode, setMode]       = useState<NutrientMode>("per100g");
   const [saving, setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -161,6 +162,7 @@ function MenuItemDrawer({
       default_grams: parseFloat(grams) || 100,
       rank,
       notes: notes.trim() || null,
+      group_name: groupName.trim() || null,
     };
 
     if (isEdit && existing) {
@@ -259,6 +261,13 @@ function MenuItemDrawer({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">グループ名（任意）</label>
+            <input type="text" value={groupName} onChange={(e) => setGroupName(e.target.value)}
+              placeholder="例: ホルモン系"
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
           </div>
 
           <div>
@@ -405,6 +414,7 @@ function downloadRestaurantJson(restaurant: Restaurant, menuItems: MenuItem[]) {
         default_grams: m.default_grams,
         rank: m.rank,
         notes: m.notes,
+        group: m.group_name,
       })),
   };
   const date = new Date().toISOString().split("T")[0];
@@ -1079,6 +1089,7 @@ function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]
           default_grams: m.default_grams,
           rank: m.rank,
           notes: m.notes,
+          group: m.group_name,
         })),
     })),
   };
@@ -1120,8 +1131,7 @@ export default function TodayClient({
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(initialRestaurants[0]?.id ?? "");
   const [cart, setCart]             = useState<Map<string, CartEntry>>(new Map());
   const [mealType, setMealType]     = useState<MealType>(getCurrentMealType());
-  const [showRank3, setShowRank3]   = useState(false);
-  const [showRank4, setShowRank4]   = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(["控えめ", "避ける"]));
   const [saving, setSaving]         = useState(false);
   const [cartExpanded, setCartExpanded] = useState(true);
   const [itemDrawer, setItemDrawer] = useState<ItemDrawerState | null>(null);
@@ -1164,15 +1174,27 @@ export default function TodayClient({
   const hasCart = cartEntries.length > 0;
 
   // ── メニュー表示 ────────────────────────────────────────────────────────────
-  const visibleItems = useMemo(() => {
-    return menuItems
-      .filter((item) => item.restaurant_id === selectedRestaurantId)
-      .sort((a, b) => a.rank !== b.rank ? a.rank - b.rank : b.order_count - a.order_count);
-  }, [menuItems, selectedRestaurantId]);
+  type MenuGroup = { groupName: string | null; groupOrder: number; items: MenuItem[] };
 
-  const rank1and2 = visibleItems.filter((i) => i.rank <= 2);
-  const rank3     = visibleItems.filter((i) => i.rank === 3);
-  const rank4     = visibleItems.filter((i) => i.rank === 4);
+  const menuGroups = useMemo((): MenuGroup[] => {
+    const items = menuItems.filter((item) => item.restaurant_id === selectedRestaurantId);
+    const groupMap = new Map<string | null, MenuGroup>();
+
+    for (const item of items) {
+      const key = item.group_name;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, { groupName: key, groupOrder: item.group_order, items: [] });
+      }
+      groupMap.get(key)!.items.push(item);
+    }
+
+    return Array.from(groupMap.values())
+      .sort((a, b) => {
+        if (a.groupName === null) return -1;
+        if (b.groupName === null) return 1;
+        return a.groupOrder - b.groupOrder;
+      });
+  }, [menuItems, selectedRestaurantId]);
 
   // ── カート操作 ──────────────────────────────────────────────────────────────
   function addItem(item: MenuItem) {
@@ -1391,44 +1413,44 @@ export default function TodayClient({
 
         {/* メニューリスト */}
         <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-          {rank1and2.map((item) => (
-            <MenuItemRow key={item.id} item={item} entry={cart.get(item.id)}
-              onAdd={() => addItem(item)} onRemove={() => removeItem(item.id)}
-              onChangeGrams={(g) => updateGrams(item.id, g)}
-              onEdit={() => setItemDrawer({ kind: "edit", item })} />
-          ))}
-
-          {rank3.length > 0 && (
-            <>
-              <button onClick={() => setShowRank3((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-2 text-amber-400 text-xs bg-gray-900/50 border-b border-gray-800/60">
-                <span>△ 控えめ（{rank3.length}品）</span>
-                <span>{showRank3 ? "▲" : "▼"}</span>
-              </button>
-              {showRank3 && rank3.map((item) => (
+          {menuGroups.map((group) => {
+            if (group.groupName === null) {
+              return group.items.map((item) => (
                 <MenuItemRow key={item.id} item={item} entry={cart.get(item.id)}
                   onAdd={() => addItem(item)} onRemove={() => removeItem(item.id)}
                   onChangeGrams={(g) => updateGrams(item.id, g)}
                   onEdit={() => setItemDrawer({ kind: "edit", item })} />
-              ))}
-            </>
-          )}
-
-          {rank4.length > 0 && (
-            <>
-              <button onClick={() => setShowRank4((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-2 text-red-400 text-xs bg-gray-900/50 border-b border-gray-800/60">
-                <span>✕ 避ける（{rank4.length}品）</span>
-                <span>{showRank4 ? "▲" : "▼"}</span>
-              </button>
-              {showRank4 && rank4.map((item) => (
-                <MenuItemRow key={item.id} item={item} entry={cart.get(item.id)}
-                  onAdd={() => addItem(item)} onRemove={() => removeItem(item.id)}
-                  onChangeGrams={(g) => updateGrams(item.id, g)}
-                  onEdit={() => setItemDrawer({ kind: "edit", item })} />
-              ))}
-            </>
-          )}
+              ));
+            }
+            const isCollapsed = collapsedGroups.has(group.groupName);
+            const cartCount = group.items.reduce((n, item) => n + (cart.get(item.id)?.count ?? 0), 0);
+            return (
+              <div key={group.groupName}>
+                <button
+                  onClick={() => setCollapsedGroups((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(group.groupName!)) next.delete(group.groupName!);
+                    else next.add(group.groupName!);
+                    return next;
+                  })}
+                  className="w-full flex items-center justify-between px-4 py-2 text-gray-400 text-xs bg-gray-900/50 border-b border-gray-800/60 hover:text-gray-200 transition-colors">
+                  <span className="flex items-center gap-1.5">
+                    <span>{isCollapsed ? "▶" : "▼"}</span>
+                    <span>{group.groupName}（{group.items.length}品）</span>
+                    {isCollapsed && cartCount > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 bg-emerald-600 text-white rounded-full text-xs leading-none">{cartCount}</span>
+                    )}
+                  </span>
+                </button>
+                {!isCollapsed && group.items.map((item) => (
+                  <MenuItemRow key={item.id} item={item} entry={cart.get(item.id)}
+                    onAdd={() => addItem(item)} onRemove={() => removeItem(item.id)}
+                    onChangeGrams={(g) => updateGrams(item.id, g)}
+                    onEdit={() => setItemDrawer({ kind: "edit", item })} />
+                ))}
+              </div>
+            );
+          })}
 
           {/* メニュー追加 & お店削除 */}
           {selectedRestaurantId && (
@@ -1478,7 +1500,7 @@ export default function TodayClient({
             </div>
           )}
 
-          {visibleItems.length === 0 && selectedRestaurantId && (
+          {menuGroups.every((g) => g.items.length === 0) && selectedRestaurantId && (
             <p className="text-center text-gray-500 text-sm py-8">
               メニューがまだありません
             </p>

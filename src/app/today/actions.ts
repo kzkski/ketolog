@@ -156,6 +156,7 @@ export type MenuItemUpdate = {
   default_grams: number;
   rank: number;
   notes: string | null;
+  group_name: string | null;
 };
 
 export async function updateMenuItem(
@@ -258,6 +259,7 @@ export type ImportRestaurantItem = {
   default_grams: number;
   rank: number;
   notes: string | null;
+  group?: string | null;
 };
 
 export type ImportRestaurantEntry = {
@@ -304,9 +306,14 @@ export async function importRestaurantData(data: ImportData): Promise<{
     newRestaurants.push(newR as Restaurant);
 
     if (r.menuItems.length > 0) {
+      const groupOrderMap = new Map<string, number>();
       const { data: items } = await supabase
         .from("menu_items")
-        .insert(r.menuItems.map((item) => ({ user_id: user.id, restaurant_id: newR.id, ...item })))
+        .insert(r.menuItems.map((item) => {
+          const g = item.group ?? null;
+          if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
+          return { user_id: user.id, restaurant_id: newR.id, ...item, group_name: g, group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0 };
+        }))
         .select();
       if (items) newMenuItems.push(...(items as MenuItem[]));
     }
@@ -323,9 +330,14 @@ export async function importMenuItemsToRestaurant(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { newMenuItems: [], error: "認証が必要です" };
 
+  const groupOrderMap = new Map<string, number>();
   const { data, error } = await supabase
     .from("menu_items")
-    .insert(items.map((item) => ({ user_id: user.id, restaurant_id: restaurantId, ...item })))
+    .insert(items.map((item) => {
+      const g = item.group ?? null;
+      if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
+      return { user_id: user.id, restaurant_id: restaurantId, ...item, group_name: g, group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0 };
+    }))
     .select();
 
   if (error) return { newMenuItems: [], error: error.message };

@@ -483,10 +483,12 @@ function downloadTemplate() {
 function RestaurantAddChoiceSheet({
   onManual,
   onImport,
+  onPreset,
   onClose,
 }: {
   onManual: () => void;
   onImport: () => void;
+  onPreset: () => void;
   onClose: () => void;
 }) {
   return (
@@ -502,16 +504,14 @@ function RestaurantAddChoiceSheet({
             className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors">
             手入力で追加
           </button>
-          <div className="flex items-center gap-2">
-            <button onClick={onImport}
-              className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors">
-              JSONからインポート
-            </button>
-            <button onClick={downloadTemplate}
-              className="py-3 px-3 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs rounded-xl transition-colors whitespace-nowrap">
-              テンプレート
-            </button>
-          </div>
+          <button onClick={onImport}
+            className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors">
+            JSONからインポート
+          </button>
+          <button onClick={onPreset}
+            className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors">
+            プリセットから選ぶ
+          </button>
         </div>
       </div>
     </>
@@ -536,45 +536,22 @@ function ImportRestaurantDrawer({
   onClose: () => void;
   onImported: (restaurant: Restaurant, items: MenuItem[]) => void;
 }) {
-  const PRESET_VISIBLE = 5;
-  const [parsed, setParsed]                 = useState<SingleRestaurantJson | null>(null);
-  const [importing, setImporting]           = useState(false);
-  const [fetchingPreset, setFetchingPreset] = useState<string | null>(null);
-  const [parseError, setParseError]         = useState<string | null>(null);
-  const [presetsOpen, setPresetsOpen]       = useState(true);
-  const [presetsExpanded, setPresetsExpanded] = useState(false);
+  const [parsed, setParsed]         = useState<SingleRestaurantJson | null>(null);
+  const [importing, setImporting]   = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const visiblePresets = presetsExpanded ? PRESETS : PRESETS.slice(0, PRESET_VISIBLE);
-
-  function applyParsed(text: string) {
-    const result = parseSingleRestaurantJson(text);
-    if ("error" in result) { setParseError(result.error); return; }
-    setParseError(null);
-    setParsed(result);
-  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setParsed(null);
+    setParsed(null); setParseError(null);
     const reader = new FileReader();
-    reader.onload = () => applyParsed(reader.result as string);
+    reader.onload = () => {
+      const result = parseSingleRestaurantJson(reader.result as string);
+      if ("error" in result) { setParseError(result.error); return; }
+      setParsed(result);
+    };
     reader.readAsText(file);
-  }
-
-  async function handlePresetSelect(file: string) {
-    setFetchingPreset(file); setParsed(null); setParseError(null);
-    try {
-      const res = await fetch(`${PRESET_BASE}/${file}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      applyParsed(text);
-    } catch {
-      setParseError("プリセットの取得に失敗しました。ネットワークを確認してください。");
-    } finally {
-      setFetchingPreset(null);
-    }
   }
 
   async function handleImport() {
@@ -604,49 +581,15 @@ function ImportRestaurantDrawer({
           <h2 className="text-base font-semibold text-white">JSONからお店を追加</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">キャンセル</button>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          {/* プリセット一覧 */}
-          <div>
-            <button onClick={() => setPresetsOpen((v) => !v)}
-              className="w-full flex items-center justify-between text-xs text-gray-400 hover:text-white mb-2 transition-colors">
-              <span>プリセットから選ぶ</span>
-              <span>{presetsOpen ? "▲" : "▼"}</span>
-            </button>
-            {presetsOpen && (
-              <div className="space-y-1.5">
-                {visiblePresets.map((preset) => (
-                  <button key={preset.file}
-                    onClick={() => handlePresetSelect(preset.file)}
-                    disabled={fetchingPreset !== null}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-50 transition-colors text-left">
-                    <span>{preset.name}</span>
-                    <span className="text-xs text-gray-500">
-                      {fetchingPreset === preset.file ? "取得中..." : `${preset.itemCount}品`}
-                    </span>
-                  </button>
-                ))}
-                {PRESETS.length > PRESET_VISIBLE && (
-                  <button onClick={() => setPresetsExpanded((v) => !v)}
-                    className="w-full py-1.5 text-xs text-gray-500 hover:text-white transition-colors">
-                    {presetsExpanded ? "▲ 折り畳む" : `▼ さらに${PRESETS.length - PRESET_VISIBLE}件表示`}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 text-gray-600 text-xs">
-            <div className="flex-1 h-px bg-gray-800" />
-            または
-            <div className="flex-1 h-px bg-gray-800" />
-          </div>
-
-          {/* ファイル選択 */}
-          <label className="block w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg text-center cursor-pointer transition-colors">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          <label className="block w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-xl text-center cursor-pointer transition-colors">
             JSONファイルを選択
             <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={handleFileChange} />
           </label>
-
+          <button onClick={downloadTemplate}
+            className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-sm rounded-xl transition-colors">
+            テンプレートをダウンロード
+          </button>
           {parseError && <p className="text-red-400 text-xs">{parseError}</p>}
           {parsed && (
             <div className="bg-gray-800 rounded-lg p-3 space-y-1">
@@ -660,6 +603,83 @@ function ImportRestaurantDrawer({
             className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-medium rounded-xl transition-colors text-sm">
             {importing ? "インポート中..." : "インポートする"}
           </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── プリセット選択ドロワー ────────────────────────────────────────────────────
+
+function PresetSelectDrawer({
+  onClose,
+  onImported,
+}: {
+  onClose: () => void;
+  onImported: (restaurant: Restaurant, items: MenuItem[]) => void;
+}) {
+  const PRESET_VISIBLE = 5;
+  const [fetchingPreset, setFetchingPreset] = useState<string | null>(null);
+  const [fetchError, setFetchError]         = useState<string | null>(null);
+  const [expanded, setExpanded]             = useState(false);
+
+  const visiblePresets = expanded ? PRESETS : PRESETS.slice(0, PRESET_VISIBLE);
+
+  async function handleSelect(file: string) {
+    setFetchingPreset(file); setFetchError(null);
+    try {
+      const res = await fetch(`${PRESET_BASE}/${file}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const parsed = parseSingleRestaurantJson(text);
+      if ("error" in parsed) { setFetchError(parsed.error); return; }
+      const result = await importRestaurantData({
+        version: 1,
+        restaurants: [{ name: parsed.name, category: parsed.category, menuItems: parsed.menuItems }],
+      });
+      if (result.error) { setFetchError(result.error); return; }
+      if (result.newRestaurants.length === 0) {
+        setFetchError(`「${parsed.name}」は既に登録されています。`); return;
+      }
+      onImported(result.newRestaurants[0], result.newMenuItems);
+      onClose();
+    } catch {
+      setFetchError("取得に失敗しました。ネットワークを確認してください。");
+    } finally {
+      setFetchingPreset(null);
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[70svh]">
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-600 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between px-4 pb-3 border-b border-gray-800">
+          <h2 className="text-base font-semibold text-white">プリセットから選ぶ</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">キャンセル</button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
+          {visiblePresets.map((preset) => (
+            <button key={preset.file}
+              onClick={() => handleSelect(preset.file)}
+              disabled={fetchingPreset !== null}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-50 transition-colors text-left">
+              <span>{preset.name}</span>
+              <span className="text-xs text-gray-500">
+                {fetchingPreset === preset.file ? "取得中..." : `${preset.itemCount}品`}
+              </span>
+            </button>
+          ))}
+          {PRESETS.length > PRESET_VISIBLE && (
+            <button onClick={() => setExpanded((v) => !v)}
+              className="w-full py-1.5 text-xs text-gray-500 hover:text-white transition-colors">
+              {expanded ? "▲ 折り畳む" : `▼ さらに${PRESETS.length - PRESET_VISIBLE}件表示`}
+            </button>
+          )}
+          {fetchError && <p className="text-red-400 text-xs pt-1">{fetchError}</p>}
         </div>
       </div>
     </>
@@ -1118,7 +1138,7 @@ export default function TodayClient({
   const [showLogEntries, setShowLogEntries]   = useState(false);
   const [editingEntry, setEditingEntry]       = useState<FoodLogEntry | null>(null);
 
-  type RestaurantAddSheet = "choice" | "manual" | "import" | null;
+  type RestaurantAddSheet = "choice" | "manual" | "import" | "preset" | null;
   const [restaurantAddSheet, setRestaurantAddSheet] = useState<RestaurantAddSheet>(null);
 
   const selectedRestaurant = restaurants.find((r) => r.id === selectedRestaurantId);
@@ -1527,6 +1547,7 @@ export default function TodayClient({
         <RestaurantAddChoiceSheet
           onManual={() => setRestaurantAddSheet("manual")}
           onImport={() => setRestaurantAddSheet("import")}
+          onPreset={() => setRestaurantAddSheet("preset")}
           onClose={() => setRestaurantAddSheet(null)}
         />
       )}
@@ -1546,6 +1567,19 @@ export default function TodayClient({
       {/* お店追加: JSONインポート */}
       {restaurantAddSheet === "import" && (
         <ImportRestaurantDrawer
+          onClose={() => setRestaurantAddSheet(null)}
+          onImported={(restaurant, items) => {
+            setRestaurants((prev) => [...prev, restaurant]);
+            setMenuItems((prev) => [...prev, ...items]);
+            setSelectedRestaurantId(restaurant.id);
+            setRestaurantAddSheet(null);
+          }}
+        />
+      )}
+
+      {/* お店追加: プリセット */}
+      {restaurantAddSheet === "preset" && (
+        <PresetSelectDrawer
           onClose={() => setRestaurantAddSheet(null)}
           onImported={(restaurant, items) => {
             setRestaurants((prev) => [...prev, restaurant]);

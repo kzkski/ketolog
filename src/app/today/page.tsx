@@ -8,7 +8,7 @@ import path from "path";
 export type PresetMeta = { name: string; file: string; itemCount: number };
 
 function loadPresets(): PresetMeta[] {
-  const dir = path.join(process.cwd(), "presets");
+  const dir = path.join(process.cwd(), "public", "presets");
   return fs
     .readdirSync(dir)
     .filter((f) => f.endsWith(".json"))

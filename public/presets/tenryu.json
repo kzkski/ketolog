@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "name": "天竜",
+  "name": "ホルモン焼肉 天竜 高円寺",
   "category": "external",
   "menuItems": [
     { "name": "ハツ",                           "protein_per_100g": 16.5, "fat_per_100g":  7.6, "carbs_per_100g": 0.1, "default_grams": 15,  "rank": 1, "notes": null, "group": "ホルモン系" },

@@ -1,4 +1,4 @@
-import myfood from "../../presets/myfood-keto.json";
+import myfood from "../../public/presets/myfood-keto.json";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabaseClient = { from: (table: string) => any; auth?: unknown };
@@ -29,12 +29,19 @@ export async function seedUserData(supabase: AnySupabaseClient, userId: string) 
       .single();
 
     if (restaurant) {
+      const groupOrderMap = new Map<string, number>();
       await supabase.from("menu_items").insert(
-        myfood.menuItems.map((item) => ({
-          user_id: userId,
-          restaurant_id: restaurant.id,
-          ...item,
-        }))
+        myfood.menuItems.map((item) => {
+          const g = (item as { group?: string | null }).group ?? null;
+          if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
+          return {
+            user_id: userId,
+            restaurant_id: restaurant.id,
+            ...item,
+            group_name: g,
+            group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0,
+          };
+        })
       );
     }
   }

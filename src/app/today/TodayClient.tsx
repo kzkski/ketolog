@@ -530,7 +530,7 @@ function RestaurantAddChoiceSheet({
 
 // ─── プリセット定義 ────────────────────────────────────────────────────────────
 
-const PRESET_BASE = "/api/presets";
+const PRESET_BASE = "/presets";
 
 // ─── JSONからお店をインポート（新規追加）ドロワー ──────────────────────────────
 

@@ -1293,7 +1293,10 @@ export default function TodayClient({
     <>
       {/* ヘッダー */}
       <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <h1 className="text-base font-bold text-white">Ketolog</h1>
+        <h1 className="text-base font-bold text-white">
+          Ketolog
+          <span className="text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+        </h1>
         <button onClick={() => setShowSettings(true)}
           className="text-gray-400 hover:text-white transition-colors text-lg leading-none px-1">
           ⚙

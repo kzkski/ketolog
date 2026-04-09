@@ -1,7 +1,22 @@
 {
   "version": 1,
-  "_status": "work in progress",
   "name": "ローソン",
   "category": "convenience",
-  "menuItems": []
+  "menuItems": [
+    { "name": "サラダチキン プレーン",          "protein_per_100g": 27.5, "fat_per_100g":  2.0, "carbs_per_100g": 0.9, "default_grams": 110, "rank": 1, "notes": "110g・PFC確認済" },
+    { "name": "サラダチキン ハーブ",            "protein_per_100g": 24.4, "fat_per_100g":  2.0, "carbs_per_100g": 1.0, "default_grams": 125, "rank": 1, "notes": "125g・PFC確認済" },
+    { "name": "サラダチキン スモーク",          "protein_per_100g": 21.7, "fat_per_100g":  2.0, "carbs_per_100g": 0.9, "default_grams": 115, "rank": 1, "notes": "115g・PFC確認済" },
+    { "name": "炭火焼サラダチキン 旨塩",        "protein_per_100g": 20.0, "fat_per_100g":  5.0, "carbs_per_100g": 1.5, "default_grams":  80, "rank": 1, "notes": "80g・PFC確認済" },
+    { "name": "サラダチキン スティック スモーク","protein_per_100g": 20.0, "fat_per_100g":  2.0, "carbs_per_100g": 1.0, "default_grams":  60, "rank": 1, "notes": "60g・PFC確認済" },
+    { "name": "からむきゆでたまご",             "protein_per_100g": 13.3, "fat_per_100g":  9.8, "carbs_per_100g": 0.1, "default_grams":  50, "rank": 1, "notes": "1個50g・PFC確認済" },
+    { "name": "煮たまご（半熟くんたま）",        "protein_per_100g": 12.0, "fat_per_100g":  9.0, "carbs_per_100g": 0.5, "default_grams":  50, "rank": 1, "notes": "1個50g・PFC推定" },
+    { "name": "スモークチーズ",                 "protein_per_100g": 20.0, "fat_per_100g": 28.0, "carbs_per_100g": 0.5, "default_grams": 100, "rank": 1, "notes": "100g・PFC確認済" },
+    { "name": "ベビーチーズ",                   "protein_per_100g": 18.0, "fat_per_100g": 24.0, "carbs_per_100g": 1.5, "default_grams":  18, "rank": 1, "notes": "1個18g・PFC推定" },
+    { "name": "クリームチーズ生ハム巻き",        "protein_per_100g": 12.0, "fat_per_100g": 22.0, "carbs_per_100g": 1.5, "default_grams":  50, "rank": 1, "notes": "50g・PFC確認済・ローソン固有" },
+    { "name": "パストラミビーフ",               "protein_per_100g": 18.5, "fat_per_100g":  3.0, "carbs_per_100g": 1.9, "default_grams":  47, "rank": 1, "notes": "47g・PFC確認済・ローソン固有" },
+    { "name": "厚切り深燻し生ハム",             "protein_per_100g": 21.8, "fat_per_100g":  9.1, "carbs_per_100g": 0.9, "default_grams":  55, "rank": 1, "notes": "55g・PFC確認済" },
+    { "name": "スモークタン",                   "protein_per_100g": 29.4, "fat_per_100g":  8.8, "carbs_per_100g": 0.0, "default_grams":  34, "rank": 1, "notes": "34g・PFC確認済" },
+    { "name": "素焼きミックスナッツ",            "protein_per_100g": 18.0, "fat_per_100g": 58.6, "carbs_per_100g": 11.4,"default_grams":  25, "rank": 2, "notes": "35g入・1食25g目安・糖質4g/袋確認済" },
+    { "name": "NL ブランパン 4個入",            "protein_per_100g": 22.4, "fat_per_100g": 10.8, "carbs_per_100g": 7.9, "default_grams":  25, "rank": 2, "notes": "1個25g・P5.6g/F2.7g/糖質2.0g確認済" }
+  ]
 }

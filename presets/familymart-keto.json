@@ -1,7 +1,22 @@
 {
   "version": 1,
-  "_status": "work in progress",
   "name": "ファミリーマート",
   "category": "convenience",
-  "menuItems": []
+  "menuItems": [
+    { "name": "国産鶏のサラダチキン 3種のハーブ&スパイス", "protein_per_100g": 20.5, "fat_per_100g":  2.0, "carbs_per_100g": 0.0, "default_grams": 110, "rank": 1, "notes": "110g・P確認済（22.6g/本）・F推定" },
+    { "name": "国産鶏のサラダチキン スモーク",             "protein_per_100g": 20.3, "fat_per_100g":  2.0, "carbs_per_100g": 0.0, "default_grams": 110, "rank": 1, "notes": "110g・P確認済（22.3g/本）・F推定" },
+    { "name": "国産鶏のサラダチキン 淡路島の藻塩",         "protein_per_100g": 18.9, "fat_per_100g":  1.8, "carbs_per_100g": 0.0, "default_grams": 110, "rank": 1, "notes": "110g・P確認済（20.8g/本）・F推定" },
+    { "name": "サラダチキンほぐし",                         "protein_per_100g": 23.4, "fat_per_100g":  1.5, "carbs_per_100g": 0.0, "default_grams":  80, "rank": 1, "notes": "80g・P確認済（18.7g/袋）・F推定" },
+    { "name": "サラダチキンスティック アルペンザルツ岩塩", "protein_per_100g": 20.3, "fat_per_100g":  2.0, "carbs_per_100g": 0.0, "default_grams":  60, "rank": 1, "notes": "60g・P確認済（12.2g/本）・F推定" },
+    { "name": "サラダチキンスティック 3種のハーブ&スパイス","protein_per_100g": 20.3, "fat_per_100g":  2.0, "carbs_per_100g": 0.0, "default_grams":  60, "rank": 1, "notes": "60g・P確認済（12.2g/本）・F推定" },
+    { "name": "ゆでたまご（からむき）",                     "protein_per_100g": 12.3, "fat_per_100g": 10.3, "carbs_per_100g": 0.2, "default_grams":  50, "rank": 1, "notes": "1個50g・淡路島の藻塩・PFC推定" },
+    { "name": "半熟ゆでたまご 2個入",                       "protein_per_100g": 11.0, "fat_per_100g":  9.0, "carbs_per_100g": 1.0, "default_grams":  50, "rank": 1, "notes": "1個50g・PFC推定" },
+    { "name": "カマンベール入りなめらか6Pチーズ",           "protein_per_100g": 18.0, "fat_per_100g": 24.0, "carbs_per_100g": 1.5, "default_grams":  18, "rank": 1, "notes": "1ピース18g・PFC推定" },
+    { "name": "燻製薫るスモークチーズ",                     "protein_per_100g": 20.8, "fat_per_100g": 28.6, "carbs_per_100g": 2.0, "default_grams": 100, "rank": 1, "notes": "100g・5種チーズ・PFC推定" },
+    { "name": "北海道6Pチーズ",                             "protein_per_100g": 18.0, "fat_per_100g": 24.0, "carbs_per_100g": 1.5, "default_grams":  18, "rank": 1, "notes": "1ピース18g・PFC推定" },
+    { "name": "塩と油を使っていない4種の素焼きミックスナッツ","protein_per_100g": 15.0, "fat_per_100g": 57.0, "carbs_per_100g": 11.5,"default_grams":  25, "rank": 2, "notes": "1食25g目安・カシュー含むため糖質やや高め・PFC推定" },
+    { "name": "塩と油を使っていないカリフォルニア産素焼きアーモンド","protein_per_100g": 19.0, "fat_per_100g": 52.0, "carbs_per_100g": 9.4, "default_grams":  25, "rank": 2, "notes": "1食25g目安・PFC推定" },
+    { "name": "ロースハム",                                 "protein_per_100g": 18.0, "fat_per_100g": 11.0, "carbs_per_100g": 1.2, "default_grams":  45, "rank": 2, "notes": "45g・PFC推定" },
+    { "name": "肉の旨みとコクパンチェッタ",                 "protein_per_100g": 15.0, "fat_per_100g": 24.0, "carbs_per_100g": 0.5, "default_grams":  45, "rank": 2, "notes": "45g・PFC推定" }
+  ]
 }

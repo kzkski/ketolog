@@ -1,7 +1,25 @@
 {
   "version": 1,
-  "_status": "work in progress",
   "name": "セブンイレブン",
   "category": "convenience",
-  "menuItems": []
+  "menuItems": [
+    { "name": "糖質0gのサラダチキン（プレーン）",           "protein_per_100g": 24.1, "fat_per_100g":  2.5, "carbs_per_100g": 0.0, "default_grams": 110, "rank": 1, "notes": "110g・PFC確認済" },
+    { "name": "糖質0gのサラダチキン（ハーブ）",             "protein_per_100g": 23.6, "fat_per_100g":  3.1, "carbs_per_100g": 0.0, "default_grams": 110, "rank": 1, "notes": "110g・PFC確認済" },
+    { "name": "糖質0gのサラダチキン（スモーク）",           "protein_per_100g": 25.4, "fat_per_100g":  2.5, "carbs_per_100g": 0.0, "default_grams": 110, "rank": 1, "notes": "110g・糖質0・P確認済・F推定" },
+    { "name": "糖質0gのほぐしサラダチキン",                 "protein_per_100g": 22.0, "fat_per_100g":  1.5, "carbs_per_100g": 0.0, "default_grams":  80, "rank": 1, "notes": "80g・糖質0確認済・PFC推定" },
+    { "name": "糖質0gのほぐしサラダチキン ハーブ",          "protein_per_100g": 22.0, "fat_per_100g":  1.5, "carbs_per_100g": 0.0, "default_grams":  75, "rank": 1, "notes": "75g・糖質0確認済・PFC推定" },
+    { "name": "糖質0gサラダチキンバー プレーン",            "protein_per_100g": 20.3, "fat_per_100g":  2.0, "carbs_per_100g": 0.0, "default_grams":  60, "rank": 1, "notes": "60g・PFC確認済" },
+    { "name": "糖質0gサラダチキンバー スモークペッパー",    "protein_per_100g": 22.7, "fat_per_100g":  1.5, "carbs_per_100g": 0.0, "default_grams":  60, "rank": 1, "notes": "60g・PFC確認済" },
+    { "name": "糖質0gサラダチキンバー バジル＆オリーブ",    "protein_per_100g": 20.8, "fat_per_100g":  1.5, "carbs_per_100g": 0.0, "default_grams":  60, "rank": 1, "notes": "60g・PFC確認済" },
+    { "name": "味付き半熟ゆでたまご 1個入",                 "protein_per_100g": 11.0, "fat_per_100g":  9.0, "carbs_per_100g": 1.0, "default_grams":  50, "rank": 1, "notes": "1個50g・PFC推定" },
+    { "name": "焼鳥もも塩",                                 "protein_per_100g": 18.0, "fat_per_100g": 10.0, "carbs_per_100g": 1.0, "default_grams": 140, "rank": 1, "notes": "140g・PFC推定" },
+    { "name": "炭火焼鳥4種盛り",                            "protein_per_100g": 15.0, "fat_per_100g": 12.0, "carbs_per_100g": 1.5, "default_grams":  70, "rank": 2, "notes": "70g・レバー・ハツ・もも・鶏皮・PFC推定" },
+    { "name": "スモークチーズ",                             "protein_per_100g": 20.8, "fat_per_100g": 28.6, "carbs_per_100g": 2.1, "default_grams": 100, "rank": 1, "notes": "100g・PFC確認済" },
+    { "name": "北海道カマンべール入り6Pチーズ",             "protein_per_100g": 18.0, "fat_per_100g": 24.0, "carbs_per_100g": 1.5, "default_grams":  18, "rank": 1, "notes": "1ピース18g・PFC推定" },
+    { "name": "4種の素焼きミックスナッツ",                  "protein_per_100g": 15.0, "fat_per_100g": 57.0, "carbs_per_100g": 11.5,"default_grams":  25, "rank": 2, "notes": "80g入・1食25g目安・カシュー含むため糖質やや高め・PFC推定" },
+    { "name": "素焼きくるみ",                               "protein_per_100g": 13.0, "fat_per_100g": 72.0, "carbs_per_100g": 5.0, "default_grams":  25, "rank": 2, "notes": "77g入・1食25g目安・PFC確認済" },
+    { "name": "サラミスライス",                             "protein_per_100g": 22.0, "fat_per_100g": 38.0, "carbs_per_100g": 1.0, "default_grams":  23, "rank": 2, "notes": "23g・PFC推定" },
+    { "name": "乾燥させた生ハム",                           "protein_per_100g": 27.0, "fat_per_100g": 10.0, "carbs_per_100g": 0.5, "default_grams":  20, "rank": 1, "notes": "20g・PFC推定" },
+    { "name": "スモークサーモン",                           "protein_per_100g": 20.0, "fat_per_100g": 12.0, "carbs_per_100g": 0.5, "default_grams":  50, "rank": 1, "notes": "50g・PFC推定" }
+  ]
 }

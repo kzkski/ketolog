@@ -635,7 +635,7 @@ function PresetSelectDrawer({
   async function handleSelect(file: string) {
     setFetchingPreset(file); setFetchError(null);
     try {
-      const res = await fetch(`${PRESET_BASE}/${file}`);
+      const res = await fetch(`${PRESET_BASE}/${file}?t=${Date.now()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       const parsed = parseSingleRestaurantJson(text);

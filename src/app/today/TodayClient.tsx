@@ -1120,13 +1120,21 @@ export default function TodayClient({
         )}
 
         {/* 食事タイプ タブ */}
-        <div className="flex-none flex border-b border-gray-800">
-          {(Object.keys(MEAL_LABELS) as MealType[]).map((type) => (
-            <button key={type} onClick={() => setMealType(type)}
-              className={`flex-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${mealType === type ? "border-emerald-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
-              {MEAL_LABELS[type]}
-            </button>
-          ))}
+        <div className="flex-none flex border-b border-gray-800 bg-gray-900">
+          {(Object.keys(MEAL_LABELS) as MealType[]).map((type) => {
+            const activeColors: Record<MealType, string> = {
+              breakfast: "border-amber-400 text-amber-300 bg-amber-400/10",
+              lunch:     "border-sky-400 text-sky-300 bg-sky-400/10",
+              dinner:    "border-violet-400 text-violet-300 bg-violet-400/10",
+              snack:     "border-teal-400 text-teal-300 bg-teal-400/10",
+            };
+            return (
+              <button key={type} onClick={() => setMealType(type)}
+                className={`flex-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${mealType === type ? activeColors[type] : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+                {MEAL_LABELS[type]}
+              </button>
+            );
+          })}
         </div>
 
         {/* レストラン タブ + 追加ボタン */}

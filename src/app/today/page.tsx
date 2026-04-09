@@ -11,16 +11,11 @@ export default async function TodayPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // JST の今日の日付
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
 
   const [settingsRes, restaurantsRes, menuItemsRes, foodLogRes] = await Promise.all([
     supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase
-      .from("restaurants")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("order_count", { ascending: false }),
+    supabase.from("restaurants").select("*").eq("user_id", user.id),
     supabase
       .from("menu_items")
       .select("*")
@@ -41,7 +36,15 @@ export default async function TodayPage() {
     carbs_target_g: 40,
   };
 
-  const restaurants: Restaurant[] = restaurantsRes.data ?? [];
+  // マイフード（category=homemade）を先頭に固定し、以降はorder_count降順
+  const rawRestaurants: Restaurant[] = restaurantsRes.data ?? [];
+  const restaurants: Restaurant[] = [
+    ...rawRestaurants.filter((r) => r.category === "homemade"),
+    ...rawRestaurants
+      .filter((r) => r.category !== "homemade")
+      .sort((a, b) => b.order_count - a.order_count),
+  ];
+
   const menuItems: MenuItem[] = menuItemsRes.data ?? [];
 
   const todayConsumed: TodayConsumed = (foodLogRes.data ?? []).reduce(
@@ -54,7 +57,8 @@ export default async function TodayPage() {
   );
 
   return (
-    <div className="flex flex-col h-svh bg-gray-950">
+    // max-w-md でモバイルサイズに制限、デスクトップでは中央寄せ＋サイドボーダー
+    <div className="flex flex-col h-svh bg-gray-950 max-w-md mx-auto border-x border-gray-800">
       <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <h1 className="text-base font-bold text-white">Ketolog</h1>
         <LogoutButton />

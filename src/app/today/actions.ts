@@ -41,3 +41,33 @@ export async function saveMealToLog(
   if (error) return { error: error.message };
   return { error: null };
 }
+
+export type MenuItemUpdate = {
+  name: string;
+  protein_per_100g: number | null;
+  fat_per_100g: number | null;
+  carbs_per_100g: number | null;
+  default_grams: number;
+  rank: number;
+  notes: string | null;
+};
+
+export async function updateMenuItem(
+  id: string,
+  data: MenuItemUpdate
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "認証が必要です" };
+
+  const { error } = await supabase
+    .from("menu_items")
+    .update(data)
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  return { error: null };
+}

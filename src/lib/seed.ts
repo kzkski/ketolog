@@ -1,8 +1,9 @@
-import { SupabaseClient } from "@supabase/supabase-js";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySupabaseClient = { from: (table: string) => any; auth?: unknown };
 
 // 新規ユーザー登録時に初期データを投入する
 // 栄養値はすべて per 100g（概算値 — ユーザーが後から修正可能）
-export async function seedUserData(supabase: SupabaseClient, userId: string) {
+export async function seedUserData(supabase: AnySupabaseClient, userId: string) {
   // user_settings（フェーズ1のデフォルト値）
   await supabase.from("user_settings").upsert({
     user_id: userId,

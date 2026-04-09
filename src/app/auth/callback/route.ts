@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { seedUserData } from "@/lib/seed";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -8,8 +9,19 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error && data.user) {
+      // 新規ユーザーの場合のみシードを投入（user_settings がなければ初回）
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("id")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+      if (!settings) {
+        await seedUserData(supabase, data.user.id);
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

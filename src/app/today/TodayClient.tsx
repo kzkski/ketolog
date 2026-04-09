@@ -395,6 +395,7 @@ const EXPORT_SCHEMA = {
     "menuItems[].default_grams": "number (必須, 1以上) — 1回分のデフォルト重量 (g)",
     "menuItems[].rank": "1〜4の整数 (必須) — 1=◎最優先 / 2=○通常 / 3=△控えめ / 4=✕避ける",
     "menuItems[].notes": "string or null — メモ（任意）",
+    "menuItems[].group": "string or null — グループ名（任意。同じ値のアイテムがまとめて表示されます）",
   },
 } as const;
 
@@ -476,6 +477,7 @@ function downloadTemplate() {
         default_grams: 100,
         rank: 2,
         notes: null,
+        group: null,
       },
     ],
   };

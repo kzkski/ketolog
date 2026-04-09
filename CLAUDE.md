@@ -1,4 +1,17 @@
 @AGENTS.md
+@CONTRIBUTING.md
+
+# 開発ルール（必読）
+
+このリポジトリでの作業は **必ず `CONTRIBUTING.md` の GitHub Flow に従うこと**。
+
+- `main` への直接コミット・プッシュは禁止
+- 実装前にフィーチャーブランチを作成する（例: `feat/xxx`, `fix/xxx`）
+- 実装完了後は Pull Request を作成し、Issue を `closes #<番号>` で参照してマージする
+- マージ後はブランチを削除する
+
+---
+
 # 食事管理アプリ 引き継ぎドキュメント
 
 ## 概要

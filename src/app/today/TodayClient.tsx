@@ -618,7 +618,7 @@ export default function TodayClient({
         <div className="flex-none flex border-b border-gray-800 overflow-x-auto">
           {restaurants.map((r) => (
             <button key={r.id} onClick={() => { setSelectedRestaurantId(r.id); setConfirmDeleteRestaurant(false); }}
-              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors ${selectedRestaurantId === r.id ? "border-emerald-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+              className={`w-[88px] shrink-0 py-2.5 text-sm font-medium border-b-2 transition-colors truncate px-2 ${selectedRestaurantId === r.id ? "border-emerald-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
               {r.name}
             </button>
           ))}

@@ -309,8 +309,8 @@ export async function importRestaurantData(data: ImportData): Promise<{
       const groupOrderMap = new Map<string, number>();
       const { data: items } = await supabase
         .from("menu_items")
-        .insert(r.menuItems.map((item) => {
-          const g = item.group ?? null;
+        .insert(r.menuItems.map(({ group, ...item }) => {
+          const g = group ?? null;
           if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
           return { user_id: user.id, restaurant_id: newR.id, ...item, group_name: g, group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0 };
         }))
@@ -333,8 +333,8 @@ export async function importMenuItemsToRestaurant(
   const groupOrderMap = new Map<string, number>();
   const { data, error } = await supabase
     .from("menu_items")
-    .insert(items.map((item) => {
-      const g = item.group ?? null;
+    .insert(items.map(({ group, ...item }) => {
+      const g = group ?? null;
       if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
       return { user_id: user.id, restaurant_id: restaurantId, ...item, group_name: g, group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0 };
     }))

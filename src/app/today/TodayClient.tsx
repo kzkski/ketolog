@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
+import { createClient } from "@/lib/supabase/client";
 import {
   saveMealToLog,
   updateMenuItem,
@@ -15,6 +16,7 @@ import {
   getFoodLogForDate,
   deleteFoodLogEntry,
   updateFoodLogEntry,
+  updateUserSettings,
   type MenuItemUpdate,
   type ImportData,
   type ImportRestaurantItem,
@@ -869,6 +871,139 @@ function EditEntryDrawer({
   );
 }
 
+// ─── 設定ドロワー ──────────────────────────────────────────────────────────────
+
+function SettingsDrawer({
+  settings,
+  restaurants,
+  menuItems,
+  onClose,
+  onSaved,
+}: {
+  settings: UserSettings;
+  restaurants: Restaurant[];
+  menuItems: MenuItem[];
+  onClose: () => void;
+  onSaved: (updated: UserSettings) => void;
+}) {
+  const [protein, setProtein] = useState(settings.protein_target_g.toString());
+  const [fat, setFat]         = useState(settings.fat_target_g.toString());
+  const [carbs, setCarbs]     = useState(settings.carbs_target_g.toString());
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+
+  async function handleSave() {
+    const p = parseFloat(protein), f = parseFloat(fat), c = parseFloat(carbs);
+    if (isNaN(p) || isNaN(f) || isNaN(c) || p <= 0 || f <= 0 || c <= 0) {
+      setError("正の数値を入力してください"); return;
+    }
+    setSaving(true); setError(null);
+    const result = await updateUserSettings({ protein_target_g: p, fat_target_g: f, carbs_target_g: c });
+    if (result.error) { setError(result.error); setSaving(false); return; }
+    onSaved({ ...settings, protein_target_g: p, fat_target_g: f, carbs_target_g: c });
+    onClose();
+  }
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[80svh]">
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-600 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between px-4 pb-3 border-b border-gray-800">
+          <h2 className="text-base font-semibold text-white">設定</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">閉じる</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {/* PFC目標値 */}
+          <div>
+            <h3 className="text-sm font-medium text-white mb-3">PFC目標値（g/日）</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "P タンパク質", value: protein, set: setProtein, color: "text-blue-400" },
+                { label: "F 脂質",       value: fat,     set: setFat,     color: "text-yellow-400" },
+                { label: "C 糖質",       value: carbs,   set: setCarbs,   color: "text-emerald-400" },
+              ].map(({ label, value, set, color }) => (
+                <div key={label}>
+                  <p className={`text-xs mb-1 ${color}`}>{label}</p>
+                  <div className="flex items-center gap-1">
+                    <input type="number" value={value} onChange={(e) => set(e.target.value)}
+                      className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm text-center focus:outline-none focus:border-emerald-500" />
+                    <span className="text-xs text-gray-500 shrink-0">g</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+            <button onClick={handleSave} disabled={saving}
+              className="mt-3 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors">
+              {saving ? "保存中..." : "保存する"}
+            </button>
+          </div>
+
+          {/* 全データエクスポート */}
+          <div>
+            <h3 className="text-sm font-medium text-white mb-1">データエクスポート</h3>
+            <p className="text-xs text-gray-400 mb-3">
+              全レストラン（{restaurants.length}店舗・{menuItems.length}アイテム）をまとめてエクスポートします。
+            </p>
+            <button
+              onClick={() => downloadAllRestaurants(restaurants, menuItems)}
+              className="w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-xl transition-colors">
+              全データをJSONでダウンロード
+            </button>
+          </div>
+
+          {/* ログアウト */}
+          <div className="pt-2 border-t border-gray-800">
+            <button onClick={handleLogout}
+              className="w-full py-2.5 text-red-400 hover:text-red-300 text-sm transition-colors">
+              ログアウト
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]) {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString().split("T")[0],
+    restaurants: restaurants.map((r) => ({
+      name: r.name,
+      category: r.category,
+      menuItems: menuItems
+        .filter((m) => m.restaurant_id === r.id)
+        .map((m) => ({
+          name: m.name,
+          protein_per_100g: m.protein_per_100g,
+          fat_per_100g: m.fat_per_100g,
+          carbs_per_100g: m.carbs_per_100g,
+          default_grams: m.default_grams,
+          rank: m.rank,
+          notes: m.notes,
+        })),
+    })),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ketolog-all-${payload.exportedAt}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ─── メインコンポーネント ───────────────────────────────────────────────────────
 
 interface Props {
@@ -889,6 +1024,8 @@ export default function TodayClient({
   initialLogEntries,
 }: Props) {
   const router = useRouter();
+  const [currentSettings, setCurrentSettings] = useState<UserSettings>(settings);
+  const [showSettings, setShowSettings]       = useState(false);
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
   const [menuItems, setMenuItems]     = useState<MenuItem[]>(initialMenuItems);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(initialRestaurants[0]?.id ?? "");
@@ -1064,6 +1201,15 @@ export default function TodayClient({
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
     <>
+      {/* ヘッダー */}
+      <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-800">
+        <h1 className="text-base font-bold text-white">Ketolog</h1>
+        <button onClick={() => setShowSettings(true)}
+          className="text-gray-400 hover:text-white transition-colors text-lg leading-none px-1">
+          ⚙
+        </button>
+      </header>
+
       <div className="flex-1 flex flex-col min-h-0">
         {/* 日付ナビゲーション */}
         <div className="flex-none flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-900">
@@ -1082,9 +1228,9 @@ export default function TodayClient({
 
         {/* PFCバー */}
         <div className="flex-none px-4 py-3 bg-gray-900 border-b border-gray-800 space-y-1.5">
-          <PFCBar label="P" current={totalPFC.p} target={settings.protein_target_g} color="bg-blue-500" />
-          <PFCBar label="F" current={totalPFC.f} target={settings.fat_target_g}     color="bg-yellow-500" />
-          <PFCBar label="C" current={totalPFC.c} target={settings.carbs_target_g}   color="bg-emerald-500" />
+          <PFCBar label="P" current={totalPFC.p} target={currentSettings.protein_target_g} color="bg-blue-500" />
+          <PFCBar label="F" current={totalPFC.f} target={currentSettings.fat_target_g}     color="bg-yellow-500" />
+          <PFCBar label="C" current={totalPFC.c} target={currentSettings.carbs_target_g}   color="bg-emerald-500" />
         </div>
 
         {/* 記録済みパネル */}
@@ -1358,6 +1504,17 @@ export default function TodayClient({
           entry={editingEntry}
           onClose={() => setEditingEntry(null)}
           onSaved={() => refreshLogForDate(selectedDate)}
+        />
+      )}
+
+      {/* 設定ドロワー */}
+      {showSettings && (
+        <SettingsDrawer
+          settings={currentSettings}
+          restaurants={restaurants}
+          menuItems={menuItems}
+          onClose={() => setShowSettings(false)}
+          onSaved={(updated) => setCurrentSettings(updated)}
         />
       )}
     </>

@@ -41,6 +41,25 @@ export async function saveMealToLog(
   return { error: null };
 }
 
+// ─── ユーザー設定 ─────────────────────────────────────────────────────────────
+
+export async function updateUserSettings(data: {
+  protein_target_g: number;
+  fat_target_g: number;
+  carbs_target_g: number;
+}): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "認証が必要です" };
+
+  const { error } = await supabase
+    .from("user_settings")
+    .upsert({ user_id: user.id, ...data }, { onConflict: "user_id" });
+
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
 // ─── 食事ログ操作 ─────────────────────────────────────────────────────────────
 
 export async function getFoodLogForDate(date: string): Promise<{

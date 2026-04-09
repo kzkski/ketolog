@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
-import LogoutButton from "./LogoutButton";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 
 export default async function TodayPage() {
@@ -60,10 +59,6 @@ export default async function TodayPage() {
 
   return (
     <div className="flex flex-col h-svh bg-gray-950 w-full">
-      <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <h1 className="text-base font-bold text-white">Ketolog</h1>
-        <LogoutButton />
-      </header>
       <TodayClient
         restaurants={restaurants}
         menuItems={menuItems}

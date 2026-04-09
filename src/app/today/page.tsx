@@ -1,20 +1,71 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import TodayClient from "./TodayClient";
 import LogoutButton from "./LogoutButton";
+import type { MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 
 export default async function TodayPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // JST の今日の日付
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+
+  const [settingsRes, restaurantsRes, menuItemsRes, foodLogRes] = await Promise.all([
+    supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
+    supabase
+      .from("restaurants")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("order_count", { ascending: false }),
+    supabase
+      .from("menu_items")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("rank")
+      .order("order_count", { ascending: false }),
+    supabase
+      .from("food_log")
+      .select("protein_g, fat_g, carbs_g")
+      .eq("user_id", user.id)
+      .eq("date", today),
+  ]);
+
+  const settings: UserSettings = settingsRes.data ?? {
+    diet_phase: 1,
+    protein_target_g: 100,
+    fat_target_g: 120,
+    carbs_target_g: 40,
+  };
+
+  const restaurants: Restaurant[] = restaurantsRes.data ?? [];
+  const menuItems: MenuItem[] = menuItemsRes.data ?? [];
+
+  const todayConsumed: TodayConsumed = (foodLogRes.data ?? []).reduce(
+    (acc, row) => ({
+      protein: acc.protein + (row.protein_g ?? 0),
+      fat: acc.fat + (row.fat_g ?? 0),
+      carbs: acc.carbs + (row.carbs_g ?? 0),
+    }),
+    { protein: 0, fat: 0, carbs: 0 }
+  );
+
   return (
-    <main className="flex-1 p-4">
-      <div className="flex justify-end mb-4">
+    <div className="flex flex-col h-svh bg-gray-950">
+      <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-800">
+        <h1 className="text-base font-bold text-white">Ketolog</h1>
         <LogoutButton />
-      </div>
-      <p className="text-gray-400 text-sm text-center mt-20">
-        Phase 1 で食事記録UIを実装します
-      </p>
-    </main>
+      </header>
+      <TodayClient
+        restaurants={restaurants}
+        menuItems={menuItems}
+        settings={settings}
+        todayConsumed={todayConsumed}
+        today={today}
+      />
+    </div>
   );
 }

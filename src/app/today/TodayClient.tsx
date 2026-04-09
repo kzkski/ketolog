@@ -530,7 +530,7 @@ function RestaurantAddChoiceSheet({
 
 // ─── プリセット定義 ────────────────────────────────────────────────────────────
 
-const PRESET_BASE = "https://raw.githubusercontent.com/kzkski/ketolog/main/presets";
+const PRESET_BASE = "/api/presets";
 
 // ─── JSONからお店をインポート（新規追加）ドロワー ──────────────────────────────
 
@@ -635,7 +635,7 @@ function PresetSelectDrawer({
   async function handleSelect(file: string) {
     setFetchingPreset(file); setFetchError(null);
     try {
-      const res = await fetch(`${PRESET_BASE}/${file}?t=${Date.now()}`);
+      const res = await fetch(`${PRESET_BASE}/${file}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       const parsed = parseSingleRestaurantJson(text);

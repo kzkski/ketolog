@@ -1123,8 +1123,8 @@ export default function TodayClient({
         <div className="flex-none flex border-b border-gray-800 bg-gray-900">
           {(Object.keys(MEAL_LABELS) as MealType[]).map((type) => {
             const activeColors: Record<MealType, string> = {
-              breakfast: "border-amber-400 text-amber-300 bg-amber-400/10",
-              lunch:     "border-sky-400 text-sky-300 bg-sky-400/10",
+              breakfast: "border-rose-400 text-rose-300 bg-rose-400/10",
+              lunch:     "border-cyan-400 text-cyan-300 bg-cyan-400/10",
               dinner:    "border-violet-400 text-violet-300 bg-violet-400/10",
               snack:     "border-teal-400 text-teal-300 bg-teal-400/10",
             };

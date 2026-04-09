@@ -1607,7 +1607,13 @@ export default function TodayClient({
           presets={presets}
           onClose={() => setRestaurantAddSheet(null)}
           onImported={(restaurant, items) => {
-            setRestaurants((prev) => [...prev, restaurant]);
+            setRestaurants((prev) => {
+              const next = [...prev, restaurant];
+              return [
+                ...next.filter((r) => r.category === "homemade"),
+                ...next.filter((r) => r.category !== "homemade"),
+              ];
+            });
             setMenuItems((prev) => [...prev, ...items]);
             setSelectedRestaurantId(restaurant.id);
             setRestaurantAddSheet(null);

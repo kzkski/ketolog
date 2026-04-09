@@ -449,6 +449,7 @@ function downloadTemplate() {
   const payload = {
     version: 1,
     ...EXPORT_SCHEMA,
+    _prompt_hint: "このJSONテンプレートに従って [お店名] のメニューを作成してください。rankの基準: ケトジェニックダイエット視点で、糖質が少なく脂質・タンパク質が豊富なものを1（最優先）、糖質が多いものや避けるべきものを4（避ける）としてください。default_gramsは1人前の一般的な提供量（g）を入れてください。栄養素は100gあたりの値で入力してください。",
     name: "お店の名前をここに入力",
     category: "external",
     menuItems: [

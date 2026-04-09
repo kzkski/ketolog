@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 import { saveMealToLog, updateMenuItem, type MenuItemUpdate } from "./actions";
@@ -84,6 +84,23 @@ function PFCBar({
 
 // ─── メニューアイテム編集ドロワー ──────────────────────────────────────────────
 
+type NutrientMode = "per100g" | "perServing";
+
+// per-100g ↔ per-serving 換算
+function to100g(val: string, gramsStr: string): string {
+  const v = parseFloat(val);
+  const g = parseFloat(gramsStr);
+  if (isNaN(v) || isNaN(g) || g === 0) return val;
+  return parseFloat((v * 100 / g).toFixed(2)).toString();
+}
+
+function toServing(val: string, gramsStr: string): string {
+  const v = parseFloat(val);
+  const g = parseFloat(gramsStr);
+  if (isNaN(v) || isNaN(g)) return val;
+  return parseFloat((v * g / 100).toFixed(2)).toString();
+}
+
 function EditDrawer({
   item,
   onClose,
@@ -94,14 +111,34 @@ function EditDrawer({
   onSaved: (updated: MenuItem) => void;
 }) {
   const [name, setName] = useState(item.name);
+  // 内部は常に per-100g で保持
   const [protein, setProtein] = useState(item.protein_per_100g?.toString() ?? "");
   const [fat, setFat] = useState(item.fat_per_100g?.toString() ?? "");
   const [carbs, setCarbs] = useState(item.carbs_per_100g?.toString() ?? "");
   const [grams, setGrams] = useState(item.default_grams.toString());
   const [rank, setRank] = useState(item.rank);
   const [notes, setNotes] = useState(item.notes ?? "");
+  const [mode, setMode] = useState<NutrientMode>("per100g");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 表示値（モードに応じて換算）
+  const displayP = mode === "per100g" ? protein : toServing(protein, grams);
+  const displayF = mode === "per100g" ? fat    : toServing(fat,     grams);
+  const displayC = mode === "per100g" ? carbs  : toServing(carbs,   grams);
+
+  function handleNutrientChange(field: "p" | "f" | "c", val: string) {
+    // 入力値を per-100g に換算して内部ステートに保存
+    const stored = mode === "per100g" ? val : to100g(val, grams);
+    if (field === "p") setProtein(stored);
+    if (field === "f") setFat(stored);
+    if (field === "c") setCarbs(stored);
+  }
+
+  function switchMode(next: NutrientMode) {
+    // モード変更時は値の再換算不要（displayX で都度換算するため）
+    setMode(next);
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -109,8 +146,8 @@ function EditDrawer({
     const data: MenuItemUpdate = {
       name: name.trim() || item.name,
       protein_per_100g: protein === "" ? null : parseFloat(protein),
-      fat_per_100g: fat === "" ? null : parseFloat(fat),
-      carbs_per_100g: carbs === "" ? null : parseFloat(carbs),
+      fat_per_100g:     fat     === "" ? null : parseFloat(fat),
+      carbs_per_100g:   carbs   === "" ? null : parseFloat(carbs),
       default_grams: parseFloat(grams) || item.default_grams,
       rank,
       notes: notes.trim() || null,
@@ -125,13 +162,15 @@ function EditDrawer({
     onClose();
   }
 
+  const gramsNum = parseFloat(grams);
+  const modeLabel = mode === "per100g"
+    ? "100gあたり"
+    : `1回分あたり（${isNaN(gramsNum) ? "?" : gramsNum}g）`;
+
   return (
     <>
       {/* オーバーレイ */}
-      <div
-        className="fixed inset-0 bg-black/60 z-40"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
       {/* ドロワー */}
       <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl max-w-md mx-auto border-x border-t border-gray-700 max-h-[85svh] flex flex-col">
         {/* ハンドル */}
@@ -157,42 +196,58 @@ function EditDrawer({
             />
           </div>
 
-          {/* PFC per 100g */}
+          {/* 1回の量（先頭に配置：perServingモードの換算に必要） */}
           <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              栄養素（per 100g）
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "P タンパク質", value: protein, setter: setProtein },
-                { label: "F 脂質", value: fat, setter: setFat },
-                { label: "C 糖質", value: carbs, setter: setCarbs },
-              ].map(({ label, value, setter }) => (
-                <div key={label}>
-                  <p className="text-xs text-gray-500 mb-1">{label}</p>
-                  <input
-                    type="number"
-                    value={value}
-                    onChange={(e) => setter(e.target.value)}
-                    placeholder="—"
-                    className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-white text-sm text-center focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* デフォルトグラム */}
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              1回の量（デフォルト g）
-            </label>
+            <label className="block text-xs text-gray-400 mb-1">1回の量（g）</label>
             <input
               type="number"
               value={grams}
               onChange={(e) => setGrams(e.target.value)}
               className="w-28 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
             />
+          </div>
+
+          {/* 栄養素 + 入力モード切替 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-gray-400">栄養素</label>
+              {/* モード切替トグル */}
+              <div className="flex rounded-lg overflow-hidden border border-gray-700 text-xs">
+                {(["per100g", "perServing"] as NutrientMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => switchMode(m)}
+                    className={`px-2.5 py-1 transition-colors ${
+                      mode === m
+                        ? "bg-emerald-600 text-white"
+                        : "bg-gray-800 text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    {m === "per100g" ? "100gあたり" : `1回分（${isNaN(gramsNum) ? "?" : gramsNum}g）`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "P タンパク質", display: displayP, field: "p" as const },
+                { label: "F 脂質",       display: displayF, field: "f" as const },
+                { label: "C 糖質",       display: displayC, field: "c" as const },
+              ].map(({ label, display, field }) => (
+                <div key={field}>
+                  <p className="text-xs text-gray-500 mb-1">{label}</p>
+                  <input
+                    type="number"
+                    value={display}
+                    onChange={(e) => handleNutrientChange(field, e.target.value)}
+                    placeholder="—"
+                    className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-white text-sm text-center focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-600 mt-1.5">入力単位: {modeLabel}</p>
           </div>
 
           {/* ランク */}

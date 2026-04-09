@@ -9,6 +9,14 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const searchParams = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null;
+  const unauthorizedError = searchParams?.get("error") === "unauthorized"
+    ? "このアプリは civictech.tv アカウント専用です。"
+    : null;
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -87,7 +95,9 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {(unauthorizedError || error) && (
+            <p className="text-red-400 text-sm">{unauthorizedError ?? error}</p>
+          )}
 
           <button
             type="submit"

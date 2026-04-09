@@ -445,6 +445,33 @@ function parseSingleRestaurantJson(text: string): SingleRestaurantJson | { error
   }
 }
 
+function downloadTemplate() {
+  const payload = {
+    version: 1,
+    ...EXPORT_SCHEMA,
+    name: "お店の名前をここに入力",
+    category: "external",
+    menuItems: [
+      {
+        name: "メニュー名",
+        protein_per_100g: null,
+        fat_per_100g: null,
+        carbs_per_100g: null,
+        default_grams: 100,
+        rank: 2,
+        notes: null,
+      },
+    ],
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "ketolog-template.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ─── お店追加 選択シート ────────────────────────────────────────────────────────
 
 function RestaurantAddChoiceSheet({
@@ -469,10 +496,16 @@ function RestaurantAddChoiceSheet({
             className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors">
             手入力で追加
           </button>
-          <button onClick={onImport}
-            className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors">
-            JSONからインポート
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={onImport}
+              className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors">
+              JSONからインポート
+            </button>
+            <button onClick={downloadTemplate}
+              className="py-3 px-3 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs rounded-xl transition-colors whitespace-nowrap">
+              テンプレート
+            </button>
+          </div>
         </div>
       </div>
     </>

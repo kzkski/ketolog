@@ -523,11 +523,8 @@ function RestaurantAddChoiceSheet({
 const PRESET_BASE = "https://raw.githubusercontent.com/kzkski/ketolog/main/presets";
 
 const PRESETS = [
-  { name: "天竜（焼肉）",       file: "tenryu.json",          itemCount: 28, ready: true  },
-  { name: "マイフード（ケト）",  file: "myfood-keto.json",     itemCount: 17, ready: true  },
-  { name: "セブンイレブン",      file: "7eleven-keto.json",    itemCount: 0,  ready: false },
-  { name: "ファミリーマート",    file: "familymart-keto.json", itemCount: 0,  ready: false },
-  { name: "ローソン",            file: "lawson-keto.json",     itemCount: 0,  ready: false },
+  { name: "天竜（焼肉）",      file: "tenryu.json",      itemCount: 28 },
+  { name: "マイフード（ケト）", file: "myfood-keto.json", itemCount: 17 },
 ] as const;
 
 // ─── JSONからお店をインポート（新規追加）ドロワー ──────────────────────────────
@@ -609,20 +606,12 @@ function ImportRestaurantDrawer({
             <div className="space-y-1.5">
               {PRESETS.map((preset) => (
                 <button key={preset.file}
-                  onClick={() => preset.ready && handlePresetSelect(preset.file)}
-                  disabled={!preset.ready || fetchingPreset !== null}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
-                    preset.ready
-                      ? "bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-50"
-                      : "bg-gray-800/40 text-gray-600 cursor-default"
-                  }`}>
-                  <span>{preset.ready ? "✅" : "🚧"} {preset.name}</span>
+                  onClick={() => handlePresetSelect(preset.file)}
+                  disabled={fetchingPreset !== null}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-50 transition-colors text-left">
+                  <span>{preset.name}</span>
                   <span className="text-xs text-gray-500">
-                    {fetchingPreset === preset.file
-                      ? "取得中..."
-                      : preset.ready
-                        ? `${preset.itemCount}品`
-                        : "準備中"}
+                    {fetchingPreset === preset.file ? "取得中..." : `${preset.itemCount}品`}
                   </span>
                 </button>
               ))}

@@ -522,11 +522,6 @@ function RestaurantAddChoiceSheet({
 
 const PRESET_BASE = "https://raw.githubusercontent.com/kzkski/ketolog/main/presets";
 
-const PRESETS = [
-  { name: "天竜（焼肉）",      file: "tenryu.json",      itemCount: 28 },
-  { name: "マイフード（ケト）", file: "myfood-keto.json", itemCount: 17 },
-] as const;
-
 // ─── JSONからお店をインポート（新規追加）ドロワー ──────────────────────────────
 
 function ImportRestaurantDrawer({
@@ -614,16 +609,18 @@ function ImportRestaurantDrawer({
 function PresetSelectDrawer({
   onClose,
   onImported,
+  presets,
 }: {
   onClose: () => void;
   onImported: (restaurant: Restaurant, items: MenuItem[]) => void;
+  presets: { name: string; file: string; itemCount: number }[];
 }) {
   const PRESET_VISIBLE = 5;
   const [fetchingPreset, setFetchingPreset] = useState<string | null>(null);
   const [fetchError, setFetchError]         = useState<string | null>(null);
   const [expanded, setExpanded]             = useState(false);
 
-  const visiblePresets = expanded ? PRESETS : PRESETS.slice(0, PRESET_VISIBLE);
+  const visiblePresets = expanded ? presets : presets.slice(0, PRESET_VISIBLE);
 
   async function handleSelect(file: string) {
     setFetchingPreset(file); setFetchError(null);
@@ -673,10 +670,10 @@ function PresetSelectDrawer({
               </span>
             </button>
           ))}
-          {PRESETS.length > PRESET_VISIBLE && (
+          {presets.length > PRESET_VISIBLE && (
             <button onClick={() => setExpanded((v) => !v)}
               className="w-full py-1.5 text-xs text-gray-500 hover:text-white transition-colors">
-              {expanded ? "▲ 折り畳む" : `▼ さらに${PRESETS.length - PRESET_VISIBLE}件表示`}
+              {expanded ? "▲ 折り畳む" : `▼ さらに${presets.length - PRESET_VISIBLE}件表示`}
             </button>
           )}
           {fetchError && <p className="text-red-400 text-xs pt-1">{fetchError}</p>}
@@ -1103,6 +1100,7 @@ interface Props {
   todayConsumed: TodayConsumed;
   today: string;
   initialLogEntries: FoodLogEntry[];
+  presets: { name: string; file: string; itemCount: number }[];
 }
 
 export default function TodayClient({
@@ -1112,6 +1110,7 @@ export default function TodayClient({
   todayConsumed,
   today,
   initialLogEntries,
+  presets,
 }: Props) {
   const router = useRouter();
   const [currentSettings, setCurrentSettings] = useState<UserSettings>(settings);
@@ -1583,6 +1582,7 @@ export default function TodayClient({
       {/* お店追加: プリセット */}
       {restaurantAddSheet === "preset" && (
         <PresetSelectDrawer
+          presets={presets}
           onClose={() => setRestaurantAddSheet(null)}
           onImported={(restaurant, items) => {
             setRestaurants((prev) => [...prev, restaurant]);

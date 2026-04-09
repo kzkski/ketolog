@@ -2,6 +2,22 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
+import fs from "fs";
+import path from "path";
+
+export type PresetMeta = { name: string; file: string; itemCount: number };
+
+function loadPresets(): PresetMeta[] {
+  const dir = path.join(process.cwd(), "presets");
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .map((file) => {
+      const json = JSON.parse(fs.readFileSync(path.join(dir, file), "utf-8"));
+      return { name: json.name as string, file, itemCount: (json.menuItems as unknown[]).length };
+    })
+    .sort((a, b) => a.file.localeCompare(b.file));
+}
 
 export default async function TodayPage() {
   const supabase = await createClient();
@@ -57,6 +73,8 @@ export default async function TodayPage() {
     { protein: 0, fat: 0, carbs: 0 }
   );
 
+  const presets = loadPresets();
+
   return (
     <div className="flex flex-col h-svh bg-gray-950 w-full">
       <TodayClient
@@ -66,6 +84,7 @@ export default async function TodayPage() {
         todayConsumed={todayConsumed}
         today={today}
         initialLogEntries={logEntries}
+        presets={presets}
       />
     </div>
   );

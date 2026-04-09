@@ -518,6 +518,18 @@ function RestaurantAddChoiceSheet({
   );
 }
 
+// ─── プリセット定義 ────────────────────────────────────────────────────────────
+
+const PRESET_BASE = "https://raw.githubusercontent.com/kzkski/ketolog/main/presets";
+
+const PRESETS = [
+  { name: "天竜（焼肉）",       file: "tenryu.json",          itemCount: 28, ready: true  },
+  { name: "マイフード（ケト）",  file: "myfood-keto.json",     itemCount: 17, ready: true  },
+  { name: "セブンイレブン",      file: "7eleven-keto.json",    itemCount: 0,  ready: false },
+  { name: "ファミリーマート",    file: "familymart-keto.json", itemCount: 0,  ready: false },
+  { name: "ローソン",            file: "lawson-keto.json",     itemCount: 0,  ready: false },
+] as const;
+
 // ─── JSONからお店をインポート（新規追加）ドロワー ──────────────────────────────
 
 function ImportRestaurantDrawer({
@@ -527,22 +539,40 @@ function ImportRestaurantDrawer({
   onClose: () => void;
   onImported: (restaurant: Restaurant, items: MenuItem[]) => void;
 }) {
-  const [parsed, setParsed] = useState<SingleRestaurantJson | null>(null);
-  const [importing, setImporting] = useState(false);
+  const [parsed, setParsed]         = useState<SingleRestaurantJson | null>(null);
+  const [importing, setImporting]   = useState(false);
+  const [fetchingPreset, setFetchingPreset] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function applyParsed(text: string) {
+    const result = parseSingleRestaurantJson(text);
+    if ("error" in result) { setParseError(result.error); return; }
+    setParseError(null);
+    setParsed(result);
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setParseError(null); setParsed(null);
+    setParsed(null);
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = parseSingleRestaurantJson(reader.result as string);
-      if ("error" in result) { setParseError(result.error); return; }
-      setParsed(result);
-    };
+    reader.onload = () => applyParsed(reader.result as string);
     reader.readAsText(file);
+  }
+
+  async function handlePresetSelect(file: string) {
+    setFetchingPreset(file); setParsed(null); setParseError(null);
+    try {
+      const res = await fetch(`${PRESET_BASE}/${file}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      applyParsed(text);
+    } catch {
+      setParseError("プリセットの取得に失敗しました。ネットワークを確認してください。");
+    } finally {
+      setFetchingPreset(null);
+    }
   }
 
   async function handleImport() {
@@ -564,7 +594,7 @@ function ImportRestaurantDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[70svh]">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[80svh]">
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
@@ -573,10 +603,44 @@ function ImportRestaurantDrawer({
           <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">キャンセル</button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {/* プリセット一覧 */}
+          <div>
+            <p className="text-xs text-gray-400 mb-2">プリセットから選ぶ</p>
+            <div className="space-y-1.5">
+              {PRESETS.map((preset) => (
+                <button key={preset.file}
+                  onClick={() => preset.ready && handlePresetSelect(preset.file)}
+                  disabled={!preset.ready || fetchingPreset !== null}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+                    preset.ready
+                      ? "bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-50"
+                      : "bg-gray-800/40 text-gray-600 cursor-default"
+                  }`}>
+                  <span>{preset.ready ? "✅" : "🚧"} {preset.name}</span>
+                  <span className="text-xs text-gray-500">
+                    {fetchingPreset === preset.file
+                      ? "取得中..."
+                      : preset.ready
+                        ? `${preset.itemCount}品`
+                        : "準備中"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 text-gray-600 text-xs">
+            <div className="flex-1 h-px bg-gray-800" />
+            または
+            <div className="flex-1 h-px bg-gray-800" />
+          </div>
+
+          {/* ファイル選択 */}
           <label className="block w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg text-center cursor-pointer transition-colors">
             JSONファイルを選択
             <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={handleFileChange} />
           </label>
+
           {parseError && <p className="text-red-400 text-xs">{parseError}</p>}
           {parsed && (
             <div className="bg-gray-800 rounded-lg p-3 space-y-1">

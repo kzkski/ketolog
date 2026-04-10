@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { getMealTypeForTimeZone } from "@/lib/meal-timezone";
 import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
+import { getOrCreateSnapshotRestaurant } from "./actions";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 import fs from "fs";
 import path from "path";
@@ -54,9 +56,16 @@ export default async function TodayPage() {
 
   // マイフード（category=homemade）を先頭に固定し、以降はdisplay_order昇順
   const rawRestaurants: Restaurant[] = restaurantsRes.data ?? [];
+  const snapshotRestaurant = await getOrCreateSnapshotRestaurant();
+  const rawWithSnapshot =
+    snapshotRestaurant.data &&
+    !rawRestaurants.some((r) => r.id === snapshotRestaurant.data!.id)
+      ? [...rawRestaurants, snapshotRestaurant.data]
+      : rawRestaurants;
+
   const restaurants: Restaurant[] = [
-    ...rawRestaurants.filter((r) => r.category === "homemade"),
-    ...rawRestaurants
+    ...rawWithSnapshot.filter((r) => r.category === "homemade"),
+    ...rawWithSnapshot
       .filter((r) => r.category !== "homemade")
       .sort((a, b) => {
         const ao = a.display_order ?? 0;
@@ -67,6 +76,8 @@ export default async function TodayPage() {
         return b.order_count - a.order_count;
       }),
   ];
+
+  const initialMealType = getMealTypeForTimeZone(new Date(), "Asia/Tokyo");
 
   const menuItems: MenuItem[] = menuItemsRes.data ?? [];
 
@@ -92,6 +103,8 @@ export default async function TodayPage() {
         today={today}
         initialLogEntries={logEntries}
         presets={presets}
+        initialMealType={initialMealType}
+        snapshotRestaurantId={snapshotRestaurant.data?.id ?? ""}
       />
     </div>
   );

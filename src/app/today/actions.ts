@@ -1,10 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { SNAPSHOT_RESTAURANT_NAME } from "@/lib/snapshot-restaurant";
 import type { FoodLogEntry, MenuItem, Restaurant, TodayConsumed, SharedProduct } from "@/types/database";
 
 export type SaveItem = {
-  menuItemId: string;
+  menuItemId: string | null;
   name: string;
   totalGrams: number;
   proteinG: number;
@@ -576,12 +577,80 @@ export async function reorderRestaurants(
   return { error: null };
 }
 
+export async function getOrCreateSnapshotRestaurant(): Promise<{
+  data: Restaurant | null;
+  error: string | null;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "認証が必要です" };
+
+  const { data: existing } = await supabase
+    .from("restaurants")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("name", SNAPSHOT_RESTAURANT_NAME)
+    .maybeSingle();
+
+  if (existing) return { data: existing as Restaurant, error: null };
+
+  const { data: maxRow } = await supabase
+    .from("restaurants")
+    .select("display_order")
+    .eq("user_id", user.id)
+    .neq("category", "homemade")
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const displayOrder = (maxRow?.display_order ?? -1) + 1;
+
+  const first = await supabase
+    .from("restaurants")
+    .insert({
+      user_id: user.id,
+      name: SNAPSHOT_RESTAURANT_NAME,
+      category: "other",
+      display_order: displayOrder,
+    })
+    .select()
+    .single();
+
+  if (first.error && first.error.message.includes("display_order")) {
+    const fallback = await supabase
+      .from("restaurants")
+      .insert({
+        user_id: user.id,
+        name: SNAPSHOT_RESTAURANT_NAME,
+        category: "other",
+      })
+      .select()
+      .single();
+    if (fallback.error) return { data: null, error: fallback.error.message };
+    return { data: fallback.data as Restaurant, error: null };
+  }
+
+  if (first.error) return { data: null, error: first.error.message };
+  return { data: first.data as Restaurant, error: null };
+}
+
 export async function deleteRestaurant(
   id: string
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "認証が必要です" };
+
+  const { data: target } = await supabase
+    .from("restaurants")
+    .select("name")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (target?.name === SNAPSHOT_RESTAURANT_NAME) {
+    return { error: "このお店は削除できません" };
+  }
 
   const { error } = await supabase
     .from("restaurants")

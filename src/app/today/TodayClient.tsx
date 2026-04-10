@@ -18,6 +18,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
+import type { MealType } from "@/lib/meal-timezone";
+import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { createClient } from "@/lib/supabase/client";
 import {
   saveMealToLog,
@@ -36,6 +38,7 @@ import {
   lookupSharedProductByBarcode,
   type MenuItemUpdate,
   type ImportRestaurantItem,
+  type SaveItem,
 } from "./actions";
 import type { SharedProduct } from "@/types/database";
 import { BrowserMultiFormatReader } from "@zxing/browser";
@@ -43,13 +46,50 @@ import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
-type MealType = "breakfast" | "lunch" | "dinner" | "snack";
-
 const MEAL_LABELS: Record<MealType, string> = {
   breakfast: "朝食",
   lunch: "昼食",
   dinner: "夕食",
   snack: "間食",
+};
+
+const MEAL_TAB_STYLES: Record<MealType, { row: string; label: string }> = {
+  breakfast: {
+    row: "border-rose-400 bg-rose-400/10",
+    label: "text-rose-300",
+  },
+  lunch: {
+    row: "border-cyan-400 bg-cyan-400/10",
+    label: "text-cyan-300",
+  },
+  dinner: {
+    row: "border-violet-400 bg-violet-400/10",
+    label: "text-violet-300",
+  },
+  snack: {
+    row: "border-teal-400 bg-teal-400/10",
+    label: "text-teal-300",
+  },
+};
+
+/** カート内「記録する食事」セグメントの選択中スタイル（タブと同色） */
+const MEAL_CART_SEGMENT_ACTIVE: Record<MealType, string> = {
+  breakfast: "border-rose-400 bg-rose-500/25 text-rose-100",
+  lunch: "border-cyan-400 bg-cyan-500/25 text-cyan-100",
+  dinner: "border-violet-400 bg-violet-500/25 text-violet-100",
+  snack: "border-teal-400 bg-teal-500/25 text-teal-100",
+};
+
+/** カートパネル外枠（選択中の食事タブと同系色の上線＋淡いグラデーション） */
+const MEAL_CART_SHELL: Record<MealType, string> = {
+  breakfast:
+    "border-t-2 border-rose-400 bg-gradient-to-b from-rose-500/20 via-gray-900 to-gray-950",
+  lunch:
+    "border-t-2 border-cyan-400 bg-gradient-to-b from-cyan-500/20 via-gray-900 to-gray-950",
+  dinner:
+    "border-t-2 border-violet-400 bg-gradient-to-b from-violet-500/20 via-gray-900 to-gray-950",
+  snack:
+    "border-t-2 border-teal-400 bg-gradient-to-b from-teal-500/20 via-gray-900 to-gray-950",
 };
 
 const RANK_OPTIONS = [
@@ -66,22 +106,44 @@ const CATEGORY_OPTIONS = [
   { value: "other",      label: "その他" },
 ];
 
-type CartEntry = { item: MenuItem; count: number; gramsPerServing: number };
+type CartEntry =
+  | { kind: "menu"; item: MenuItem; count: number; gramsPerServing: number }
+  | {
+      kind: "snapshot";
+      cartKey: string;
+      name: string;
+      protein_per_100g: number | null;
+      fat_per_100g: number | null;
+      carbs_per_100g: number | null;
+      gramsPerServing: number;
+      count: number;
+      shared_barcode: string | null;
+    };
 type NutrientMode = "per100g" | "perServing";
 
 // ドロワーの種別
 type ItemDrawerState =
   | { kind: "edit"; item: MenuItem }
-  | { kind: "add"; restaurantId: string };
+  | { kind: "add"; restaurantId: string; logMealType?: MealType };
 
 // ─── ユーティリティ ────────────────────────────────────────────────────────────
 
-function getCurrentMealType(): MealType {
-  const h = new Date().getHours();
-  if (h >= 6 && h < 10) return "breakfast";
-  if (h >= 10 && h < 15) return "lunch";
-  if (h >= 15 && h < 22) return "dinner";
-  return "snack";
+function firstTabRestaurantId(restaurants: Restaurant[]): string {
+  const visible = restaurants.filter((r) => !isSnapshotRestaurant(r));
+  return visible[0]?.id ?? "";
+}
+
+function pfcFromPer100(
+  proteinPer100: number | null,
+  fatPer100: number | null,
+  carbsPer100: number | null,
+  grams: number
+) {
+  return {
+    p: ((proteinPer100 ?? 0) * grams) / 100,
+    f: ((fatPer100 ?? 0) * grams) / 100,
+    c: ((carbsPer100 ?? 0) * grams) / 100,
+  };
 }
 
 function pfc(item: MenuItem, grams: number) {
@@ -150,12 +212,32 @@ function MenuItemDrawer({
   onClose,
   onSaved,
   onDeleted,
+  mealTypeForLog,
+  logDate,
+  snapshotRestaurantId,
+  onAfterSnapshotLog,
+  onSnapshotCart,
+  registerTargetRestaurantName,
 }: {
   state: ItemDrawerState;
   existingGroupNames: string[];
   onClose: () => void;
   onSaved: (item: MenuItem) => void;
   onDeleted?: (id: string) => void;
+  mealTypeForLog: MealType;
+  logDate: string;
+  snapshotRestaurantId: string;
+  /** 追加時: いま選ばれているお店タブ（メニュー登録の宛先） */
+  registerTargetRestaurantName: string;
+  onAfterSnapshotLog: () => Promise<void>;
+  onSnapshotCart: (draft: {
+    name: string;
+    protein_per_100g: number | null;
+    fat_per_100g: number | null;
+    carbs_per_100g: number | null;
+    grams: number;
+    shared_barcode: string | null;
+  }) => void;
 }) {
   const groupListId = useId();
   const isEdit = state.kind === "edit";
@@ -365,20 +447,48 @@ function MenuItemDrawer({
     };
   }, [isEdit, cameraOn, cameraSupported, handleLookupBarcode]);
 
-  async function handleSave() {
-    if (!name.trim()) { setError("名前を入力してください"); return; }
-    setSaving(true); setError(null);
-    const data: MenuItemUpdate = {
+  function buildMenuPayload(): MenuItemUpdate {
+    return {
       name: name.trim(),
       protein_per_100g: protein === "" ? null : parseFloat(protein),
-      fat_per_100g:     fat     === "" ? null : parseFloat(fat),
-      carbs_per_100g:   carbs   === "" ? null : parseFloat(carbs),
+      fat_per_100g: fat === "" ? null : parseFloat(fat),
+      carbs_per_100g: carbs === "" ? null : parseFloat(carbs),
       shared_barcode: sharedBarcode,
       default_grams: parseFloat(grams) || 100,
       rank,
       notes: notes.trim() || null,
       group_name: groupName.trim() || null,
     };
+  }
+
+  function buildSnapshotSaveItem(): SaveItem | null {
+    if (!snapshotRestaurantId) return null;
+    if (!name.trim()) return null;
+    const gramsNum = parseFloat(grams) || 100;
+    const p100 = protein === "" ? null : parseFloat(protein);
+    const f100 = fat === "" ? null : parseFloat(fat);
+    const c100 = carbs === "" ? null : parseFloat(carbs);
+    const v = pfcFromPer100(
+      p100 !== null && Number.isFinite(p100) ? p100 : null,
+      f100 !== null && Number.isFinite(f100) ? f100 : null,
+      c100 !== null && Number.isFinite(c100) ? c100 : null,
+      gramsNum
+    );
+    return {
+      menuItemId: null,
+      name: name.trim(),
+      totalGrams: gramsNum,
+      proteinG: v.p,
+      fatG: v.f,
+      carbsG: v.c,
+      restaurantId: snapshotRestaurantId,
+    };
+  }
+
+  async function handleSave() {
+    if (!name.trim()) { setError("名前を入力してください"); return; }
+    setSaving(true); setError(null);
+    const data = buildMenuPayload();
 
     if (isEdit && existing) {
       const result = await updateMenuItem(existing.id, data);
@@ -394,6 +504,44 @@ function MenuItemDrawer({
       if (result.error || !result.data) { setError(result.error ?? "追加に失敗しました"); setSaving(false); return; }
       onSaved(result.data);
     }
+    onClose();
+    setSaving(false);
+  }
+
+  async function handleSnapshotLogOnly() {
+    if (!name.trim()) { setError("名前を入力してください"); return; }
+    if (!snapshotRestaurantId) {
+      setError("スナップショット用の設定を読み込めていません。ページを再読み込みしてください。");
+      return;
+    }
+    const item = buildSnapshotSaveItem();
+    if (!item) return;
+    setSaving(true); setError(null);
+    const { error: logError } = await saveMealToLog([item], mealTypeForLog, logDate);
+    setSaving(false);
+    if (logError) {
+      setError(logError);
+      return;
+    }
+    await onAfterSnapshotLog();
+    onClose();
+  }
+
+  function handleSnapshotToCart() {
+    if (!name.trim()) { setError("名前を入力してください"); return; }
+    if (!snapshotRestaurantId) {
+      setError("スナップショット用の設定を読み込めていません。ページを再読み込みしてください。");
+      return;
+    }
+    const gramsNum = parseFloat(grams) || 100;
+    onSnapshotCart({
+      name: name.trim(),
+      protein_per_100g: protein === "" ? null : parseFloat(protein),
+      fat_per_100g: fat === "" ? null : parseFloat(fat),
+      carbs_per_100g: carbs === "" ? null : parseFloat(carbs),
+      grams: gramsNum,
+      shared_barcode: sharedBarcode,
+    });
     onClose();
   }
 
@@ -426,6 +574,18 @@ function MenuItemDrawer({
             キャンセル
           </button>
         </div>
+
+        {!isEdit && registerTargetRestaurantName && (
+          <div className="flex-none px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
+            <p className="text-[11px] text-gray-500 leading-snug">メニューに登録するお店</p>
+            <p className="text-sm font-medium text-white truncate mt-0.5" title={registerTargetRestaurantName}>
+              {registerTargetRestaurantName}
+            </p>
+            <p className="text-[11px] text-gray-500 leading-snug mt-1.5">
+              別のお店へ登録するときは、閉じて上のお店タブを切り替えてから、もう一度開いてください。
+            </p>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           <div>
@@ -575,11 +735,59 @@ function MenuItemDrawer({
           )}
         </div>
 
-        <div className="flex-none px-4 py-4 border-t border-gray-800">
-          <button onClick={handleSave} disabled={saving}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors">
-            {saving ? "保存中..." : isEdit ? "保存する" : "追加する"}
-          </button>
+        <div className="flex-none px-4 py-4 border-t border-gray-800 space-y-2">
+          {isEdit ? (
+            <button onClick={() => void handleSave()} disabled={saving}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors">
+              {saving ? "保存中..." : "保存する"}
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={saving}
+                title={
+                  registerTargetRestaurantName
+                    ? `「${registerTargetRestaurantName}」のメニュー一覧に追加します`
+                    : undefined
+                }
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5"
+              >
+                {saving ? (
+                  "保存中..."
+                ) : (
+                  <>
+                    <span>このお店のメニューに登録</span>
+                    {registerTargetRestaurantName ? (
+                      <span className="text-xs font-normal text-emerald-100/90 truncate max-w-full px-1">
+                        {registerTargetRestaurantName}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-normal text-emerald-100/80">（お店タブを確認）</span>
+                    )}
+                  </>
+                )}
+              </button>
+              <p className="text-center text-[11px] text-gray-500 leading-snug px-1">
+                メニュー一覧に載せずに記録するとき
+              </p>
+              <button type="button" onClick={handleSnapshotToCart} disabled={saving || !snapshotRestaurantId}
+                className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-200 text-sm font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5">
+                <span>カートに入れる</span>
+                <span className="text-[11px] font-normal text-gray-400 leading-tight">
+                  メニューには登録しない・あとで「記録する」でまとめて保存
+                </span>
+              </button>
+              <button type="button" onClick={() => void handleSnapshotLogOnly()} disabled={saving || !snapshotRestaurantId}
+                className="w-full py-2.5 border border-gray-600 hover:border-gray-500 disabled:opacity-50 text-gray-200 text-sm font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5">
+                <span>今すぐ食事ログに記録</span>
+                <span className="text-[11px] font-normal text-gray-400 leading-tight">
+                  カートを使わず、この内容だけいま保存
+                </span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </>
@@ -1465,6 +1673,8 @@ interface Props {
   today: string;
   initialLogEntries: FoodLogEntry[];
   presets: { name: string; file: string; itemCount: number }[];
+  initialMealType: MealType;
+  snapshotRestaurantId: string;
 }
 
 export default function TodayClient({
@@ -1475,14 +1685,18 @@ export default function TodayClient({
   today,
   initialLogEntries,
   presets,
+  initialMealType,
+  snapshotRestaurantId,
 }: Props) {
   const [currentSettings, setCurrentSettings] = useState<UserSettings>(settings);
   const [showSettings, setShowSettings]       = useState(false);
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
   const [menuItems, setMenuItems]     = useState<MenuItem[]>(initialMenuItems);
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState(initialRestaurants[0]?.id ?? "");
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState(() =>
+    firstTabRestaurantId(initialRestaurants)
+  );
   const [cart, setCart]             = useState<Map<string, CartEntry>>(new Map());
-  const [mealType, setMealType]     = useState<MealType>(getCurrentMealType());
+  const [mealType, setMealType]     = useState<MealType>(initialMealType);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(["控えめ", "避ける"]));
   const [saving, setSaving]         = useState(false);
   const [cartExpanded, setCartExpanded] = useState(true);
@@ -1502,7 +1716,22 @@ export default function TodayClient({
   type RestaurantAddSheet = "choice" | "manual" | "import" | "preset" | null;
   const [restaurantAddSheet, setRestaurantAddSheet] = useState<RestaurantAddSheet>(null);
 
-  const selectedRestaurant = restaurants.find((r) => r.id === selectedRestaurantId);
+  const tabRestaurants = useMemo(
+    () => restaurants.filter((r) => !isSnapshotRestaurant(r)),
+    [restaurants]
+  );
+
+  const selectedRestaurantIdResolved = useMemo(() => {
+    if (tabRestaurants.length === 0) return "";
+    if (tabRestaurants.some((r) => r.id === selectedRestaurantId)) {
+      return selectedRestaurantId;
+    }
+    return tabRestaurants[0].id;
+  }, [tabRestaurants, selectedRestaurantId]);
+
+  const selectedRestaurant = restaurants.find(
+    (r) => r.id === selectedRestaurantIdResolved
+  );
   const drawerRestaurantId =
     itemDrawer?.kind === "add"
       ? itemDrawer.restaurantId
@@ -1520,12 +1749,12 @@ export default function TodayClient({
     return Array.from(names).sort((a, b) => a.localeCompare(b, "ja"));
   }, [menuItems, drawerRestaurantId]);
   const homemadeRestaurants = useMemo(
-    () => restaurants.filter((r) => r.category === "homemade"),
-    [restaurants]
+    () => tabRestaurants.filter((r) => r.category === "homemade"),
+    [tabRestaurants]
   );
   const otherRestaurants = useMemo(
-    () => restaurants.filter((r) => r.category !== "homemade"),
-    [restaurants]
+    () => tabRestaurants.filter((r) => r.category !== "homemade"),
+    [tabRestaurants]
   );
   const otherRestaurantIds = useMemo(
     () => otherRestaurants.map((r) => r.id),
@@ -1560,9 +1789,16 @@ export default function TodayClient({
     let p = 0, f = 0, c = 0;
     cart.forEach((entry) => {
       const g = entry.gramsPerServing * entry.count;
-      p += (entry.item.protein_per_100g ?? 0) * g / 100;
-      f += (entry.item.fat_per_100g ?? 0) * g / 100;
-      c += (entry.item.carbs_per_100g ?? 0) * g / 100;
+      if (entry.kind === "menu") {
+        p += (entry.item.protein_per_100g ?? 0) * g / 100;
+        f += (entry.item.fat_per_100g ?? 0) * g / 100;
+        c += (entry.item.carbs_per_100g ?? 0) * g / 100;
+      } else {
+        const v = pfcFromPer100(entry.protein_per_100g, entry.fat_per_100g, entry.carbs_per_100g, g);
+        p += v.p;
+        f += v.f;
+        c += v.c;
+      }
     });
     return { p, f, c };
   }, [cart]);
@@ -1580,7 +1816,9 @@ export default function TodayClient({
   type MenuGroup = { groupName: string | null; groupOrder: number; items: MenuItem[] };
 
   const menuGroups = useMemo((): MenuGroup[] => {
-    const items = menuItems.filter((item) => item.restaurant_id === selectedRestaurantId);
+    const items = menuItems.filter(
+      (item) => item.restaurant_id === selectedRestaurantIdResolved
+    );
     const groupMap = new Map<string | null, MenuGroup>();
 
     for (const item of items) {
@@ -1597,15 +1835,18 @@ export default function TodayClient({
         if (b.groupName === null) return 1;
         return a.groupOrder - b.groupOrder;
       });
-  }, [menuItems, selectedRestaurantId]);
+  }, [menuItems, selectedRestaurantIdResolved]);
 
   // ── カート操作 ──────────────────────────────────────────────────────────────
   function addItem(item: MenuItem, grams: number) {
     setCart((prev) => {
       const next = new Map(prev);
       const existing = next.get(item.id);
-      if (existing) next.set(item.id, { ...existing, count: existing.count + 1 });
-      else next.set(item.id, { item, count: 1, gramsPerServing: grams });
+      if (existing?.kind === "menu") {
+        next.set(item.id, { ...existing, count: existing.count + 1 });
+      } else {
+        next.set(item.id, { kind: "menu", item, count: 1, gramsPerServing: grams });
+      }
       return next;
     });
   }
@@ -1614,9 +1855,17 @@ export default function TodayClient({
     setCart((prev) => {
       const next = new Map(prev);
       const existing = next.get(itemId);
-      if (!existing) return prev;
+      if (!existing || existing.kind !== "menu") return prev;
       if (existing.count <= 1) next.delete(itemId);
       else next.set(itemId, { ...existing, count: existing.count - 1 });
+      return next;
+    });
+  }
+
+  function removeCartLine(mapKey: string) {
+    setCart((prev) => {
+      const next = new Map(prev);
+      next.delete(mapKey);
       return next;
     });
   }
@@ -1625,7 +1874,7 @@ export default function TodayClient({
     setCart((prev) => {
       const next = new Map(prev);
       const existing = next.get(itemId);
-      if (!existing) return prev;
+      if (!existing || existing.kind !== "menu") return prev;
       next.set(itemId, { ...existing, gramsPerServing: grams });
       return next;
     });
@@ -1641,7 +1890,7 @@ export default function TodayClient({
     // カートにあれば item を更新（gramsPerServing はユーザーの手動編集値を保持）
     setCart((prev) => {
       const entry = prev.get(saved.id);
-      if (!entry) return prev;
+      if (!entry || entry.kind !== "menu") return prev;
       const next = new Map(prev);
       next.set(saved.id, { ...entry, item: saved });
       return next;
@@ -1707,11 +1956,45 @@ export default function TodayClient({
   // ── 食事記録保存 ────────────────────────────────────────────────────────────
   async function handleSave() {
     if (!hasCart || saving) return;
+    if (
+      cartEntries.some((e) => e.kind === "snapshot") &&
+      !snapshotRestaurantId
+    ) {
+      alert(
+        "スナップショット用の設定が読み込めていません。ページを再読み込みしてください。"
+      );
+      return;
+    }
     setSaving(true);
-    const items = cartEntries.map((entry) => {
+    const items: SaveItem[] = cartEntries.map((entry) => {
       const totalGrams = entry.gramsPerServing * entry.count;
-      const v = pfc(entry.item, totalGrams);
-      return { menuItemId: entry.item.id, name: entry.item.name, totalGrams, proteinG: v.p, fatG: v.f, carbsG: v.c, restaurantId: entry.item.restaurant_id };
+      if (entry.kind === "menu") {
+        const v = pfc(entry.item, totalGrams);
+        return {
+          menuItemId: entry.item.id,
+          name: entry.item.name,
+          totalGrams,
+          proteinG: v.p,
+          fatG: v.f,
+          carbsG: v.c,
+          restaurantId: entry.item.restaurant_id,
+        };
+      }
+      const v = pfcFromPer100(
+        entry.protein_per_100g,
+        entry.fat_per_100g,
+        entry.carbs_per_100g,
+        totalGrams
+      );
+      return {
+        menuItemId: null,
+        name: entry.name,
+        totalGrams,
+        proteinG: v.p,
+        fatG: v.f,
+        carbsG: v.c,
+        restaurantId: snapshotRestaurantId,
+      };
     });
     const { error } = await saveMealToLog(items, mealType, selectedDate);
     if (error) { alert(`保存に失敗しました: ${error}`); setSaving(false); return; }
@@ -1786,10 +2069,18 @@ export default function TodayClient({
         {/* 記録済みパネル */}
         {logEntries.length > 0 && (
           <div className="flex-none border-b border-gray-800">
-            <button type="button" onClick={() => setShowLogEntries((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 sm:py-2 text-sm sm:text-xs text-gray-400 hover:text-white transition-colors min-h-11 sm:min-h-0">
-              <span>この日の記録（{logEntries.length}件）</span>
-              <span>{showLogEntries ? "▲" : "▼"}</span>
+            <button
+              type="button"
+              aria-expanded={showLogEntries}
+              onClick={() => setShowLogEntries((v) => !v)}
+              className="w-full flex items-center justify-end gap-2 px-4 py-3 sm:py-2 text-sm sm:text-xs text-gray-400 hover:text-white transition-colors min-h-11 sm:min-h-0"
+            >
+              <span className="font-medium text-gray-300 text-right">
+                この日の記録（{logEntries.length}件）
+              </span>
+              <span className="text-gray-500 shrink-0 w-5 text-center" aria-hidden>
+                {showLogEntries ? "▲" : "▼"}
+              </span>
             </button>
             {showLogEntries && (
               <div className="max-h-52 overflow-y-auto">
@@ -1815,22 +2106,45 @@ export default function TodayClient({
           </div>
         )}
 
-        {/* 食事タイプ タブ */}
-        <div className="flex-none flex border-b border-gray-800 bg-gray-900">
-          {(Object.keys(MEAL_LABELS) as MealType[]).map((type) => {
-            const activeColors: Record<MealType, string> = {
-              breakfast: "border-rose-400 text-rose-300 bg-rose-400/10",
-              lunch:     "border-cyan-400 text-cyan-300 bg-cyan-400/10",
-              dinner:    "border-violet-400 text-violet-300 bg-violet-400/10",
-              snack:     "border-teal-400 text-teal-300 bg-teal-400/10",
-            };
-            return (
-              <button key={type} type="button" onClick={() => setMealType(type)}
-                className={`flex-1 min-h-12 sm:min-h-0 py-3.5 sm:py-2.5 text-sm sm:text-xs font-medium border-b-2 transition-colors ${mealType === type ? activeColors[type] : "border-transparent text-gray-500 hover:text-gray-300"}`}>
-                {MEAL_LABELS[type]}
-              </button>
-            );
-          })}
+        {/* 食事タイプ タブ＋記録（＋は選択中の区分でドロワーを開く） */}
+        <div className="flex-none flex items-stretch border-b border-gray-800 bg-gray-900">
+          <div className="flex flex-1 min-w-0">
+            {(Object.keys(MEAL_LABELS) as MealType[]).map((type) => {
+              const active = mealType === type;
+              const a = MEAL_TAB_STYLES[type];
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setMealType(type)}
+                  className={`flex-1 min-w-0 min-h-12 sm:min-h-0 py-3.5 sm:py-2.5 text-sm sm:text-xs font-medium border-b-2 transition-colors text-center touch-manipulation ${
+                    active
+                      ? `${a.row} ${a.label}`
+                      : "border-transparent text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {MEAL_LABELS[type]}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            aria-label={`${MEAL_LABELS[mealType]}に記録を追加（いま選んでいる食事区分で開きます）`}
+            onClick={() => {
+              const rid = selectedRestaurantIdResolved;
+              if (!rid) {
+                alert(
+                  "表示できるお店がありません。上の「＋」からお店を追加してください。"
+                );
+                return;
+              }
+              setItemDrawer({ kind: "add", restaurantId: rid });
+            }}
+            className="shrink-0 min-w-[3rem] w-[3rem] sm:min-w-11 sm:w-11 flex items-center justify-center text-[1.35rem] sm:text-xl font-semibold leading-none touch-manipulation border-l border-gray-800/80 transition-colors bg-emerald-600/25 text-emerald-200 hover:bg-emerald-500/45 hover:text-white active:bg-emerald-500/55"
+          >
+            ＋
+          </button>
         </div>
 
         {/* レストラン タブ + 追加ボタン（マイフード以外は左ハンドルで並べ替え） */}
@@ -1840,7 +2154,7 @@ export default function TodayClient({
               key={r.id}
               type="button"
               onClick={() => { setSelectedRestaurantId(r.id); setConfirmDeleteRestaurant(false); }}
-              className={`px-4 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-12 sm:min-h-0 touch-manipulation ${selectedRestaurantId === r.id ? "border-emerald-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}
+              className={`px-4 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-12 sm:min-h-0 touch-manipulation ${selectedRestaurantIdResolved === r.id ? "border-emerald-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}
             >
               {r.name}
             </button>
@@ -1855,7 +2169,7 @@ export default function TodayClient({
                 <SortableRestaurantTab
                   key={r.id}
                   restaurant={r}
-                  selected={selectedRestaurantId === r.id}
+                  selected={selectedRestaurantIdResolved === r.id}
                   onSelect={() => { setSelectedRestaurantId(r.id); setConfirmDeleteRestaurant(false); }}
                 />
               ))}
@@ -1910,10 +2224,15 @@ export default function TodayClient({
           })}
 
           {/* メニュー追加 & お店削除 */}
-          {selectedRestaurantId && (
+          {selectedRestaurantIdResolved && (
             <div className="px-4 py-3 space-y-2 border-t border-gray-800/60 mt-1">
               <button
-                onClick={() => setItemDrawer({ kind: "add", restaurantId: selectedRestaurantId })}
+                onClick={() =>
+                  setItemDrawer({
+                    kind: "add",
+                    restaurantId: selectedRestaurantIdResolved,
+                  })
+                }
                 className="w-full py-2 border border-dashed border-gray-700 rounded-lg text-gray-400 hover:text-white hover:border-gray-500 text-sm transition-colors">
                 ＋ メニューを追加
               </button>
@@ -1957,20 +2276,29 @@ export default function TodayClient({
             </div>
           )}
 
-          {menuGroups.every((g) => g.items.length === 0) && selectedRestaurantId && (
+          {menuGroups.every((g) => g.items.length === 0) && selectedRestaurantIdResolved && (
             <p className="text-center text-gray-500 text-base sm:text-sm py-8">
               メニューがまだありません
             </p>
           )}
         </div>
 
-        {/* カートパネル */}
+        {/* カートパネル（記録先の食事区分の色＝上部タブと同期） */}
         {hasCart && (
-          <div className="flex-none border-t border-gray-700 bg-gray-900 pb-[env(safe-area-inset-bottom)]">
+          <div
+            className={`flex-none pb-[env(safe-area-inset-bottom)] ${MEAL_CART_SHELL[mealType]}`}
+          >
             <button type="button" onClick={() => setCartExpanded((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0">
-              <span className="text-base sm:text-sm font-medium text-white">カート（{cartEntries.length}品）</span>
-              <div className="flex items-center gap-3">
+              className="w-full flex items-center justify-between gap-2 px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0 text-left">
+              <div className="flex flex-col items-start min-w-0 flex-1 gap-0.5">
+                <span className="text-base sm:text-sm font-medium text-white">
+                  カート（{cartEntries.length}品）
+                </span>
+                <span className={`text-[11px] sm:text-xs leading-snug ${MEAL_TAB_STYLES[mealType].label}`}>
+                  {MEAL_LABELS[mealType]}に記録
+                </span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
                 <span className="text-sm sm:text-xs text-gray-400 tabular-nums">
                   P{fmt(cartPFC.p)} F{fmt(cartPFC.f)} C{fmt(cartPFC.c)}
                 </span>
@@ -1979,19 +2307,72 @@ export default function TodayClient({
             </button>
             {cartExpanded && (
               <>
-                <div className="max-h-36 overflow-y-auto border-t border-gray-800">
+                <div className="px-3 pt-1 pb-2 border-t border-gray-800/70">
+                  <p className="text-[10px] text-gray-500 mb-1.5 px-0.5">記録する食事</p>
+                  <div className="flex gap-1">
+                    {(Object.keys(MEAL_LABELS) as MealType[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setMealType(t)}
+                        className={`flex-1 min-h-10 min-w-0 px-0.5 py-2 rounded-lg text-[10px] sm:text-xs font-medium border-2 transition-colors touch-manipulation ${
+                          mealType === t
+                            ? MEAL_CART_SEGMENT_ACTIVE[t]
+                            : "border-gray-700/90 bg-gray-800/70 text-gray-500 hover:text-gray-300 hover:border-gray-600"
+                        }`}
+                      >
+                        {MEAL_LABELS[t]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="max-h-36 overflow-y-auto border-t border-gray-800/70">
                   {cartEntries.map((entry) => {
                     const totalGrams = entry.gramsPerServing * entry.count;
-                    const v = pfc(entry.item, totalGrams);
-                    return (
-                      <div key={entry.item.id} className="flex items-center justify-between px-4 py-1.5 border-b border-gray-800/50">
-                        <span className="text-sm text-gray-200 truncate flex-1">
-                          {entry.item.name}
-                          <span className="text-gray-500 ml-1 text-xs">×{entry.count}（{totalGrams}g）</span>
+                    const v =
+                      entry.kind === "menu"
+                        ? pfc(entry.item, totalGrams)
+                        : pfcFromPer100(
+                            entry.protein_per_100g,
+                            entry.fat_per_100g,
+                            entry.carbs_per_100g,
+                            totalGrams
+                          );
+                    const lineKey =
+                      entry.kind === "menu" ? entry.item.id : entry.cartKey;
+                    const title =
+                      entry.kind === "menu"
+                        ? entry.item.name
+                        : entry.name;
+                    const snapshotTag =
+                      entry.kind === "snapshot" ? (
+                        <span className="text-gray-600 ml-1 text-[10px] shrink-0">
+                          スナップショット
                         </span>
-                        <span className="text-xs text-gray-400 shrink-0 ml-2 tabular-nums">
+                      ) : null;
+                    return (
+                      <div
+                        key={lineKey}
+                        className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-800/50"
+                      >
+                        <span className="text-sm text-gray-200 truncate flex-1 min-w-0">
+                          {title}
+                          {snapshotTag}
+                          <span className="text-gray-500 ml-1 text-xs whitespace-nowrap">
+                            ×{entry.count}（{totalGrams}g）
+                          </span>
+                        </span>
+                        <span className="text-xs text-gray-400 shrink-0 tabular-nums">
                           P{fmt(v.p)} F{fmt(v.f)} C{fmt(v.c)}
                         </span>
+                        <button
+                          type="button"
+                          aria-label="カートから外す"
+                          onClick={() => removeCartLine(lineKey)}
+                          className="shrink-0 min-w-9 min-h-9 sm:min-w-8 sm:min-h-8 flex items-center justify-center text-gray-500 hover:text-white text-lg leading-none touch-manipulation rounded-lg active:bg-gray-800/60"
+                        >
+                          ×
+                        </button>
                       </div>
                     );
                   })}
@@ -2021,6 +2402,33 @@ export default function TodayClient({
           onClose={() => setItemDrawer(null)}
           onSaved={handleItemSaved}
           onDeleted={itemDrawer.kind === "edit" ? handleItemDeleted : undefined}
+          mealTypeForLog={
+            itemDrawer.kind === "add" && itemDrawer.logMealType != null
+              ? itemDrawer.logMealType
+              : mealType
+          }
+          logDate={selectedDate}
+          snapshotRestaurantId={snapshotRestaurantId}
+          registerTargetRestaurantName={selectedRestaurant?.name ?? ""}
+          onAfterSnapshotLog={() => refreshLogForDate(selectedDate)}
+          onSnapshotCart={(draft) => {
+            const cartKey = `snap:${crypto.randomUUID()}`;
+            setCart((prev) => {
+              const next = new Map(prev);
+              next.set(cartKey, {
+                kind: "snapshot",
+                cartKey,
+                name: draft.name,
+                protein_per_100g: draft.protein_per_100g,
+                fat_per_100g: draft.fat_per_100g,
+                carbs_per_100g: draft.carbs_per_100g,
+                gramsPerServing: draft.grams,
+                count: 1,
+                shared_barcode: draft.shared_barcode,
+              });
+              return next;
+            });
+          }}
         />
       )}
 

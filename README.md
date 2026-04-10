@@ -54,6 +54,36 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 npm run dev
 ```
 
+## Open Food Facts API
+
+バーコードから商品情報を取り込む機能は [Open Food Facts](https://world.openfoodfacts.org)（OFF）の API を利用する。利用前に次を確認すること。
+
+### 必須の運用（公式ガイド）
+
+1. **利用規約・ライセンス**  
+   [Terms of use, contribution and re-use](https://world.openfoodfacts.org/terms-of-use)（データは ODbL 等。**帰属表示**が必要。アプリ内にクレジット表示あり）
+
+2. **カスタム User-Agent**  
+   [API ドキュメント](https://openfoodfacts.github.io/openfoodfacts-server/api/)のとおり、リクエストに **`AppName/Version (連絡先メール)`** 形式の User-Agent を付ける（未設定時はコード内のデフォルトが使われる）
+
+3. **API 利用の申告（usage form）**  
+   公式が [API usage form](https://docs.google.com/forms/d/e/1FAIpQLSdIE3D8qvjC_zRJw1W8OmuHhsWJ_NSckiiniAHlfaVwUZCziQ/viewform) で利用実態の把握を依頼している。**本番公開前に提出**し、アプリ名・URL・想定トラフィック・連絡先などを記載する
+
+4. **レート制限**  
+   商品取得（`GET /api/v*/product`）は **100 req/min** などエンドポイント別に制限がある。アプリ側では `shared_products` キャッシュで再取得を抑える
+
+5. **ステージング**  
+   本番と別検証には [world.openfoodfacts.net](https://world.openfoodfacts.net/)（Basic 認証あり。ドキュメント参照）
+
+### 環境変数（任意）
+
+[.env.example](.env.example) 参照。
+
+| 変数 | 説明 |
+|---|---|
+| `OFF_USER_AGENT` | 上記形式で上書き（チームで連絡先を統一する場合に使用） |
+| `OFF_API_BASE` | デフォルトは `https://world.openfoodfacts.org`。検証時のみステージング URL に変更 |
+
 ## フェーズ設計
 
 | フェーズ | P | F | C（糖質） | 状態 |

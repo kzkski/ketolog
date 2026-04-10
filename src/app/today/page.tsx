@@ -59,8 +59,10 @@ export default async function TodayPage() {
     ...rawRestaurants
       .filter((r) => r.category !== "homemade")
       .sort((a, b) => {
-        if (a.display_order !== b.display_order) {
-          return a.display_order - b.display_order;
+        const ao = a.display_order ?? 0;
+        const bo = b.display_order ?? 0;
+        if (ao !== bo) {
+          return ao - bo;
         }
         return b.order_count - a.order_count;
       }),

@@ -314,14 +314,23 @@ export async function addRestaurant(
   const displayOrder =
     category === "homemade" ? 0 : await nextRestaurantDisplayOrder(supabase, user.id);
 
-  const { data: row, error } = await supabase
+  const first = await supabase
     .from("restaurants")
     .insert({ user_id: user.id, name: name.trim(), category, display_order: displayOrder })
     .select()
     .single();
+  if (first.error && first.error.message.includes("display_order")) {
+    const fallback = await supabase
+      .from("restaurants")
+      .insert({ user_id: user.id, name: name.trim(), category })
+      .select()
+      .single();
+    if (fallback.error) return { data: null, error: fallback.error.message };
+    return { data: fallback.data as Restaurant, error: null };
+  }
 
-  if (error) return { data: null, error: error.message };
-  return { data: row as Restaurant, error: null };
+  if (first.error) return { data: null, error: first.error.message };
+  return { data: first.data as Restaurant, error: null };
 }
 
 export async function reorderRestaurants(
@@ -354,7 +363,24 @@ export async function reorderRestaurants(
   );
   const results = await Promise.all(updates);
   const failed = results.find((r) => r.error);
-  if (failed?.error) return { error: failed.error.message };
+  if (failed?.error) {
+    if (!failed.error.message.includes("display_order")) {
+      return { error: failed.error.message };
+    }
+
+    // 旧スキーマ互換: display_order が未適用の場合は order_count で順序を保存する
+    const base = orderedNonHomemadeIds.length;
+    const fallbackUpdates = orderedNonHomemadeIds.map((id, index) =>
+      supabase
+        .from("restaurants")
+        .update({ order_count: base - index })
+        .eq("id", id)
+        .eq("user_id", user.id)
+    );
+    const fallbackResults = await Promise.all(fallbackUpdates);
+    const fallbackFailed = fallbackResults.find((r) => r.error);
+    if (fallbackFailed?.error) return { error: fallbackFailed.error.message };
+  }
   return { error: null };
 }
 
@@ -425,11 +451,20 @@ export async function importRestaurantData(data: ImportData): Promise<{
 
     const displayOrder =
       r.category === "homemade" ? 0 : await nextRestaurantDisplayOrder(supabase, user.id);
-    const { data: newR, error: rErr } = await supabase
+    let { data: newR, error: rErr } = await supabase
       .from("restaurants")
       .insert({ user_id: user.id, name: r.name, category: r.category, display_order: displayOrder })
       .select()
       .single();
+    if (rErr && rErr.message.includes("display_order")) {
+      const fallback = await supabase
+        .from("restaurants")
+        .insert({ user_id: user.id, name: r.name, category: r.category })
+        .select()
+        .single();
+      newR = fallback.data;
+      rErr = fallback.error;
+    }
     if (rErr || !newR) { skipped.push(r.name); continue; }
     newRestaurants.push(newR as Restaurant);
 

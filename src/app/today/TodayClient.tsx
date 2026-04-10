@@ -97,13 +97,13 @@ function PFCBar({ label, current, target, color }: {
   const pct = Math.min((current / target) * 100, 100);
   const over = current > target;
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-400 w-4 shrink-0">{label}</span>
-      <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+    <div className="flex items-center gap-2 sm:gap-2">
+      <span className="text-sm sm:text-xs text-gray-400 w-5 sm:w-4 shrink-0">{label}</span>
+      <div className="flex-1 h-2.5 sm:h-2 bg-gray-800 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all duration-300 ${over ? "bg-red-500" : color}`}
           style={{ width: `${pct}%` }} />
       </div>
-      <span className={`text-xs tabular-nums w-16 text-right ${over ? "text-red-400" : "text-gray-300"}`}>
+      <span className={`text-sm sm:text-xs tabular-nums w-[4.5rem] sm:w-16 text-right ${over ? "text-red-400" : "text-gray-300"}`}>
         {fmt(current)}/{target}g
       </span>
     </div>
@@ -204,7 +204,7 @@ function MenuItemDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl max-w-md mx-auto border-x border-t border-gray-700 max-h-[85svh] flex flex-col">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl max-w-md mx-auto border-x border-t border-gray-700 max-h-[85svh] flex flex-col pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex-none flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
@@ -228,7 +228,7 @@ function MenuItemDrawer({
           <div>
             <label className="block text-xs text-gray-400 mb-1">1回の量（g）</label>
             <input type="number" value={grams} onChange={(e) => setGrams(e.target.value)}
-              className="w-28 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+              className="w-28 px-3 py-3 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
           </div>
 
           <div>
@@ -350,7 +350,7 @@ function AddRestaurantDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl max-w-md mx-auto border-x border-t border-gray-700 flex flex-col">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl max-w-md mx-auto border-x border-t border-gray-700 flex flex-col pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex-none flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
@@ -516,7 +516,7 @@ function RestaurantAddChoiceSheet({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex justify-center pt-3 pb-2">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
@@ -590,7 +590,7 @@ function ImportRestaurantDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[80svh]">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[80svh] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
@@ -672,7 +672,7 @@ function PresetSelectDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[70svh]">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[70svh] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
@@ -746,7 +746,7 @@ function ImportMenuItemsDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[70svh]">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[70svh] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
@@ -821,11 +821,11 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit }: {
   }
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-800/60">
-      <span className={`text-xs shrink-0 w-4 ${rank.className}`}>{rank.icon}</span>
-      <button className="flex-1 min-w-0 text-left" onClick={onEdit}>
-        <p className="text-sm text-white truncate">{item.name}</p>
-        <p className="text-xs text-gray-500 mt-0.5">
+    <div className="flex items-center gap-2.5 sm:gap-2 px-4 py-3 sm:py-2.5 border-b border-gray-800/60">
+      <span className={`text-sm sm:text-xs shrink-0 w-5 sm:w-4 flex justify-center ${rank.className}`}>{rank.icon}</span>
+      <button type="button" className="flex-1 min-w-0 text-left py-0.5 -my-0.5" onClick={onEdit}>
+        <p className="text-base sm:text-sm text-white truncate">{item.name}</p>
+        <p className="text-sm sm:text-xs text-gray-500 mt-0.5">
           {item.protein_per_100g !== null
             ? `P${fmt(serving.p)} F${fmt(serving.f)} C${fmt(serving.c)}`
             : "PFC未設定 — タップして編集"}
@@ -838,27 +838,27 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit }: {
             onChange={(e) => setGramsInput(e.target.value)}
             onBlur={commitGramsEdit}
             onKeyDown={(e) => e.key === "Enter" && commitGramsEdit()}
-            className="w-14 text-center text-sm bg-gray-800 border border-emerald-500 rounded px-1 py-0.5 text-white" />
+            className="w-16 sm:w-14 text-center text-base sm:text-sm bg-gray-800 border border-emerald-500 rounded px-1 py-1 sm:py-0.5 text-white" />
         ) : (
-          <button onClick={startGramsEdit}
-            className="text-xs text-gray-400 hover:text-white transition-colors px-1 py-1">
+          <button type="button" onClick={startGramsEdit}
+            className="text-sm sm:text-xs text-gray-400 hover:text-white transition-colors min-h-9 min-w-9 sm:min-h-0 sm:min-w-0 px-1 py-1 rounded-md sm:rounded-none active:bg-gray-800/80">
             {displayGrams}g
           </button>
         )}
       </div>
 
       {count === 0 ? (
-        <button onClick={() => onAdd(displayGrams)}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-lg font-bold shrink-0">
+        <button type="button" onClick={() => onAdd(displayGrams)}
+          className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xl sm:text-lg font-bold shrink-0">
           +
         </button>
       ) : (
-        <div className="flex items-center gap-1 shrink-0">
-          <button onClick={onRemove}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-white">−</button>
-          <span className="w-5 text-center text-sm font-bold text-emerald-400 tabular-nums">{count}</span>
-          <button onClick={() => onAdd(displayGrams)}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white">+</button>
+        <div className="flex items-center gap-1.5 sm:gap-1 shrink-0">
+          <button type="button" onClick={onRemove}
+            className="w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-white text-lg sm:text-base">−</button>
+          <span className="w-6 sm:w-5 text-center text-base sm:text-sm font-bold text-emerald-400 tabular-nums">{count}</span>
+          <button type="button" onClick={() => onAdd(displayGrams)}
+            className="w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-lg sm:text-base">+</button>
         </div>
       )}
     </div>
@@ -893,14 +893,14 @@ function LogEntryRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-800/40">
-      <span className="flex-1 text-sm text-white truncate">{entry.item_name}</span>
-      <span className="text-xs text-gray-400 shrink-0">{entry.grams}g</span>
-      <span className="text-xs text-gray-500 shrink-0 tabular-nums w-28 text-right">
+    <div className="flex items-center gap-2 px-4 py-3 sm:py-2 border-b border-gray-800/40">
+      <span className="flex-1 text-base sm:text-sm text-white truncate">{entry.item_name}</span>
+      <span className="text-sm sm:text-xs text-gray-400 shrink-0">{entry.grams}g</span>
+      <span className="text-sm sm:text-xs text-gray-500 shrink-0 tabular-nums w-[7.25rem] sm:w-28 text-right">
         P{fmt(entry.protein_g)} F{fmt(entry.fat_g)} C{fmt(entry.carbs_g)}
       </span>
-      <button onClick={onEdit} className="text-gray-400 hover:text-white text-xs px-1 shrink-0">✎</button>
-      <button onClick={onDelete} className="text-red-400 hover:text-red-300 text-xs px-1 shrink-0">✕</button>
+      <button type="button" onClick={onEdit} className="text-gray-400 hover:text-white text-base sm:text-xs min-h-9 min-w-9 sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0 rounded-md sm:rounded-none">✎</button>
+      <button type="button" onClick={onDelete} className="text-red-400 hover:text-red-300 text-base sm:text-xs min-h-9 min-w-9 sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0 rounded-md sm:rounded-none">✕</button>
     </div>
   );
 }
@@ -944,7 +944,7 @@ function EditEntryDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
@@ -957,8 +957,8 @@ function EditEntryDrawer({
             <label className="block text-xs text-gray-400 mb-1">食事タイプ</label>
             <div className="grid grid-cols-4 gap-1.5">
               {(Object.keys(MEAL_LABELS) as MealType[]).map((t) => (
-                <button key={t} onClick={() => setMealType(t)}
-                  className={`py-2 rounded-lg text-xs font-medium transition-colors ${mealType === t ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>
+                <button key={t} type="button" onClick={() => setMealType(t)}
+                  className={`py-3 sm:py-2 rounded-lg text-sm sm:text-xs font-medium transition-colors min-h-11 sm:min-h-0 ${mealType === t ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>
                   {MEAL_LABELS[t]}
                 </button>
               ))}
@@ -967,7 +967,7 @@ function EditEntryDrawer({
           <div>
             <label className="block text-xs text-gray-400 mb-1">グラム数</label>
             <input type="number" value={grams} onChange={(e) => setGrams(e.target.value)}
-              className="w-28 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+              className="w-28 px-3 py-3 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
             {preview && (
               <p className="text-xs text-gray-500 mt-1.5 tabular-nums">
                 → P{fmt(preview.p)} / F{fmt(preview.f)} / C{fmt(preview.c)}g
@@ -977,8 +977,8 @@ function EditEntryDrawer({
           {error && <p className="text-red-400 text-xs">{error}</p>}
         </div>
         <div className="px-4 py-4 border-t border-gray-800">
-          <button onClick={handleSave} disabled={saving}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors text-sm">
+          <button type="button" onClick={handleSave} disabled={saving}
+            className="w-full min-h-12 sm:min-h-0 py-3.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors text-base sm:text-sm">
             {saving ? "保存中..." : "保存する"}
           </button>
         </div>
@@ -1029,7 +1029,7 @@ function SettingsDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[80svh]">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl border-x border-t border-gray-700 flex flex-col max-h-[80svh] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
@@ -1333,8 +1333,8 @@ export default function TodayClient({
   return (
     <>
       {/* ヘッダー */}
-      <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <h1 className="text-base font-bold text-white">
+      <header className="flex-none flex items-center justify-between px-4 py-3.5 sm:py-3 border-b border-gray-800 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <h1 className="text-lg sm:text-base font-bold text-white">
           Ketolog
           {changelogUrl ? (
             <a
@@ -1342,38 +1342,39 @@ export default function TodayClient({
               target="_blank"
               rel="noopener noreferrer"
               aria-label="変更履歴（Changelog）を開く"
-              className="text-xs font-normal text-gray-500 ml-1.5 hover:text-gray-300 hover:underline underline-offset-2"
+              className="text-sm sm:text-xs font-normal text-gray-500 ml-1.5 hover:text-gray-300 hover:underline underline-offset-2"
             >
               v{process.env.NEXT_PUBLIC_APP_VERSION}
             </a>
           ) : (
-            <span className="text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+            <span className="text-sm sm:text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
           )}
         </h1>
         <button onClick={() => setShowSettings(true)}
-          className="text-gray-400 hover:text-white transition-colors text-lg leading-none px-1">
+          type="button"
+          className="text-gray-400 hover:text-white transition-colors text-xl sm:text-lg leading-none min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg sm:rounded-none active:bg-gray-800/60 sm:active:bg-transparent">
           ⚙
         </button>
       </header>
 
       <div className="flex-1 flex flex-col min-h-0">
         {/* 日付ナビゲーション */}
-        <div className="flex-none flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-900">
-          <button onClick={() => navigateDate(-1)} disabled={loadingDate}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-lg">
+        <div className="flex-none flex items-center justify-between px-4 py-2.5 sm:py-2 border-b border-gray-800 bg-gray-900">
+          <button type="button" onClick={() => navigateDate(-1)} disabled={loadingDate}
+            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-xl sm:text-lg rounded-lg sm:rounded-none active:bg-gray-800/50">
             ‹
           </button>
-          <span className="text-sm font-medium text-white">
+          <span className="text-base sm:text-sm font-medium text-white">
             {loadingDate ? "読込中..." : formatNavDate(selectedDate, today)}
           </span>
-          <button onClick={() => navigateDate(1)} disabled={selectedDate >= today || loadingDate}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-lg">
+          <button type="button" onClick={() => navigateDate(1)} disabled={selectedDate >= today || loadingDate}
+            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-xl sm:text-lg rounded-lg sm:rounded-none active:bg-gray-800/50">
             ›
           </button>
         </div>
 
         {/* PFCバー */}
-        <div className="flex-none px-4 py-3 bg-gray-900 border-b border-gray-800 space-y-1.5">
+        <div className="flex-none px-4 py-3.5 sm:py-3 bg-gray-900 border-b border-gray-800 space-y-2 sm:space-y-1.5">
           <PFCBar label="P" current={totalPFC.p} target={currentSettings.protein_target_g} color="bg-blue-500" />
           <PFCBar label="F" current={totalPFC.f} target={currentSettings.fat_target_g}     color="bg-yellow-500" />
           <PFCBar label="C" current={totalPFC.c} target={currentSettings.carbs_target_g}   color="bg-emerald-500" />
@@ -1382,8 +1383,8 @@ export default function TodayClient({
         {/* 記録済みパネル */}
         {logEntries.length > 0 && (
           <div className="flex-none border-b border-gray-800">
-            <button onClick={() => setShowLogEntries((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-400 hover:text-white transition-colors">
+            <button type="button" onClick={() => setShowLogEntries((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 sm:py-2 text-sm sm:text-xs text-gray-400 hover:text-white transition-colors min-h-11 sm:min-h-0">
               <span>この日の記録（{logEntries.length}件）</span>
               <span>{showLogEntries ? "▲" : "▼"}</span>
             </button>
@@ -1394,7 +1395,7 @@ export default function TodayClient({
                   if (!items.length) return null;
                   return (
                     <div key={mt}>
-                      <p className="px-4 py-1 text-xs text-gray-500 bg-gray-900/50">{MEAL_LABELS[mt]}</p>
+                      <p className="px-4 py-1.5 sm:py-1 text-sm sm:text-xs text-gray-500 bg-gray-900/50">{MEAL_LABELS[mt]}</p>
                       {items.map((entry) => (
                         <LogEntryRow
                           key={entry.id}
@@ -1421,8 +1422,8 @@ export default function TodayClient({
               snack:     "border-teal-400 text-teal-300 bg-teal-400/10",
             };
             return (
-              <button key={type} onClick={() => setMealType(type)}
-                className={`flex-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${mealType === type ? activeColors[type] : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+              <button key={type} type="button" onClick={() => setMealType(type)}
+                className={`flex-1 min-h-12 sm:min-h-0 py-3.5 sm:py-2.5 text-sm sm:text-xs font-medium border-b-2 transition-colors ${mealType === type ? activeColors[type] : "border-transparent text-gray-500 hover:text-gray-300"}`}>
                 {MEAL_LABELS[type]}
               </button>
             );
@@ -1430,15 +1431,15 @@ export default function TodayClient({
         </div>
 
         {/* レストラン タブ + 追加ボタン */}
-        <div className="flex-none flex border-b border-gray-800 overflow-x-auto">
+        <div className="flex-none flex border-b border-gray-800 overflow-x-auto [scrollbar-gutter:stable] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]">
           {restaurants.map((r) => (
-            <button key={r.id} onClick={() => { setSelectedRestaurantId(r.id); setConfirmDeleteRestaurant(false); }}
-              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors ${selectedRestaurantId === r.id ? "border-emerald-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+            <button key={r.id} type="button" onClick={() => { setSelectedRestaurantId(r.id); setConfirmDeleteRestaurant(false); }}
+              className={`px-4 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-12 sm:min-h-0 ${selectedRestaurantId === r.id ? "border-emerald-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
               {r.name}
             </button>
           ))}
-          <button onClick={() => setRestaurantAddSheet("choice")}
-            className="px-3 py-2.5 text-gray-500 hover:text-white shrink-0 transition-colors text-lg leading-none">
+          <button type="button" onClick={() => setRestaurantAddSheet("choice")}
+            className="px-3 py-3.5 sm:py-2.5 min-w-11 text-gray-500 hover:text-white shrink-0 transition-colors text-xl sm:text-lg leading-none flex items-center justify-center">
             ＋
           </button>
         </div>
@@ -1465,7 +1466,8 @@ export default function TodayClient({
                     else next.add(group.groupName!);
                     return next;
                   })}
-                  className="w-full flex items-center justify-between px-4 py-2 text-gray-400 text-xs bg-gray-900/50 border-b border-gray-800/60 hover:text-gray-200 transition-colors">
+                  type="button"
+                  className="w-full flex items-center justify-between px-4 py-3 sm:py-2 text-gray-400 text-sm sm:text-xs bg-gray-900/50 border-b border-gray-800/60 hover:text-gray-200 transition-colors min-h-11 sm:min-h-0">
                   <span className="flex items-center gap-1.5">
                     <span>{isCollapsed ? "▶" : "▼"}</span>
                     <span>{group.groupName}（{group.items.length}品）</span>
@@ -1533,7 +1535,7 @@ export default function TodayClient({
           )}
 
           {menuGroups.every((g) => g.items.length === 0) && selectedRestaurantId && (
-            <p className="text-center text-gray-500 text-sm py-8">
+            <p className="text-center text-gray-500 text-base sm:text-sm py-8">
               メニューがまだありません
             </p>
           )}
@@ -1541,15 +1543,15 @@ export default function TodayClient({
 
         {/* カートパネル */}
         {hasCart && (
-          <div className="flex-none border-t border-gray-700 bg-gray-900">
-            <button onClick={() => setCartExpanded((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm font-medium text-white">カート（{cartEntries.length}品）</span>
+          <div className="flex-none border-t border-gray-700 bg-gray-900 pb-[env(safe-area-inset-bottom)]">
+            <button type="button" onClick={() => setCartExpanded((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0">
+              <span className="text-base sm:text-sm font-medium text-white">カート（{cartEntries.length}品）</span>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 tabular-nums">
+                <span className="text-sm sm:text-xs text-gray-400 tabular-nums">
                   P{fmt(cartPFC.p)} F{fmt(cartPFC.f)} C{fmt(cartPFC.c)}
                 </span>
-                <span className="text-gray-400 text-xs">{cartExpanded ? "▼" : "▲"}</span>
+                <span className="text-gray-400 text-sm sm:text-xs">{cartExpanded ? "▼" : "▲"}</span>
               </div>
             </button>
             {cartExpanded && (
@@ -1571,14 +1573,14 @@ export default function TodayClient({
                     );
                   })}
                 </div>
-                <div className="px-4 py-3 flex items-center justify-between gap-3">
-                  <div className="text-sm text-gray-300 tabular-nums">
+                <div className="px-4 py-3.5 sm:py-3 flex items-center justify-between gap-3">
+                  <div className="text-base sm:text-sm text-gray-300 tabular-nums">
                     合計 P<span className="text-white font-medium">{fmt(cartPFC.p)}</span>{" "}
                     F<span className="text-white font-medium">{fmt(cartPFC.f)}</span>{" "}
                     C<span className="text-white font-medium">{fmt(cartPFC.c)}</span>g
                   </div>
-                  <button onClick={handleSave} disabled={saving}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors shrink-0">
+                  <button type="button" onClick={handleSave} disabled={saving}
+                    className="px-5 py-3 sm:px-4 sm:py-2 min-h-11 sm:min-h-0 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-base sm:text-sm font-medium rounded-lg transition-colors shrink-0">
                     {saving ? "記録中..." : "記録する"}
                   </button>
                 </div>

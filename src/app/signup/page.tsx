@@ -59,7 +59,7 @@ export default function SignupPage() {
         <button
           onClick={handleGoogleSignup}
           disabled={googleLoading}
-          className="w-full flex items-center justify-center gap-3 py-2 bg-white hover:bg-gray-100 disabled:opacity-50 text-gray-900 rounded-lg font-medium transition-colors mb-6"
+          className="w-full min-h-11 flex items-center justify-center gap-3 py-2.5 sm:py-2 bg-white hover:bg-gray-100 disabled:opacity-50 text-gray-900 rounded-lg font-medium transition-colors mb-6"
         >
           <GoogleIcon />
           {googleLoading ? "リダイレクト中..." : "Googleで登録"}
@@ -79,7 +79,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+              className="w-full px-3 py-3 sm:py-2 text-base bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
               placeholder="you@example.com"
             />
           </div>
@@ -91,7 +91,7 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+              className="w-full px-3 py-3 sm:py-2 text-base bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
               placeholder="••••••••"
             />
           </div>
@@ -101,7 +101,7 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+            className="w-full min-h-11 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
           >
             {loading ? "登録中..." : "アカウント作成"}
           </button>

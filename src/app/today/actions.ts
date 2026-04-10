@@ -226,8 +226,8 @@ async function fetchOffProduct(barcode: string): Promise<SharedProduct | null> {
 async function upsertSharedProduct(
   supabase: Awaited<ReturnType<typeof createClient>>,
   product: SharedProduct
-): Promise<void> {
-  await supabase.from("shared_products").upsert(
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from("shared_products").upsert(
     {
       barcode: product.barcode,
       product_name: product.product_name,
@@ -243,6 +243,7 @@ async function upsertSharedProduct(
     },
     { onConflict: "barcode" }
   );
+  return { error: error?.message ?? null };
 }
 
 export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<BarcodeLookupResult> {
@@ -264,7 +265,9 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
     if (stale) {
       void (async () => {
         const refreshed = await fetchOffProduct(barcode);
-        if (refreshed) await upsertSharedProduct(supabase, refreshed);
+        if (refreshed) {
+          await upsertSharedProduct(supabase, refreshed);
+        }
       })();
     }
     return { status: "ok", product: cached as SharedProduct, error: null };
@@ -273,7 +276,10 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
   try {
     const fetched = await fetchOffProduct(barcode);
     if (!fetched) return { status: "not_found", product: null, error: null };
-    await upsertSharedProduct(supabase, fetched);
+    const { error: upsertError } = await upsertSharedProduct(supabase, fetched);
+    if (upsertError) {
+      return { status: "error", product: null, error: upsertError };
+    }
     return { status: "ok", product: fetched, error: null };
   } catch {
     return { status: "error", product: null, error: "OFFからの取得に失敗しました" };

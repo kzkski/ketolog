@@ -10,6 +10,13 @@
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-04-10
+
+### Fixed
+
+- `shared_products` に RLS がありポリシーが無いとキャッシュ行が作れず、`menu_items.shared_barcode` の外部キーで保存に失敗する問題に対し、認証ユーザー向けの SELECT / INSERT / UPDATE ポリシーをマイグレーションで追加した。
+- OFF 取得後の `shared_products` upsert が失敗しても成功扱いにならないよう、エラーを返すようにした。
+
 ## [1.7.1] - 2026-04-10
 
 ### Fixed

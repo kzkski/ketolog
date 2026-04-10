@@ -2086,49 +2086,45 @@ export default function TodayClient({
           </div>
         )}
 
-        {/* 食事タイプ タブ（ラベル＝区分選択 / ＋＝その区分で記録ドロワー） */}
-        <div className="flex-none flex border-b border-gray-800 bg-gray-900">
-          {(Object.keys(MEAL_LABELS) as MealType[]).map((type) => {
-            const active = mealType === type;
-            const a = MEAL_TAB_STYLES[type];
-            return (
-              <div
-                key={type}
-                className={`flex-1 flex min-w-0 border-b-2 transition-colors ${
-                  active ? a.row : "border-transparent"
-                }`}
-              >
+        {/* 食事タイプ タブ＋記録（＋は選択中の区分でドロワーを開く） */}
+        <div className="flex-none flex items-stretch border-b border-gray-800 bg-gray-900">
+          <div className="flex flex-1 min-w-0">
+            {(Object.keys(MEAL_LABELS) as MealType[]).map((type) => {
+              const active = mealType === type;
+              const a = MEAL_TAB_STYLES[type];
+              return (
                 <button
+                  key={type}
                   type="button"
                   onClick={() => setMealType(type)}
-                  className={`flex-1 min-h-12 sm:min-h-0 py-3.5 sm:py-2.5 text-sm sm:text-xs font-medium transition-colors text-center ${
-                    active ? a.label : "text-gray-500 hover:text-gray-300"
+                  className={`flex-1 min-w-0 min-h-12 sm:min-h-0 py-3.5 sm:py-2.5 text-sm sm:text-xs font-medium border-b-2 transition-colors text-center touch-manipulation ${
+                    active
+                      ? `${a.row} ${a.label}`
+                      : "border-transparent text-gray-500 hover:text-gray-300"
                   }`}
                 >
                   {MEAL_LABELS[type]}
                 </button>
-                <button
-                  type="button"
-                  aria-label={`${MEAL_LABELS[type]}に記録を追加`}
-                  onClick={() => {
-                    const rid = selectedRestaurantIdResolved;
-                    if (!rid) {
-                      alert(
-                        "表示できるお店がありません。上の「＋」からお店を追加してください。"
-                      );
-                      return;
-                    }
-                    setItemDrawer({ kind: "add", restaurantId: rid, logMealType: type });
-                  }}
-                  className={`shrink-0 min-w-[3rem] w-[3rem] sm:min-w-11 sm:w-11 flex items-center justify-center text-[1.35rem] sm:text-xl font-semibold leading-none touch-manipulation border-l border-gray-800/80 transition-colors
-                    bg-emerald-600/25 text-emerald-200 hover:bg-emerald-500/45 hover:text-white active:bg-emerald-500/55
-                    ${active ? "ring-2 ring-inset ring-emerald-400/60 bg-emerald-500/40" : ""}`}
-                >
-                  ＋
-                </button>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            aria-label={`${MEAL_LABELS[mealType]}に記録を追加（いま選んでいる食事区分で開きます）`}
+            onClick={() => {
+              const rid = selectedRestaurantIdResolved;
+              if (!rid) {
+                alert(
+                  "表示できるお店がありません。上の「＋」からお店を追加してください。"
+                );
+                return;
+              }
+              setItemDrawer({ kind: "add", restaurantId: rid });
+            }}
+            className="shrink-0 min-w-[3rem] w-[3rem] sm:min-w-11 sm:w-11 flex items-center justify-center text-[1.35rem] sm:text-xl font-semibold leading-none touch-manipulation border-l border-gray-800/80 transition-colors bg-emerald-600/25 text-emerald-200 hover:bg-emerald-500/45 hover:text-white active:bg-emerald-500/55"
+          >
+            ＋
+          </button>
         </div>
 
         {/* レストラン タブ + 追加ボタン（マイフード以外は左ハンドルで並べ替え） */}

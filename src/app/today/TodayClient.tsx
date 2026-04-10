@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useId } from "react";
 import { useRouter } from "next/navigation";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
@@ -114,15 +114,18 @@ function PFCBar({ label, current, target, color }: {
 
 function MenuItemDrawer({
   state,
+  existingGroupNames,
   onClose,
   onSaved,
   onDeleted,
 }: {
   state: ItemDrawerState;
+  existingGroupNames: string[];
   onClose: () => void;
   onSaved: (item: MenuItem) => void;
   onDeleted?: (id: string) => void;
 }) {
+  const groupListId = useId();
   const isEdit = state.kind === "edit";
   const existing = isEdit ? state.item : null;
 
@@ -176,8 +179,12 @@ function MenuItemDrawer({
 
     if (isEdit && existing) {
       const result = await updateMenuItem(existing.id, data);
-      if (result.error) { setError(result.error); setSaving(false); return; }
-      onSaved({ ...existing, ...data });
+      if (result.error || !result.data) {
+        setError(result.error ?? "保存に失敗しました");
+        setSaving(false);
+        return;
+      }
+      onSaved(result.data);
     } else {
       const restaurantId = state.kind === "add" ? state.restaurantId : "";
       const result = await addMenuItem(restaurantId, data);
@@ -276,8 +283,16 @@ function MenuItemDrawer({
           <div>
             <label className="block text-xs text-gray-400 mb-1">グループ名（任意）</label>
             <input type="text" value={groupName} onChange={(e) => setGroupName(e.target.value)}
+              list={existingGroupNames.length > 0 ? groupListId : undefined}
               placeholder="例: ホルモン系"
               className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
+            {existingGroupNames.length > 0 && (
+              <datalist id={groupListId}>
+                {existingGroupNames.map((g) => (
+                  <option key={g} value={g} />
+                ))}
+              </datalist>
+            )}
           </div>
 
           <div>
@@ -1170,6 +1185,22 @@ export default function TodayClient({
   const [restaurantAddSheet, setRestaurantAddSheet] = useState<RestaurantAddSheet>(null);
 
   const selectedRestaurant = restaurants.find((r) => r.id === selectedRestaurantId);
+  const drawerRestaurantId =
+    itemDrawer?.kind === "add"
+      ? itemDrawer.restaurantId
+      : itemDrawer?.kind === "edit"
+        ? itemDrawer.item.restaurant_id
+        : "";
+  const existingGroupNamesForDrawer = useMemo(() => {
+    if (!drawerRestaurantId) return [];
+    const names = new Set<string>();
+    for (const item of menuItems) {
+      if (item.restaurant_id !== drawerRestaurantId) continue;
+      const n = item.group_name?.trim();
+      if (n) names.add(n);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "ja"));
+  }, [menuItems, drawerRestaurantId]);
 
   // ── カート計算 ──────────────────────────────────────────────────────────────
   const cartPFC = useMemo(() => {
@@ -1613,6 +1644,7 @@ export default function TodayClient({
       {itemDrawer && (
         <MenuItemDrawer
           state={itemDrawer}
+          existingGroupNames={existingGroupNamesForDrawer}
           onClose={() => setItemDrawer(null)}
           onSaved={handleItemSaved}
           onDeleted={itemDrawer.kind === "edit" ? handleItemDeleted : undefined}

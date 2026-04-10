@@ -24,7 +24,7 @@ export async function seedUserData(supabase: AnySupabaseClient, userId: string) 
   if (!existing) {
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .insert({ user_id: userId, name: myfood.name, category: myfood.category })
+      .insert({ user_id: userId, name: myfood.name, category: myfood.category, display_order: 0 })
       .select()
       .single();
 

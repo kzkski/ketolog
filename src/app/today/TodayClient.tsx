@@ -754,13 +754,13 @@ function MenuItemDrawer({
                 )}
               </button>
               <p className="text-center text-[11px] text-gray-500 leading-snug px-1">
-                マイフードに載せずに記録するとき
+                メニュー一覧に載せずに記録するとき
               </p>
               <button type="button" onClick={handleSnapshotToCart} disabled={saving || !snapshotRestaurantId}
                 className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-200 text-sm font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5">
                 <span>カートに入れる</span>
                 <span className="text-[11px] font-normal text-gray-400 leading-tight">
-                  マイフードには登録しない・あとで「記録する」でまとめて保存
+                  メニューには登録しない・あとで「記録する」でまとめて保存
                 </span>
               </button>
               <button type="button" onClick={() => void handleSnapshotLogOnly()} disabled={saving || !snapshotRestaurantId}
@@ -2110,7 +2110,7 @@ export default function TodayClient({
                     const rid = selectedRestaurantIdResolved;
                     if (!rid) {
                       alert(
-                        "表示できるお店がありません。マイフードまたはお店を追加してください。"
+                        "表示できるお店がありません。上の「＋」からお店を追加してください。"
                       );
                       return;
                     }

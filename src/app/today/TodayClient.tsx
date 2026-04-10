@@ -53,26 +53,22 @@ const MEAL_LABELS: Record<MealType, string> = {
   snack: "間食",
 };
 
-const MEAL_TAB_STYLES: Record<MealType, { row: string; label: string; plus: string }> = {
+const MEAL_TAB_STYLES: Record<MealType, { row: string; label: string }> = {
   breakfast: {
     row: "border-rose-400 bg-rose-400/10",
     label: "text-rose-300",
-    plus: "text-rose-300 hover:text-rose-200",
   },
   lunch: {
     row: "border-cyan-400 bg-cyan-400/10",
     label: "text-cyan-300",
-    plus: "text-cyan-300 hover:text-cyan-200",
   },
   dinner: {
     row: "border-violet-400 bg-violet-400/10",
     label: "text-violet-300",
-    plus: "text-violet-300 hover:text-violet-200",
   },
   snack: {
     row: "border-teal-400 bg-teal-400/10",
     label: "text-teal-300",
-    plus: "text-teal-300 hover:text-teal-200",
   },
 };
 
@@ -2053,10 +2049,18 @@ export default function TodayClient({
         {/* 記録済みパネル */}
         {logEntries.length > 0 && (
           <div className="flex-none border-b border-gray-800">
-            <button type="button" onClick={() => setShowLogEntries((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 sm:py-2 text-sm sm:text-xs text-gray-400 hover:text-white transition-colors min-h-11 sm:min-h-0">
-              <span>この日の記録（{logEntries.length}件）</span>
-              <span>{showLogEntries ? "▲" : "▼"}</span>
+            <button
+              type="button"
+              aria-expanded={showLogEntries}
+              onClick={() => setShowLogEntries((v) => !v)}
+              className="w-full flex items-center justify-end gap-2 px-4 py-3 sm:py-2 text-sm sm:text-xs text-gray-400 hover:text-white transition-colors min-h-11 sm:min-h-0"
+            >
+              <span className="font-medium text-gray-300 text-right">
+                この日の記録（{logEntries.length}件）
+              </span>
+              <span className="text-gray-500 shrink-0 w-5 text-center" aria-hidden>
+                {showLogEntries ? "▲" : "▼"}
+              </span>
             </button>
             {showLogEntries && (
               <div className="max-h-52 overflow-y-auto">
@@ -2116,9 +2120,9 @@ export default function TodayClient({
                     }
                     setItemDrawer({ kind: "add", restaurantId: rid, logMealType: type });
                   }}
-                  className={`shrink-0 min-w-11 w-11 sm:min-w-10 sm:w-10 flex items-center justify-center text-xl sm:text-lg leading-none touch-manipulation border-l border-gray-800/80 ${
-                    active ? a.plus : "text-gray-500 hover:text-gray-200"
-                  }`}
+                  className={`shrink-0 min-w-[3rem] w-[3rem] sm:min-w-11 sm:w-11 flex items-center justify-center text-[1.35rem] sm:text-xl font-semibold leading-none touch-manipulation border-l border-gray-800/80 transition-colors
+                    bg-emerald-600/25 text-emerald-200 hover:bg-emerald-500/45 hover:text-white active:bg-emerald-500/55
+                    ${active ? "ring-2 ring-inset ring-emerald-400/60 bg-emerald-500/40" : ""}`}
                 >
                   ＋
                 </button>

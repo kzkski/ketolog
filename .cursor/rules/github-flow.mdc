@@ -1,0 +1,23 @@
+---
+description: GitHub Flow・CONTRIBUTING.md 準拠（常時適用）
+alwaysApply: true
+---
+
+# 開発フロー
+
+作業の**正**はリポジトリ直下の **CONTRIBUTING.md** である。実装・コミット・PR の前に不足がないか確認すること。
+
+## 必須
+
+- **`main` への直接コミット・プッシュは禁止**。変更は必ず作業ブランチで行い、Pull Request 経由でマージする。
+- **実装を始める前に** `main` を最新化し、`feat/`・`fix/`・`docs/` など **CONTRIBUTING.md** のブランチ命名規則に従ったブランチを切る。
+- Issue がある場合は PR 本文で **`closes #<番号>`** 等により紐づける。
+- マージ後はローカル・リモートの作業ブランチを削除する習慣とする（CONTRIBUTING の手順に従う）。
+
+## バージョン（`package.json`）
+
+- **`feat/`** の PR: マイナー版を上げる。**`fix/`** の PR: パッチ版を上げる。
+- **`docs/`** / **`chore/`** / **`refactor/`** のみの PR: バージョンを上げなくてよい。
+- バージョン更新は単独コミットとし、メッセージは `chore: バージョンを X.Y.Z に更新` とする。
+
+詳細・表・コミット規約はすべて **CONTRIBUTING.md** に書いてある。

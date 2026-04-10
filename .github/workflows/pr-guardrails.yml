@@ -1,0 +1,62 @@
+name: PR Guardrails
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  validate-pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate conventional commit style title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -eu
+          if echo "$PR_TITLE" | grep -Eq '^(feat|fix|docs|refactor|chore)(\(.+\))?: .+'; then
+            echo "PR title is valid: $PR_TITLE"
+            exit 0
+          fi
+          echo "Invalid PR title: $PR_TITLE"
+          echo "Use Conventional Commits style, e.g. 'feat: ...' or 'fix(scope): ...'"
+          exit 1
+
+  require-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check changelog update for required branch types
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -eu
+          echo "head_ref=$HEAD_REF"
+          echo "base_ref=$BASE_REF"
+
+          case "$HEAD_REF" in
+            feat/*|fix/*|refactor/*|docs/*) require_changelog=true ;;
+            *) require_changelog=false ;;
+          esac
+
+          if [ "$require_changelog" = "false" ]; then
+            echo "Branch type does not require changelog update."
+            exit 0
+          fi
+
+          git fetch origin "$BASE_REF":"refs/remotes/origin/$BASE_REF"
+          changed_files="$(git diff --name-only "origin/$BASE_REF"...HEAD)"
+          echo "Changed files:"
+          echo "$changed_files"
+
+          if echo "$changed_files" | grep -qx "CHANGELOG.md"; then
+            echo "CHANGELOG.md is updated."
+            exit 0
+          fi
+
+          echo "CHANGELOG.md update is required for $HEAD_REF branches."
+          exit 1

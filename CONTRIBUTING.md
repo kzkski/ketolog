@@ -117,3 +117,14 @@ git branch -d feat/your-feature-name
 ```
 chore: バージョンを X.Y.Z に更新
 ```
+
+---
+
+## Changelog 運用
+
+`CHANGELOG.md` はユーザー向けの変更点を簡潔に残す。
+
+- **`feat/` / `fix/` / `refactor/` / `docs/` ブランチの PR は、原則 `CHANGELOG.md` 更新を必須**とする
+- `chore/` のみの変更は必須ではない（必要に応じて更新は可）
+- `ROADMAP.md` は背景・計画・補足を扱い、リリース要点は `CHANGELOG.md` を正とする
+- CI で上記必須条件をチェックする（差分に `CHANGELOG.md` が無い対象PRは失敗）

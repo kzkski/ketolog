@@ -222,7 +222,7 @@ function MenuItemDrawer({
             <label className="block text-xs text-gray-400 mb-1">名前</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               autoFocus={!isEdit}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+              className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
           </div>
 
           <div>
@@ -254,7 +254,7 @@ function MenuItemDrawer({
                   <input type="number" value={raw ?? display} placeholder="—"
                     onChange={(e) => setRaw(e.target.value)}
                     onBlur={() => commitNutrient(field, raw)}
-                    className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-white text-sm text-center focus:outline-none focus:border-emerald-500" />
+                    className="w-full px-2 py-2 sm:py-1.5 bg-gray-800 border border-gray-700 rounded text-white text-base sm:text-sm text-center focus:outline-none focus:border-emerald-500" />
                 </div>
               ))}
             </div>
@@ -277,14 +277,14 @@ function MenuItemDrawer({
             <label className="block text-xs text-gray-400 mb-1">グループ名（任意）</label>
             <input type="text" value={groupName} onChange={(e) => setGroupName(e.target.value)}
               placeholder="例: ホルモン系"
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+              className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
           </div>
 
           <div>
             <label className="block text-xs text-gray-400 mb-1">メモ（任意）</label>
             <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
               placeholder="例: 1切れ約15g"
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+              className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
           </div>
 
           {error && <p className="text-red-400 text-sm">{error}</p>}

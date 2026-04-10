@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- Open Food Facts 連携の Phase1 として、バーコード検索で市販品を取得し、共有キャッシュ（`shared_products`）経由でメニューへ追加できるようにした。
+- 設定画面とバーコード追加UIに、Open Food Facts のデータソース表記を追加した。
+
+### Changed
+
+- JSON エクスポート/インポートが `shared_barcode` を扱えるようになり、市販品参照データを保持できるようにした（既存フォーマットとの互換を維持）。
+
 ## [1.6.0] - 2026-04-10
 
 ### Added

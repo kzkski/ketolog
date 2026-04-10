@@ -159,22 +159,82 @@ export type MenuItemUpdate = {
   group_name: string | null;
 };
 
+async function resolveMenuItemGroupOrder(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  restaurantId: string,
+  groupName: string | null
+): Promise<number> {
+  if (!groupName) return 0;
+
+  const { data: existing } = await supabase
+    .from("menu_items")
+    .select("group_order")
+    .eq("user_id", userId)
+    .eq("restaurant_id", restaurantId)
+    .eq("group_name", groupName)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing && typeof existing.group_order === "number") {
+    return existing.group_order;
+  }
+
+  const { data: maxRow } = await supabase
+    .from("menu_items")
+    .select("group_order")
+    .eq("user_id", userId)
+    .eq("restaurant_id", restaurantId)
+    .not("group_name", "is", null)
+    .order("group_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return (maxRow?.group_order ?? -1) + 1;
+}
+
 export async function updateMenuItem(
   id: string,
   data: MenuItemUpdate
-): Promise<{ error: string | null }> {
+): Promise<{ data: MenuItem | null; error: string | null }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "認証が必要です" };
+  if (!user) return { data: null, error: "認証が必要です" };
 
-  const { error } = await supabase
+  const { data: current, error: fetchErr } = await supabase
     .from("menu_items")
-    .update(data)
+    .select("restaurant_id, group_name")
     .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (error) return { error: error.message };
-  return { error: null };
+  if (fetchErr || !current) {
+    return { data: null, error: fetchErr?.message ?? "メニューが見つかりません" };
+  }
+
+  const prevGroupName = current.group_name?.trim() || null;
+  const nextGroupName = data.group_name?.trim() || null;
+  const payload: MenuItemUpdate & { group_order?: number } = { ...data, group_name: nextGroupName };
+
+  if (prevGroupName !== nextGroupName) {
+    payload.group_order = await resolveMenuItemGroupOrder(
+      supabase,
+      user.id,
+      current.restaurant_id,
+      nextGroupName
+    );
+  }
+
+  const { data: row, error } = await supabase
+    .from("menu_items")
+    .update(payload)
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select()
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data: row as MenuItem, error: null };
 }
 
 export async function addMenuItem(
@@ -185,9 +245,23 @@ export async function addMenuItem(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: null, error: "認証が必要です" };
 
+  const groupName = data.group_name?.trim() || null;
+  const groupOrder = await resolveMenuItemGroupOrder(
+    supabase,
+    user.id,
+    restaurantId,
+    groupName
+  );
+
   const { data: row, error } = await supabase
     .from("menu_items")
-    .insert({ user_id: user.id, restaurant_id: restaurantId, ...data })
+    .insert({
+      user_id: user.id,
+      restaurant_id: restaurantId,
+      ...data,
+      group_name: groupName,
+      group_order: groupOrder,
+    })
     .select()
     .single();
 

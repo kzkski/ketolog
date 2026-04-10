@@ -26,6 +26,19 @@ export type MenuItem = {
   notes: string | null;
   group_name: string | null;
   group_order: number;
+  shared_barcode?: string | null;
+};
+
+export type SharedProduct = {
+  barcode: string;
+  product_name: string;
+  brand: string | null;
+  protein_per_100g: number | null;
+  fat_per_100g: number | null;
+  carbs_per_100g: number | null;
+  serving_size: string | null;
+  serving_size_grams: number | null;
+  last_checked_at: string;
 };
 
 export type TodayConsumed = {

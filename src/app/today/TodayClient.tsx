@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useId } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useRef, useId, useEffect, useCallback } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -34,10 +33,11 @@ import {
   deleteFoodLogEntry,
   updateFoodLogEntry,
   updateUserSettings,
+  lookupSharedProductByBarcode,
   type MenuItemUpdate,
-  type ImportData,
   type ImportRestaurantItem,
 } from "./actions";
+import type { SharedProduct } from "@/types/database";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -175,6 +175,18 @@ function MenuItemDrawer({
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [sharedBarcode, setSharedBarcode] = useState(existing?.shared_barcode ?? null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraResult, setCameraResult] = useState<SharedProduct | null>(null);
+  const [lastLookup, setLastLookup] = useState<{ barcode: string; at: number } | null>(null);
+  const [servingHint, setServingHint] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraSupported =
+    typeof window !== "undefined" &&
+    "BarcodeDetector" in window &&
+    Boolean(navigator.mediaDevices?.getUserMedia);
 
   const displayP = mode === "per100g" ? protein : toServing(protein, grams);
   const displayF = mode === "per100g" ? fat     : toServing(fat,     grams);
@@ -193,6 +205,81 @@ function MenuItemDrawer({
     if (field === "c") { setCarbs(stored);   setRawC(null); }
   }
 
+  const handleLookupBarcode = useCallback(async (rawBarcode: string) => {
+    const normalized = rawBarcode.replace(/[^\d]/g, "");
+    if (!normalized) {
+      setScanError("バーコードを読み取れませんでした。もう一度お試しください。");
+      return;
+    }
+    if (lastLookup?.barcode === normalized && Date.now() - lastLookup.at < 3000) return;
+
+    setScanLoading(true);
+    setScanError(null);
+    setLastLookup({ barcode: normalized, at: Date.now() });
+    const res = await lookupSharedProductByBarcode(normalized);
+    setScanLoading(false);
+    if (res.status === "error" || !res.product) {
+      setScanError(res.error ?? "OFFで商品が見つかりませんでした");
+      return;
+    }
+    setCameraResult(res.product);
+    setSharedBarcode(res.product.barcode);
+    setName(res.product.product_name);
+    setProtein(res.product.protein_per_100g?.toString() ?? "");
+    setFat(res.product.fat_per_100g?.toString() ?? "");
+    setCarbs(res.product.carbs_per_100g?.toString() ?? "");
+    if (res.product.serving_size_grams && res.product.serving_size_grams > 0) {
+      setGrams(res.product.serving_size_grams.toString());
+      setServingHint(`OFFの serving_size (${res.product.serving_size}) を1回量に仮入力しました。ラベルで必ず確認してください。`);
+    } else if (res.product.serving_size) {
+      setServingHint(`OFFの serving_size (${res.product.serving_size}) を取得しました。1回量(g)を手動で確認してください。`);
+    } else {
+      setServingHint(null);
+    }
+    if (!notes.trim()) {
+      setNotes(res.product.brand ? `OFF: ${res.product.brand}` : "OFF連携");
+    }
+  }, [lastLookup, notes]);
+
+  useEffect(() => {
+    if (isEdit || !cameraOn || !cameraSupported) return;
+    let stop = false;
+    let stream: MediaStream | null = null;
+    const w = window as Window & { BarcodeDetector?: new () => { detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>> } };
+    void (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+        if (!videoRef.current) return;
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        if (!w.BarcodeDetector) return;
+        const detector = new w.BarcodeDetector();
+        while (!stop) {
+          if (!videoRef.current) break;
+          const detected = await detector.detect(videoRef.current);
+          const value = detected[0]?.rawValue?.trim();
+          if (value) {
+            setCameraOn(false);
+            void handleLookupBarcode(value);
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 350));
+        }
+      } catch {
+        setScanError("カメラを起動できませんでした。権限設定を確認してください。");
+        setCameraOn(false);
+      }
+    })();
+
+    return () => {
+      stop = true;
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+    };
+  }, [isEdit, cameraOn, cameraSupported, handleLookupBarcode]);
+
   async function handleSave() {
     if (!name.trim()) { setError("名前を入力してください"); return; }
     setSaving(true); setError(null);
@@ -201,6 +288,7 @@ function MenuItemDrawer({
       protein_per_100g: protein === "" ? null : parseFloat(protein),
       fat_per_100g:     fat     === "" ? null : parseFloat(fat),
       carbs_per_100g:   carbs   === "" ? null : parseFloat(carbs),
+      shared_barcode: sharedBarcode,
       default_grams: parseFloat(grams) || 100,
       rank,
       notes: notes.trim() || null,
@@ -261,6 +349,43 @@ function MenuItemDrawer({
               autoFocus={!isEdit}
               className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
           </div>
+
+          {!isEdit && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setScanError(null);
+                  setCameraResult(null);
+                  setServingHint(null);
+                  setCameraOn((v) => !v);
+                }}
+                className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm rounded-lg transition-colors inline-flex items-center justify-center gap-2"
+              >
+                <span aria-hidden="true">{cameraOn ? "■" : "|||:"}</span>
+                <span>{cameraOn ? "読み取りを停止" : "バーコード読み取り"}</span>
+              </button>
+              {cameraOn && (
+                <video
+                  ref={videoRef}
+                  muted
+                  playsInline
+                  className="w-full rounded-lg border border-gray-700 bg-black aspect-video object-cover"
+                />
+              )}
+              {scanLoading && <p className="text-xs text-emerald-300">読み取り結果を検索中...</p>}
+              {cameraResult && (
+                <p className="text-xs text-emerald-300">
+                  読み取り完了: {cameraResult.product_name}（{cameraResult.barcode}）
+                </p>
+              )}
+              {scanError && <p className="text-xs text-amber-300">{scanError}</p>}
+              {servingHint && <p className="text-xs text-amber-300">{servingHint}</p>}
+              <p className="text-[11px] text-gray-500">
+                Data source: Open Food Facts (ODbL)
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs text-gray-400 mb-1">1回の量（g）</label>
@@ -447,6 +572,7 @@ const EXPORT_SCHEMA = {
     "menuItems[].protein_per_100g": "number or null — 100gあたりタンパク質 (g)",
     "menuItems[].fat_per_100g": "number or null — 100gあたり脂質 (g)",
     "menuItems[].carbs_per_100g": "number or null — 100gあたり糖質 (g)",
+    "menuItems[].shared_barcode": "string or null — 市販品参照バーコード（OFF連携時）",
     "menuItems[].default_grams": "number (必須, 1以上) — 1回分のデフォルト重量 (g)",
     "menuItems[].rank": "1〜4の整数 (必須) — 1=◎最優先 / 2=○通常 / 3=△控えめ / 4=✕避ける",
     "menuItems[].notes": "string or null — メモ（任意）",
@@ -467,6 +593,7 @@ function downloadRestaurantJson(restaurant: Restaurant, menuItems: MenuItem[]) {
         protein_per_100g: m.protein_per_100g,
         fat_per_100g: m.fat_per_100g,
         carbs_per_100g: m.carbs_per_100g,
+        shared_barcode: m.shared_barcode ?? null,
         default_grams: m.default_grams,
         rank: m.rank,
         notes: m.notes,
@@ -500,6 +627,9 @@ function parseSingleRestaurantJson(text: string): SingleRestaurantJson | { error
     }
     const invalidItems = (raw.menuItems as ImportRestaurantItem[])
       .map((item, i) => {
+        if (item.shared_barcode !== undefined && item.shared_barcode !== null && typeof item.shared_barcode !== "string") {
+          return `${i + 1}番目「${item.name}」の shared_barcode が不正です（文字列またはnull）`;
+        }
         if (item.rank < 1 || item.rank > 4 || !Number.isInteger(item.rank)) {
           return `${i + 1}番目「${item.name}」の rank が不正です（1〜4の整数を指定してください）`;
         }
@@ -529,6 +659,7 @@ function downloadTemplate() {
         protein_per_100g: null,
         fat_per_100g: null,
         carbs_per_100g: null,
+        shared_barcode: null,
         default_grams: 100,
         rank: 2,
         notes: null,
@@ -1123,6 +1254,21 @@ function SettingsDrawer({
             </button>
           </div>
 
+          <div>
+            <h3 className="text-sm font-medium text-white mb-1">データソース</h3>
+            <p className="text-xs text-gray-400">
+              市販品データは Open Food Facts を利用しています（ODbL）。
+              <a
+                href="https://world.openfoodfacts.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-1 text-emerald-400 hover:text-emerald-300 underline underline-offset-2"
+              >
+                Open Food Facts
+              </a>
+            </p>
+          </div>
+
           {/* ログアウト */}
           <div className="pt-2 border-t border-gray-800">
             <button onClick={handleLogout}
@@ -1150,6 +1296,7 @@ function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]
           protein_per_100g: m.protein_per_100g,
           fat_per_100g: m.fat_per_100g,
           carbs_per_100g: m.carbs_per_100g,
+          shared_barcode: m.shared_barcode ?? null,
           default_grams: m.default_grams,
           rank: m.rank,
           notes: m.notes,
@@ -1178,6 +1325,7 @@ function SortableRestaurantTab({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: restaurant.id,
   });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -1196,6 +1344,7 @@ function SortableRestaurantTab({
         type="button"
         className="pl-2 pr-1 sm:pl-1.5 sm:pr-0.5 flex items-center text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing touch-manipulation"
         aria-label={`${restaurant.name}の表示順を変更`}
+        suppressHydrationWarning
         {...attributes}
         {...listeners}
       >
@@ -1235,7 +1384,6 @@ export default function TodayClient({
   initialLogEntries,
   presets,
 }: Props) {
-  const router = useRouter();
   const [currentSettings, setCurrentSettings] = useState<UserSettings>(settings);
   const [showSettings, setShowSettings]       = useState(false);
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);

@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import type { FoodLogEntry, MenuItem, Restaurant, TodayConsumed } from "@/types/database";
+import type { FoodLogEntry, MenuItem, Restaurant, TodayConsumed, SharedProduct } from "@/types/database";
 
 export type SaveItem = {
   menuItemId: string;
@@ -12,6 +12,34 @@ export type SaveItem = {
   carbsG: number;
   restaurantId: string;
 };
+
+const OFF_API_BASE = process.env.OFF_API_BASE ?? "https://world.openfoodfacts.org";
+const OFF_DEFAULT_CONTACT = "info@civictech.tv";
+const OFF_USER_AGENT =
+  process.env.OFF_USER_AGENT ??
+  `Ketolog/${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"} (${OFF_DEFAULT_CONTACT})`;
+const SHARED_PRODUCT_TTL_MS = 1000 * 60 * 60 * 24 * 180; // 180日
+
+function normalizeBarcode(raw: string): string {
+  return raw.replace(/[^\d]/g, "").trim();
+}
+
+function parseOffNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function parseServingSizeGrams(servingSize: string | undefined): number | null {
+  if (!servingSize) return null;
+  const m = servingSize.match(/(\d+(?:\.\d+)?)\s*g/i);
+  if (!m) return null;
+  const grams = Number(m[1]);
+  return Number.isFinite(grams) && grams > 0 ? grams : null;
+}
 
 export async function saveMealToLog(
   items: SaveItem[],
@@ -146,6 +174,163 @@ export async function updateFoodLogEntry(
   return { error: null };
 }
 
+// ─── 共有商品（Open Food Facts）──────────────────────────────────────────────
+
+export type BarcodeLookupResult = {
+  status: "ok" | "not_found" | "error";
+  product: SharedProduct | null;
+  error: string | null;
+};
+
+async function fetchOffProduct(barcode: string): Promise<SharedProduct | null> {
+  const url = `${OFF_API_BASE}/api/v2/product/${barcode}.json?fields=code,product_name,brands,nutriments`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { "User-Agent": OFF_USER_AGENT },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as {
+    status?: number;
+    product?: {
+      product_name?: string;
+      brands?: string;
+      serving_size?: string;
+      nutriments?: Record<string, unknown>;
+    };
+  };
+  if (json.status !== 1 || !json.product) return null;
+
+  const name = json.product.product_name?.trim();
+  if (!name) return null;
+  const nutriments = json.product.nutriments ?? {};
+  const protein = parseOffNumber(nutriments.proteins_100g);
+  const fat = parseOffNumber(nutriments.fat_100g);
+  const carbs = parseOffNumber(
+    nutriments.carbohydrates_100g ?? nutriments.carbohydrates
+  );
+
+  return {
+    barcode,
+    product_name: name,
+    brand: json.product.brands?.trim() || null,
+    protein_per_100g: protein,
+    fat_per_100g: fat,
+    carbs_per_100g: carbs,
+    serving_size: json.product.serving_size?.trim() || null,
+    serving_size_grams: parseServingSizeGrams(json.product.serving_size),
+    last_checked_at: new Date().toISOString(),
+  };
+}
+
+async function upsertSharedProduct(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  product: SharedProduct
+): Promise<void> {
+  await supabase.from("shared_products").upsert(
+    {
+      barcode: product.barcode,
+      product_name: product.product_name,
+      brand: product.brand,
+      protein_per_100g: product.protein_per_100g,
+      fat_per_100g: product.fat_per_100g,
+      carbs_per_100g: product.carbs_per_100g,
+      serving_size: product.serving_size,
+      serving_size_grams: product.serving_size_grams,
+      last_checked_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      raw_json: product,
+    },
+    { onConflict: "barcode" }
+  );
+}
+
+export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<BarcodeLookupResult> {
+  const barcode = normalizeBarcode(rawBarcode);
+  if (!barcode) return { status: "error", product: null, error: "バーコードが不正です" };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { status: "error", product: null, error: "認証が必要です" };
+
+  const { data: cached } = await supabase
+    .from("shared_products")
+    .select("barcode, product_name, brand, protein_per_100g, fat_per_100g, carbs_per_100g, serving_size, serving_size_grams, last_checked_at")
+    .eq("barcode", barcode)
+    .maybeSingle();
+
+  if (cached) {
+    const stale = Date.now() - new Date(cached.last_checked_at).getTime() > SHARED_PRODUCT_TTL_MS;
+    if (stale) {
+      void (async () => {
+        const refreshed = await fetchOffProduct(barcode);
+        if (refreshed) await upsertSharedProduct(supabase, refreshed);
+      })();
+    }
+    return { status: "ok", product: cached as SharedProduct, error: null };
+  }
+
+  try {
+    const fetched = await fetchOffProduct(barcode);
+    if (!fetched) return { status: "not_found", product: null, error: null };
+    await upsertSharedProduct(supabase, fetched);
+    return { status: "ok", product: fetched, error: null };
+  } catch {
+    return { status: "error", product: null, error: "OFFからの取得に失敗しました" };
+  }
+}
+
+export async function addSharedProductMenuItem(input: {
+  restaurantId: string;
+  barcode: string;
+  defaultGrams: number;
+  rank?: number;
+}): Promise<{ data: MenuItem | null; error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "認証が必要です" };
+
+  const barcode = normalizeBarcode(input.barcode);
+  if (!barcode) return { data: null, error: "バーコードが不正です" };
+
+  const existing = await supabase
+    .from("menu_items")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("restaurant_id", input.restaurantId)
+    .eq("shared_barcode", barcode)
+    .limit(1)
+    .maybeSingle();
+  if (existing.data) return { data: existing.data as MenuItem, error: null };
+
+  const lookup = await lookupSharedProductByBarcode(barcode);
+  if (lookup.status !== "ok" || !lookup.product) {
+    return { data: null, error: lookup.error ?? "商品情報の取得に失敗しました" };
+  }
+
+  const insert = await supabase
+    .from("menu_items")
+    .insert({
+      user_id: user.id,
+      restaurant_id: input.restaurantId,
+      name: lookup.product.product_name,
+      protein_per_100g: lookup.product.protein_per_100g,
+      fat_per_100g: lookup.product.fat_per_100g,
+      carbs_per_100g: lookup.product.carbs_per_100g,
+      default_grams: input.defaultGrams > 0 ? input.defaultGrams : 100,
+      rank: input.rank ?? 2,
+      notes: lookup.product.brand ? `OFF: ${lookup.product.brand}` : "OFF連携",
+      group_name: null,
+      group_order: 0,
+      shared_barcode: barcode,
+    })
+    .select()
+    .single();
+
+  if (insert.error) return { data: null, error: insert.error.message };
+  return { data: insert.data as MenuItem, error: null };
+}
+
 // ─── メニューアイテム ──────────────────────────────────────────────────────────
 
 export type MenuItemUpdate = {
@@ -153,6 +338,7 @@ export type MenuItemUpdate = {
   protein_per_100g: number | null;
   fat_per_100g: number | null;
   carbs_per_100g: number | null;
+  shared_barcode?: string | null;
   default_grams: number;
   rank: number;
   notes: string | null;
@@ -408,6 +594,7 @@ export type ImportRestaurantItem = {
   protein_per_100g: number | null;
   fat_per_100g: number | null;
   carbs_per_100g: number | null;
+  shared_barcode?: string | null;
   default_grams: number;
   rank: number;
   notes: string | null;
@@ -472,10 +659,17 @@ export async function importRestaurantData(data: ImportData): Promise<{
       const groupOrderMap = new Map<string, number>();
       const { data: items } = await supabase
         .from("menu_items")
-        .insert(r.menuItems.map(({ group, ...item }) => {
+        .insert(r.menuItems.map(({ group, shared_barcode, ...item }) => {
           const g = group ?? null;
           if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
-          return { user_id: user.id, restaurant_id: newR.id, ...item, group_name: g, group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0 };
+          return {
+            user_id: user.id,
+            restaurant_id: newR.id,
+            ...item,
+            shared_barcode: shared_barcode ?? null,
+            group_name: g,
+            group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0,
+          };
         }))
         .select();
       if (items) newMenuItems.push(...(items as MenuItem[]));
@@ -496,10 +690,17 @@ export async function importMenuItemsToRestaurant(
   const groupOrderMap = new Map<string, number>();
   const { data, error } = await supabase
     .from("menu_items")
-    .insert(items.map(({ group, ...item }) => {
+    .insert(items.map(({ group, shared_barcode, ...item }) => {
       const g = group ?? null;
       if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
-      return { user_id: user.id, restaurant_id: restaurantId, ...item, group_name: g, group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0 };
+      return {
+        user_id: user.id,
+        restaurant_id: restaurantId,
+        ...item,
+        shared_barcode: shared_barcode ?? null,
+        group_name: g,
+        group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0,
+      };
     }))
     .select();
 

@@ -57,8 +57,10 @@
 - レストランの追加／削除
 - 栄養素入力の切替（100gあたり ↔ 1回分あたり）
 
-### 2-2 後日
-- バーコードスキャン（Open Food Facts API）
+### 2-2 進行中（Phase1実装）
+- バーコード検索（Open Food Facts API）で市販品を取得
+- `shared_products` キャッシュ基盤と `menu_items.shared_barcode` 参照を導入
+- スキャン結果をメニュー追加に接続（Not Found時は手入力へフォールバック）
 
 ### 2-3 後日
 - 食材名検索（文部科学省食品成分表）

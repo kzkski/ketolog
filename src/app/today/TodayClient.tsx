@@ -1194,7 +1194,7 @@ function SortableRestaurantTab({
     >
       <button
         type="button"
-        className="px-1.5 sm:px-1 flex items-center text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing touch-manipulation"
+        className="pl-2 pr-1 sm:pl-1.5 sm:pr-0.5 flex items-center text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing touch-manipulation"
         aria-label={`${restaurant.name}の表示順を変更`}
         {...attributes}
         {...listeners}
@@ -1204,7 +1204,7 @@ function SortableRestaurantTab({
       <button
         type="button"
         onClick={onSelect}
-        className={`px-2.5 sm:px-3 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap text-left transition-colors touch-manipulation min-w-0 max-w-[12rem] sm:max-w-none truncate ${
+        className={`pl-1 pr-3 sm:pl-0.5 sm:pr-2.5 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap text-left transition-colors touch-manipulation min-w-0 max-w-[12rem] sm:max-w-none truncate ${
           selected ? "text-white" : "text-gray-500 hover:text-gray-300"
         }`}
       >

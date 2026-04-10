@@ -714,15 +714,24 @@ function MenuItemDrawer({
             <>
               <button type="button" onClick={() => void handleSave()} disabled={saving}
                 className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors">
-                {saving ? "保存中..." : "マイフードに追加する"}
+                {saving ? "保存中..." : "マイフードに登録する"}
               </button>
+              <p className="text-center text-[11px] text-gray-500 leading-snug px-1">
+                マイフードに載せずに記録するとき
+              </p>
               <button type="button" onClick={handleSnapshotToCart} disabled={saving || !snapshotRestaurantId}
-                className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-200 text-sm font-medium rounded-xl transition-colors">
-                カートに追加（スナップショット）
+                className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-200 text-sm font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5">
+                <span>カートに入れる</span>
+                <span className="text-[11px] font-normal text-gray-400 leading-tight">
+                  マイフードには登録しない・あとで「記録する」でまとめて保存
+                </span>
               </button>
               <button type="button" onClick={() => void handleSnapshotLogOnly()} disabled={saving || !snapshotRestaurantId}
-                className="w-full py-2.5 border border-gray-600 hover:border-gray-500 disabled:opacity-50 text-gray-200 text-sm font-medium rounded-xl transition-colors">
-                食事ログにだけ記録（スナップショット）
+                className="w-full py-2.5 border border-gray-600 hover:border-gray-500 disabled:opacity-50 text-gray-200 text-sm font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5">
+                <span>今すぐ食事ログに記録</span>
+                <span className="text-[11px] font-normal text-gray-400 leading-tight">
+                  カートを使わず、この内容だけいま保存
+                </span>
               </button>
             </>
           )}

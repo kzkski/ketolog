@@ -10,6 +10,7 @@ export type Restaurant = {
   name: string;
   category: string;
   order_count: number;
+  display_order: number;
 };
 
 export type MenuItem = {

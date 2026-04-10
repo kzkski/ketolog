@@ -2,6 +2,22 @@
 
 import { useState, useMemo, useRef, useId } from "react";
 import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  type DragEndEvent,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -11,6 +27,7 @@ import {
   deleteMenuItem,
   addRestaurant,
   deleteRestaurant,
+  reorderRestaurants,
   importRestaurantData,
   importMenuItemsToRestaurant,
   getFoodLogForDate,
@@ -75,6 +92,17 @@ function pfc(item: MenuItem, grams: number) {
 
 function fmt(n: number) {
   return n < 10 ? n.toFixed(1) : Math.round(n).toString();
+}
+
+function sortRestaurants(list: Restaurant[]): Restaurant[] {
+  const homemade = list.filter((r) => r.category === "homemade");
+  const others = list
+    .filter((r) => r.category !== "homemade")
+    .sort((a, b) => {
+      if (a.display_order !== b.display_order) return a.display_order - b.display_order;
+      return b.order_count - a.order_count;
+    });
+  return [...homemade, ...others];
 }
 
 function to100g(val: string, gramsStr: string): string {
@@ -1136,6 +1164,54 @@ function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]
   URL.revokeObjectURL(url);
 }
 
+function SortableRestaurantTab({
+  restaurant,
+  selected,
+  onSelect,
+}: {
+  restaurant: Restaurant;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: restaurant.id,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 20 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex shrink-0 items-stretch border-b-2 min-h-12 sm:min-h-0 ${
+        selected ? "border-emerald-500" : "border-transparent"
+      }`}
+    >
+      <button
+        type="button"
+        className="px-1.5 sm:px-1 flex items-center text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing touch-manipulation"
+        aria-label={`${restaurant.name}の表示順を変更`}
+        {...attributes}
+        {...listeners}
+      >
+        ⣿
+      </button>
+      <button
+        type="button"
+        onClick={onSelect}
+        className={`px-2.5 sm:px-3 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap text-left transition-colors touch-manipulation min-w-0 max-w-[12rem] sm:max-w-none truncate ${
+          selected ? "text-white" : "text-gray-500 hover:text-gray-300"
+        }`}
+      >
+        {restaurant.name}
+      </button>
+    </div>
+  );
+}
+
 // ─── メインコンポーネント ───────────────────────────────────────────────────────
 
 interface Props {
@@ -1201,6 +1277,41 @@ export default function TodayClient({
     }
     return Array.from(names).sort((a, b) => a.localeCompare(b, "ja"));
   }, [menuItems, drawerRestaurantId]);
+  const homemadeRestaurants = useMemo(
+    () => restaurants.filter((r) => r.category === "homemade"),
+    [restaurants]
+  );
+  const otherRestaurants = useMemo(
+    () => restaurants.filter((r) => r.category !== "homemade"),
+    [restaurants]
+  );
+  const otherRestaurantIds = useMemo(
+    () => otherRestaurants.map((r) => r.id),
+    [otherRestaurants]
+  );
+  const restaurantSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } })
+  );
+
+  async function handleRestaurantDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = otherRestaurants.findIndex((r) => r.id === active.id);
+    const newIndex = otherRestaurants.findIndex((r) => r.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const moved = arrayMove(otherRestaurants, oldIndex, newIndex)
+      .map((r, index) => ({ ...r, display_order: index }));
+    const previous = restaurants;
+    setRestaurants([...homemadeRestaurants, ...moved]);
+    const result = await reorderRestaurants(moved.map((r) => r.id));
+    if (result.error) {
+      alert(result.error);
+      setRestaurants(previous);
+    }
+  }
 
   // ── カート計算 ──────────────────────────────────────────────────────────────
   const cartPFC = useMemo(() => {
@@ -1480,16 +1591,36 @@ export default function TodayClient({
           })}
         </div>
 
-        {/* レストラン タブ + 追加ボタン */}
-        <div className="flex-none flex border-b border-gray-800 overflow-x-auto [scrollbar-gutter:stable] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]">
-          {restaurants.map((r) => (
-            <button key={r.id} type="button" onClick={() => { setSelectedRestaurantId(r.id); setConfirmDeleteRestaurant(false); }}
-              className={`px-4 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-12 sm:min-h-0 ${selectedRestaurantId === r.id ? "border-emerald-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+        {/* レストラン タブ + 追加ボタン（マイフード以外は左ハンドルで並べ替え） */}
+        <div className="flex-none flex border-b border-gray-800 overflow-x-auto [scrollbar-gutter:stable] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))] items-stretch">
+          {homemadeRestaurants.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => { setSelectedRestaurantId(r.id); setConfirmDeleteRestaurant(false); }}
+              className={`px-4 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-12 sm:min-h-0 touch-manipulation ${selectedRestaurantId === r.id ? "border-emerald-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}
+            >
               {r.name}
             </button>
           ))}
+          <DndContext
+            sensors={restaurantSensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(e) => void handleRestaurantDragEnd(e)}
+          >
+            <SortableContext items={otherRestaurantIds} strategy={horizontalListSortingStrategy}>
+              {otherRestaurants.map((r) => (
+                <SortableRestaurantTab
+                  key={r.id}
+                  restaurant={r}
+                  selected={selectedRestaurantId === r.id}
+                  onSelect={() => { setSelectedRestaurantId(r.id); setConfirmDeleteRestaurant(false); }}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
           <button type="button" onClick={() => setRestaurantAddSheet("choice")}
-            className="px-3 py-3.5 sm:py-2.5 min-w-11 text-gray-500 hover:text-white shrink-0 transition-colors text-xl sm:text-lg leading-none flex items-center justify-center">
+            className="px-3 py-3.5 sm:py-2.5 min-w-11 text-gray-500 hover:text-white shrink-0 transition-colors text-xl sm:text-lg leading-none flex items-center justify-center self-center">
             ＋
           </button>
         </div>
@@ -1666,7 +1797,7 @@ export default function TodayClient({
         <AddRestaurantDrawer
           onClose={() => setRestaurantAddSheet(null)}
           onAdded={(r) => {
-            setRestaurants((prev) => [...prev, r]);
+            setRestaurants((prev) => sortRestaurants([...prev, r]));
             setSelectedRestaurantId(r.id);
             setRestaurantAddSheet(null);
           }}
@@ -1678,7 +1809,7 @@ export default function TodayClient({
         <ImportRestaurantDrawer
           onClose={() => setRestaurantAddSheet(null)}
           onImported={(restaurant, items) => {
-            setRestaurants((prev) => [...prev, restaurant]);
+            setRestaurants((prev) => sortRestaurants([...prev, restaurant]));
             setMenuItems((prev) => [...prev, ...items]);
             setSelectedRestaurantId(restaurant.id);
             setRestaurantAddSheet(null);
@@ -1692,13 +1823,7 @@ export default function TodayClient({
           presets={presets}
           onClose={() => setRestaurantAddSheet(null)}
           onImported={(restaurant, items) => {
-            setRestaurants((prev) => {
-              const next = [...prev, restaurant];
-              return [
-                ...next.filter((r) => r.category === "homemade"),
-                ...next.filter((r) => r.category !== "homemade"),
-              ];
-            });
+            setRestaurants((prev) => sortRestaurants([...prev, restaurant]));
             setMenuItems((prev) => [...prev, ...items]);
             setSelectedRestaurantId(restaurant.id);
             setRestaurantAddSheet(null);

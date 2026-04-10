@@ -288,6 +288,21 @@ export async function deleteMenuItem(
 
 // ─── レストラン ────────────────────────────────────────────────────────────────
 
+async function nextRestaurantDisplayOrder(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<number> {
+  const { data: row } = await supabase
+    .from("restaurants")
+    .select("display_order")
+    .eq("user_id", userId)
+    .neq("category", "homemade")
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (row?.display_order ?? -1) + 1;
+}
+
 export async function addRestaurant(
   name: string,
   category: string
@@ -296,14 +311,51 @@ export async function addRestaurant(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: null, error: "認証が必要です" };
 
+  const displayOrder =
+    category === "homemade" ? 0 : await nextRestaurantDisplayOrder(supabase, user.id);
+
   const { data: row, error } = await supabase
     .from("restaurants")
-    .insert({ user_id: user.id, name: name.trim(), category })
+    .insert({ user_id: user.id, name: name.trim(), category, display_order: displayOrder })
     .select()
     .single();
 
   if (error) return { data: null, error: error.message };
   return { data: row as Restaurant, error: null };
+}
+
+export async function reorderRestaurants(
+  orderedNonHomemadeIds: string[]
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "認証が必要です" };
+  if (orderedNonHomemadeIds.length === 0) return { error: null };
+
+  const { data: rows, error: fetchErr } = await supabase
+    .from("restaurants")
+    .select("id, category")
+    .eq("user_id", user.id)
+    .in("id", orderedNonHomemadeIds);
+  if (fetchErr) return { error: fetchErr.message };
+  if (!rows || rows.length !== orderedNonHomemadeIds.length) {
+    return { error: "お店の指定が不正です" };
+  }
+  if (rows.some((r: { category: string }) => r.category === "homemade")) {
+    return { error: "マイフードの順序は変更できません" };
+  }
+
+  const updates = orderedNonHomemadeIds.map((id, index) =>
+    supabase
+      .from("restaurants")
+      .update({ display_order: index })
+      .eq("id", id)
+      .eq("user_id", user.id)
+  );
+  const results = await Promise.all(updates);
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { error: failed.error.message };
+  return { error: null };
 }
 
 export async function deleteRestaurant(
@@ -371,9 +423,11 @@ export async function importRestaurantData(data: ImportData): Promise<{
   for (const r of data.restaurants) {
     if (existingNames.has(r.name)) { skipped.push(r.name); continue; }
 
+    const displayOrder =
+      r.category === "homemade" ? 0 : await nextRestaurantDisplayOrder(supabase, user.id);
     const { data: newR, error: rErr } = await supabase
       .from("restaurants")
-      .insert({ user_id: user.id, name: r.name, category: r.category })
+      .insert({ user_id: user.id, name: r.name, category: r.category, display_order: displayOrder })
       .select()
       .single();
     if (rErr || !newR) { skipped.push(r.name); continue; }

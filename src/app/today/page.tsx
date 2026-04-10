@@ -52,13 +52,18 @@ export default async function TodayPage() {
     carbs_target_g: 40,
   };
 
-  // マイフード（category=homemade）を先頭に固定し、以降はorder_count降順
+  // マイフード（category=homemade）を先頭に固定し、以降はdisplay_order昇順
   const rawRestaurants: Restaurant[] = restaurantsRes.data ?? [];
   const restaurants: Restaurant[] = [
     ...rawRestaurants.filter((r) => r.category === "homemade"),
     ...rawRestaurants
       .filter((r) => r.category !== "homemade")
-      .sort((a, b) => b.order_count - a.order_count),
+      .sort((a, b) => {
+        if (a.display_order !== b.display_order) {
+          return a.display_order - b.display_order;
+        }
+        return b.order_count - a.order_count;
+      }),
   ];
 
   const menuItems: MenuItem[] = menuItemsRes.data ?? [];

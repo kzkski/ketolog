@@ -48,6 +48,7 @@ git pull
 git checkout -b feat/your-feature-name
 
 # 3. 実装・コミット（繰り返し）
+#    feat/ または fix/ の PR では、package.json のバージョン更新コミットも含める（下記「バージョン管理」を参照）
 git add <files>
 git commit -m "feat: ..."
 
@@ -91,3 +92,28 @@ git branch -d feat/your-feature-name
 - 実装前に Issue を立てて方針を合意する
 - PR は対応する Issue を `closes #<番号>` で参照する
 - Issue がない緊急バグ修正は PR 作成時に説明を記載する
+
+---
+
+## バージョン管理（Semantic Versioning）
+
+`package.json` の `version` は [Semantic Versioning](https://semver.org/) に従う。
+
+### PR にバージョン更新を含めるか
+
+| ブランチの種類 | バージョンを上げるか |
+|---|---|
+| `feat/` | はい（マイナー） |
+| `fix/` | はい（パッチ） |
+| `docs/` / `chore/` / `refactor/` のみ | いいえ（上げなくてよい） |
+
+- **`feat/`**（新機能）: マイナー版を上げる（例: 1.2.x → 1.3.0）
+- **`fix/`**（バグ修正）: パッチ版を上げる（例: 1.2.1 → 1.2.2）
+
+### バージョン更新コミット
+
+`feat/` または `fix/` の PR では、**必ず** `package.json` のバージョン更新を **単独のコミット** として含める。コミットメッセージは次の形式にする。
+
+```
+chore: バージョンを X.Y.Z に更新
+```

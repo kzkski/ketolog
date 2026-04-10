@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-04-10
+
+### Fixed
+
+- iPhone の Safari / Chrome でバーコード読み取りのカメラプレビューが真っ暗になる不具合を修正した。`getUserMedia` と `BarcodeDetector` の可否を分離し、後者が無い環境では ZXing でビデオフレームからデコードするようにした。
+
+## [1.7.0] - 2026-04-10
+
 ### Added
 
 - Open Food Facts 連携の Phase1 として、バーコード検索で市販品を取得し、共有キャッシュ（`shared_products`）経由でメニューへ追加できるようにした。

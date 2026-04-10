@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Open Food Facts API の利用申告（usage form）・User-Agent・環境変数・レート制限の要点を README に追記し、`.env.example` に `OFF_*` のコメント例を追加した。
+
 ## [1.7.2] - 2026-04-10
 
 ### Fixed

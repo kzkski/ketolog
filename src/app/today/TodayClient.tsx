@@ -1329,13 +1329,26 @@ export default function TodayClient({
   }
 
   // ── UI ──────────────────────────────────────────────────────────────────────
+  const changelogUrl = process.env.NEXT_PUBLIC_CHANGELOG_URL;
   return (
     <>
       {/* ヘッダー */}
       <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <h1 className="text-base font-bold text-white">
           Ketolog
-          <span className="text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+          {changelogUrl ? (
+            <a
+              href={changelogUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="変更履歴（Changelog）を開く"
+              className="text-xs font-normal text-gray-500 ml-1.5 hover:text-gray-300 hover:underline underline-offset-2"
+            >
+              v{process.env.NEXT_PUBLIC_APP_VERSION}
+            </a>
+          ) : (
+            <span className="text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+          )}
         </h1>
         <button onClick={() => setShowSettings(true)}
           className="text-gray-400 hover:text-white transition-colors text-lg leading-none px-1">

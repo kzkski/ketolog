@@ -1,0 +1,14 @@
+---
+description: Changelog 更新ルール（PR前チェック）
+alwaysApply: true
+---
+
+# Changelog 運用
+
+`feat/` / `fix/` / `refactor/` / `docs/` の変更では、`CHANGELOG.md` の更新を検討し、ユーザー影響がある場合は必ず更新する。
+
+## 必須チェック
+
+- PR 作成前に差分へ `CHANGELOG.md` が含まれているか確認する。
+- 変更要点は短く、ユーザー視点で記述する。
+- 背景・設計意図の詳細は `ROADMAP.md` 等へ寄せ、`CHANGELOG.md` は要約を保つ。

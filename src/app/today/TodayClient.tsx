@@ -72,6 +72,26 @@ const MEAL_TAB_STYLES: Record<MealType, { row: string; label: string }> = {
   },
 };
 
+/** カート内「記録する食事」セグメントの選択中スタイル（タブと同色） */
+const MEAL_CART_SEGMENT_ACTIVE: Record<MealType, string> = {
+  breakfast: "border-rose-400 bg-rose-500/25 text-rose-100",
+  lunch: "border-cyan-400 bg-cyan-500/25 text-cyan-100",
+  dinner: "border-violet-400 bg-violet-500/25 text-violet-100",
+  snack: "border-teal-400 bg-teal-500/25 text-teal-100",
+};
+
+/** カートパネル外枠（選択中の食事タブと同系色の上線＋淡いグラデーション） */
+const MEAL_CART_SHELL: Record<MealType, string> = {
+  breakfast:
+    "border-t-2 border-rose-400 bg-gradient-to-b from-rose-500/20 via-gray-900 to-gray-950",
+  lunch:
+    "border-t-2 border-cyan-400 bg-gradient-to-b from-cyan-500/20 via-gray-900 to-gray-950",
+  dinner:
+    "border-t-2 border-violet-400 bg-gradient-to-b from-violet-500/20 via-gray-900 to-gray-950",
+  snack:
+    "border-t-2 border-teal-400 bg-gradient-to-b from-teal-500/20 via-gray-900 to-gray-950",
+};
+
 const RANK_OPTIONS = [
   { value: 1, label: "◎ 最優先" },
   { value: 2, label: "○ 通常" },
@@ -2263,13 +2283,22 @@ export default function TodayClient({
           )}
         </div>
 
-        {/* カートパネル */}
+        {/* カートパネル（記録先の食事区分の色＝上部タブと同期） */}
         {hasCart && (
-          <div className="flex-none border-t border-gray-700 bg-gray-900 pb-[env(safe-area-inset-bottom)]">
+          <div
+            className={`flex-none pb-[env(safe-area-inset-bottom)] ${MEAL_CART_SHELL[mealType]}`}
+          >
             <button type="button" onClick={() => setCartExpanded((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0">
-              <span className="text-base sm:text-sm font-medium text-white">カート（{cartEntries.length}品）</span>
-              <div className="flex items-center gap-3">
+              className="w-full flex items-center justify-between gap-2 px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0 text-left">
+              <div className="flex flex-col items-start min-w-0 flex-1 gap-0.5">
+                <span className="text-base sm:text-sm font-medium text-white">
+                  カート（{cartEntries.length}品）
+                </span>
+                <span className={`text-[11px] sm:text-xs leading-snug ${MEAL_TAB_STYLES[mealType].label}`}>
+                  {MEAL_LABELS[mealType]}に記録
+                </span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
                 <span className="text-sm sm:text-xs text-gray-400 tabular-nums">
                   P{fmt(cartPFC.p)} F{fmt(cartPFC.f)} C{fmt(cartPFC.c)}
                 </span>
@@ -2278,7 +2307,26 @@ export default function TodayClient({
             </button>
             {cartExpanded && (
               <>
-                <div className="max-h-36 overflow-y-auto border-t border-gray-800">
+                <div className="px-3 pt-1 pb-2 border-t border-gray-800/70">
+                  <p className="text-[10px] text-gray-500 mb-1.5 px-0.5">記録する食事</p>
+                  <div className="flex gap-1">
+                    {(Object.keys(MEAL_LABELS) as MealType[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setMealType(t)}
+                        className={`flex-1 min-h-10 min-w-0 px-0.5 py-2 rounded-lg text-[10px] sm:text-xs font-medium border-2 transition-colors touch-manipulation ${
+                          mealType === t
+                            ? MEAL_CART_SEGMENT_ACTIVE[t]
+                            : "border-gray-700/90 bg-gray-800/70 text-gray-500 hover:text-gray-300 hover:border-gray-600"
+                        }`}
+                      >
+                        {MEAL_LABELS[t]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="max-h-36 overflow-y-auto border-t border-gray-800/70">
                   {cartEntries.map((entry) => {
                     const totalGrams = entry.gramsPerServing * entry.count;
                     const v =

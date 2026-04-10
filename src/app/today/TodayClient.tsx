@@ -103,8 +103,8 @@ function PFCBar({ label, current, target, color }: {
         <div className={`h-full rounded-full transition-all duration-300 ${over ? "bg-red-500" : color}`}
           style={{ width: `${pct}%` }} />
       </div>
-      <span className={`text-sm sm:text-xs tabular-nums w-[4.5rem] sm:w-16 text-right ${over ? "text-red-400" : "text-gray-300"}`}>
-        {fmt(current)}/{target}g
+      <span className={`text-sm sm:text-xs tabular-nums w-[5.25rem] sm:w-[4.5rem] text-right ${over ? "text-red-400" : "text-gray-300"}`}>
+        {fmt(current)} / {target}g
       </span>
     </div>
   );
@@ -1284,18 +1284,26 @@ export default function TodayClient({
   }
 
   // ── 日付ナビ ────────────────────────────────────────────────────────────────
-  async function navigateDate(delta: number) {
-    const newDate = addDays(selectedDate, delta);
-    if (newDate > today) return;
-    setSelectedDate(newDate);
+  async function loadDate(dateStr: string) {
+    if (dateStr > today) return;
+    setSelectedDate(dateStr);
     setLoadingDate(true);
-    const result = await getFoodLogForDate(newDate);
+    const result = await getFoodLogForDate(dateStr);
     setLoadingDate(false);
     if (!result.error) {
       setConsumedForDate(result.consumed);
       setLogEntries(result.entries);
-      setShowLogEntries(newDate !== today);
+      setShowLogEntries(dateStr !== today);
     }
+  }
+
+  async function navigateDate(delta: number) {
+    const newDate = addDays(selectedDate, delta);
+    await loadDate(newDate);
+  }
+
+  async function goToToday() {
+    await loadDate(today);
   }
 
   async function refreshLogForDate(date: string) {
@@ -1359,16 +1367,27 @@ export default function TodayClient({
 
       <div className="flex-1 flex flex-col min-h-0">
         {/* 日付ナビゲーション */}
-        <div className="flex-none flex items-center justify-between px-4 py-2.5 sm:py-2 border-b border-gray-800 bg-gray-900">
+        <div className="flex-none flex items-center justify-between px-4 py-2.5 sm:py-2 border-b border-gray-800 bg-gray-900 gap-2">
           <button type="button" onClick={() => navigateDate(-1)} disabled={loadingDate}
-            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-xl sm:text-lg rounded-lg sm:rounded-none active:bg-gray-800/50">
+            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-xl sm:text-lg rounded-lg sm:rounded-none active:bg-gray-800/50 shrink-0">
             ‹
           </button>
-          <span className="text-base sm:text-sm font-medium text-white">
-            {loadingDate ? "読込中..." : formatNavDate(selectedDate, today)}
-          </span>
+          <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
+            <span className="text-base sm:text-sm font-medium text-white text-center">
+              {loadingDate ? "読込中..." : formatNavDate(selectedDate, today)}
+            </span>
+            {selectedDate !== today && !loadingDate && (
+              <button
+                type="button"
+                onClick={() => void goToToday()}
+                className="text-xs sm:text-[11px] text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline py-0.5"
+              >
+                今日に戻る
+              </button>
+            )}
+          </div>
           <button type="button" onClick={() => navigateDate(1)} disabled={selectedDate >= today || loadingDate}
-            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-xl sm:text-lg rounded-lg sm:rounded-none active:bg-gray-800/50">
+            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-xl sm:text-lg rounded-lg sm:rounded-none active:bg-gray-800/50 shrink-0">
             ›
           </button>
         </div>

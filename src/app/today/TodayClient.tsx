@@ -201,6 +201,7 @@ function MenuItemDrawer({
   snapshotRestaurantId,
   onAfterSnapshotLog,
   onSnapshotCart,
+  registerTargetRestaurantName,
 }: {
   state: ItemDrawerState;
   existingGroupNames: string[];
@@ -210,6 +211,8 @@ function MenuItemDrawer({
   mealTypeForLog: MealType;
   logDate: string;
   snapshotRestaurantId: string;
+  /** 追加時: いま選ばれているお店タブ（メニュー登録の宛先） */
+  registerTargetRestaurantName: string;
   onAfterSnapshotLog: () => Promise<void>;
   onSnapshotCart: (draft: {
     name: string;
@@ -556,6 +559,18 @@ function MenuItemDrawer({
           </button>
         </div>
 
+        {!isEdit && registerTargetRestaurantName && (
+          <div className="flex-none px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
+            <p className="text-[11px] text-gray-500 leading-snug">メニューに登録するお店</p>
+            <p className="text-sm font-medium text-white truncate mt-0.5" title={registerTargetRestaurantName}>
+              {registerTargetRestaurantName}
+            </p>
+            <p className="text-[11px] text-gray-500 leading-snug mt-1.5">
+              別のお店へ登録するときは、閉じて上のお店タブを切り替えてから、もう一度開いてください。
+            </p>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           <div>
             <label className="block text-xs text-gray-400 mb-1">名前</label>
@@ -712,9 +727,31 @@ function MenuItemDrawer({
             </button>
           ) : (
             <>
-              <button type="button" onClick={() => void handleSave()} disabled={saving}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors">
-                {saving ? "保存中..." : "マイフードに登録する"}
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={saving}
+                title={
+                  registerTargetRestaurantName
+                    ? `「${registerTargetRestaurantName}」のメニュー一覧に追加します`
+                    : undefined
+                }
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5"
+              >
+                {saving ? (
+                  "保存中..."
+                ) : (
+                  <>
+                    <span>このお店のメニューに登録</span>
+                    {registerTargetRestaurantName ? (
+                      <span className="text-xs font-normal text-emerald-100/90 truncate max-w-full px-1">
+                        {registerTargetRestaurantName}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-normal text-emerald-100/80">（お店タブを確認）</span>
+                    )}
+                  </>
+                )}
               </button>
               <p className="text-center text-[11px] text-gray-500 leading-snug px-1">
                 マイフードに載せずに記録するとき
@@ -2324,6 +2361,7 @@ export default function TodayClient({
           }
           logDate={selectedDate}
           snapshotRestaurantId={snapshotRestaurantId}
+          registerTargetRestaurantName={selectedRestaurant?.name ?? ""}
           onAfterSnapshotLog={() => refreshLogForDate(selectedDate)}
           onSnapshotCart={(draft) => {
             const cartKey = `snap:${crypto.randomUUID()}`;

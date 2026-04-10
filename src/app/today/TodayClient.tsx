@@ -38,6 +38,8 @@ import {
   type ImportRestaurantItem,
 } from "./actions";
 import type { SharedProduct } from "@/types/database";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -185,8 +187,8 @@ function MenuItemDrawer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraSupported =
     typeof window !== "undefined" &&
-    "BarcodeDetector" in window &&
-    Boolean(navigator.mediaDevices?.getUserMedia);
+    Boolean(navigator.mediaDevices?.getUserMedia) &&
+    (typeof window.isSecureContext === "undefined" || window.isSecureContext);
 
   const displayP = mode === "per100g" ? protein : toServing(protein, grams);
   const displayF = mode === "per100g" ? fat     : toServing(fat,     grams);
@@ -243,39 +245,122 @@ function MenuItemDrawer({
 
   useEffect(() => {
     if (isEdit || !cameraOn || !cameraSupported) return;
-    let stop = false;
+    let stopped = false;
     let stream: MediaStream | null = null;
-    const w = window as Window & { BarcodeDetector?: new () => { detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>> } };
+    let stopZxing: (() => void) | null = null;
+
+    const w = window as Window & {
+      BarcodeDetector?: new () => { detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>> };
+    };
+
     void (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false,
-        });
-        if (!videoRef.current) return;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        if (!w.BarcodeDetector) return;
-        const detector = new w.BarcodeDetector();
-        while (!stop) {
-          if (!videoRef.current) break;
-          const detected = await detector.detect(videoRef.current);
-          const value = detected[0]?.rawValue?.trim();
-          if (value) {
-            setCameraOn(false);
-            void handleLookupBarcode(value);
-            break;
-          }
-          await new Promise((r) => setTimeout(r, 350));
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false,
+          });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         }
       } catch {
-        setScanError("カメラを起動できませんでした。権限設定を確認してください。");
-        setCameraOn(false);
+        if (!stopped) {
+          setScanError("カメラを起動できませんでした。権限設定を確認してください。");
+          setCameraOn(false);
+        }
+        return;
+      }
+
+      if (stopped) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      const video = videoRef.current;
+      if (!video) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("webkit-playsinline", "true");
+
+      try {
+        await video.play();
+      } catch {
+        if (!stopped) {
+          setScanError("映像の再生を開始できませんでした。");
+          setCameraOn(false);
+        }
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      if (stopped) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      if (typeof w.BarcodeDetector !== "undefined") {
+        try {
+          const detector = new w.BarcodeDetector();
+          while (!stopped) {
+            if (!videoRef.current) break;
+            try {
+              const detected = await detector.detect(videoRef.current);
+              const value = detected[0]?.rawValue?.trim();
+              if (value) {
+                setCameraOn(false);
+                void handleLookupBarcode(value);
+                break;
+              }
+            } catch {
+              // フレームごとの検出失敗は無視して続行
+            }
+            await new Promise((r) => setTimeout(r, 350));
+          }
+        } catch {
+          if (!stopped) {
+            setScanError("バーコードの自動読み取りを開始できませんでした。");
+            setCameraOn(false);
+          }
+        }
+      } else {
+        try {
+          const hints = new Map<DecodeHintType, BarcodeFormat[]>();
+          hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+            BarcodeFormat.EAN_13,
+            BarcodeFormat.EAN_8,
+            BarcodeFormat.UPC_A,
+            BarcodeFormat.UPC_E,
+          ]);
+          const reader = new BrowserMultiFormatReader(hints);
+          const controls = reader.scan(video, (result, _err, ctrls) => {
+            if (stopped || !result) return;
+            const text = result.getText().trim();
+            if (text) {
+              ctrls.stop();
+              setCameraOn(false);
+              void handleLookupBarcode(text);
+            }
+          });
+          stopZxing = () => controls.stop();
+        } catch {
+          if (!stopped) {
+            setScanError("バーコードの自動読み取りを開始できませんでした。");
+            setCameraOn(false);
+          }
+        }
       }
     })();
 
     return () => {
-      stop = true;
+      stopped = true;
+      stopZxing?.();
+      stopZxing = null;
       if (stream) stream.getTracks().forEach((t) => t.stop());
     };
   }, [isEdit, cameraOn, cameraSupported, handleLookupBarcode]);
@@ -355,6 +440,12 @@ function MenuItemDrawer({
               <button
                 type="button"
                 onClick={() => {
+                  if (!cameraOn && !cameraSupported) {
+                    setScanError(
+                      "この環境ではカメラを利用できません。HTTPS で開いているか、ブラウザのカメラ権限を確認してください。"
+                    );
+                    return;
+                  }
                   setScanError(null);
                   setCameraResult(null);
                   setServingHint(null);
@@ -370,6 +461,7 @@ function MenuItemDrawer({
                   ref={videoRef}
                   muted
                   playsInline
+                  autoPlay
                   className="w-full rounded-lg border border-gray-700 bg-black aspect-video object-cover"
                 />
               )}

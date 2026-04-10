@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-04-10
+
+### Added
+- ヘッダーのバージョン表記をクリックすると変更履歴（Changelog）を開ける（環境変数 `NEXT_PUBLIC_CHANGELOG_URL` 設定時）。
+- ユーザー向けの変更履歴として `CHANGELOG.md` を整備。
+
+### Changed
+- 開発運用: `CONTRIBUTING.md`・PR テンプレート・GitHub Actions で Changelog 更新をガイド・チェックするようにした。
+
 ## [1.2.3] - 2026-04-10
 
 ### Changed

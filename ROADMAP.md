@@ -2,7 +2,14 @@
 
 ## 現行バージョン
 
-`package.json` の `version` は **1.2.3**（本リポジトリ上の値）。以下はリリース履歴のメモ。
+`package.json` の `version` は **1.3.0**（本リポジトリ上の値）。以下はリリース履歴のメモ。
+
+---
+
+## v1.3.0 リリース済み（2026-04-10）
+
+- ヘッダーのバージョンから変更履歴（`CHANGELOG.md`）への導線（環境変数 `NEXT_PUBLIC_CHANGELOG_URL`）
+- Changelog 運用（`CONTRIBUTING.md`・PR テンプレ・CI ガードレール）
 
 ---
 

@@ -158,6 +158,158 @@ function fmt(n: number) {
   return n < 10 ? n.toFixed(1) : Math.round(n).toString();
 }
 
+function CartBarHeader({
+  cartExpanded,
+  onToggle,
+  cartEntryCount,
+  cartPFC,
+  mealType,
+}: {
+  cartExpanded: boolean;
+  onToggle: () => void;
+  cartEntryCount: number;
+  cartPFC: { p: number; f: number; c: number };
+  mealType: MealType;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full flex items-center justify-between gap-2 px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0 text-left"
+    >
+      <div className="flex flex-col items-start min-w-0 flex-1 gap-0.5">
+        <span className="text-base sm:text-sm font-medium text-white">
+          カート（{cartEntryCount}品）
+        </span>
+        <span
+          className={`text-[11px] sm:text-xs leading-snug ${MEAL_TAB_STYLES[mealType].label}`}
+        >
+          {MEAL_LABELS[mealType]}に記録
+        </span>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="text-sm sm:text-xs text-gray-400 tabular-nums">
+          P{fmt(cartPFC.p)} F{fmt(cartPFC.f)} C{fmt(cartPFC.c)}
+        </span>
+        <span className="text-gray-400 text-sm sm:text-xs" aria-hidden>
+          {cartExpanded ? "▼" : "▲"}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function CartExpandedBody({
+  mealType,
+  setMealType,
+  cartEntries,
+  cartPFC,
+  removeCartLine,
+  onSave,
+  saving,
+  layout = "inline",
+}: {
+  mealType: MealType;
+  setMealType: (t: MealType) => void;
+  cartEntries: CartEntry[];
+  cartPFC: { p: number; f: number; c: number };
+  removeCartLine: (key: string) => void;
+  onSave: () => void | Promise<void>;
+  saving: boolean;
+  /** モバイルのオーバーレイでは一覧を縦に伸ばす */
+  layout?: "inline" | "sheet";
+}) {
+  const listScrollClass =
+    layout === "sheet"
+      ? "min-h-0 flex-1 overflow-y-auto border-t border-gray-800/70"
+      : "max-h-36 overflow-y-auto border-t border-gray-800/70";
+  return (
+    <>
+      <div className="px-3 pt-1 pb-2 border-t border-gray-800/70">
+        <p className="text-[10px] text-gray-500 mb-1.5 px-0.5">記録する食事</p>
+        <div className="flex gap-1">
+          {(Object.keys(MEAL_LABELS) as MealType[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setMealType(t)}
+              className={`flex-1 min-h-10 min-w-0 px-0.5 py-2 rounded-lg text-[10px] sm:text-xs font-medium border-2 transition-colors touch-manipulation ${
+                mealType === t
+                  ? MEAL_CART_SEGMENT_ACTIVE[t]
+                  : "border-gray-700/90 bg-gray-800/70 text-gray-500 hover:text-gray-300 hover:border-gray-600"
+              }`}
+            >
+              {MEAL_LABELS[t]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={listScrollClass}>
+        {cartEntries.map((entry) => {
+          const totalGrams = entry.gramsPerServing * entry.count;
+          const v =
+            entry.kind === "menu"
+              ? pfc(entry.item, totalGrams)
+              : pfcFromPer100(
+                  entry.protein_per_100g,
+                  entry.fat_per_100g,
+                  entry.carbs_per_100g,
+                  totalGrams
+                );
+          const lineKey = entry.kind === "menu" ? entry.item.id : entry.cartKey;
+          const title = entry.kind === "menu" ? entry.item.name : entry.name;
+          const snapshotTag =
+            entry.kind === "snapshot" ? (
+              <span className="text-gray-600 ml-1 text-[10px] shrink-0">
+                スナップショット
+              </span>
+            ) : null;
+          return (
+            <div
+              key={lineKey}
+              className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-800/50"
+            >
+              <span className="text-sm text-gray-200 truncate flex-1 min-w-0">
+                {title}
+                {snapshotTag}
+                <span className="text-gray-500 ml-1 text-xs whitespace-nowrap">
+                  ×{entry.count}（{totalGrams}g）
+                </span>
+              </span>
+              <span className="text-xs text-gray-400 shrink-0 tabular-nums">
+                P{fmt(v.p)} F{fmt(v.f)} C{fmt(v.c)}
+              </span>
+              <button
+                type="button"
+                aria-label="カートから外す"
+                onClick={() => removeCartLine(lineKey)}
+                className="shrink-0 min-w-9 min-h-9 sm:min-w-8 sm:min-h-8 flex items-center justify-center text-gray-500 hover:text-white text-lg leading-none touch-manipulation rounded-lg active:bg-gray-800/60"
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <div className="px-4 py-3.5 sm:py-3 flex items-center justify-between gap-3 flex-none border-t border-gray-800/70">
+        <div className="text-base sm:text-sm text-gray-300 tabular-nums min-w-0">
+          合計 P<span className="text-white font-medium">{fmt(cartPFC.p)}</span>{" "}
+          F<span className="text-white font-medium">{fmt(cartPFC.f)}</span>{" "}
+          C<span className="text-white font-medium">{fmt(cartPFC.c)}</span>g
+        </div>
+        <button
+          type="button"
+          onClick={() => void onSave()}
+          disabled={saving}
+          className="px-5 py-3 sm:px-4 sm:py-2 min-h-11 sm:min-h-0 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-base sm:text-sm font-medium rounded-lg transition-colors shrink-0"
+        >
+          {saving ? "記録中..." : "記録する"}
+        </button>
+      </div>
+    </>
+  );
+}
+
 function sortRestaurants(list: Restaurant[]): Restaurant[] {
   const homemade = list.filter((r) => r.category === "homemade");
   const others = list
@@ -596,7 +748,9 @@ function MenuItemDrawer({
           </div>
 
           {!isEdit && (
-            <div className="space-y-2">
+            <div
+              className={`space-y-2 ${cameraOn ? "sticky top-0 z-[2] -mx-4 border-b border-gray-800/80 bg-gray-900 px-4 pb-3 pt-0 sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0" : ""}`}
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -622,7 +776,7 @@ function MenuItemDrawer({
                   muted
                   playsInline
                   autoPlay
-                  className="w-full rounded-lg border border-gray-700 bg-black aspect-video object-cover"
+                  className="mx-auto w-full max-h-[min(42svh,15rem)] rounded-lg border border-gray-700 bg-black aspect-video object-cover sm:max-h-none"
                 />
               )}
               {scanLoading && <p className="text-xs text-emerald-300">読み取り結果を検索中...</p>}
@@ -735,7 +889,7 @@ function MenuItemDrawer({
           )}
         </div>
 
-        <div className="flex-none px-4 py-4 border-t border-gray-800 space-y-2">
+        <div className="flex-none space-y-2 border-t border-gray-800 px-4 py-3 sm:py-4">
           {isEdit ? (
             <button onClick={() => void handleSave()} disabled={saving}
               className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors">
@@ -752,40 +906,53 @@ function MenuItemDrawer({
                     ? `「${registerTargetRestaurantName}」のメニュー一覧に追加します`
                     : undefined
                 }
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5"
+                className="flex w-full flex-col items-center gap-0.5 rounded-xl bg-emerald-600 py-2.5 font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50 sm:py-3"
               >
                 {saving ? (
                   "保存中..."
                 ) : (
                   <>
-                    <span>このお店のメニューに登録</span>
+                    <span className="text-sm sm:text-base">メニューに登録</span>
                     {registerTargetRestaurantName ? (
-                      <span className="text-xs font-normal text-emerald-100/90 truncate max-w-full px-1">
+                      <span className="max-w-full truncate px-1 text-[11px] font-normal text-emerald-100/90 sm:text-xs">
                         {registerTargetRestaurantName}
                       </span>
                     ) : (
-                      <span className="text-xs font-normal text-emerald-100/80">（お店タブを確認）</span>
+                      <span className="text-[11px] font-normal text-emerald-100/80 sm:text-xs">
+                        （お店タブを確認）
+                      </span>
                     )}
                   </>
                 )}
               </button>
-              <p className="text-center text-[11px] text-gray-500 leading-snug px-1">
+              <p className="hidden px-1 text-center text-[11px] leading-snug text-gray-500 sm:block">
                 メニュー一覧に載せずに記録するとき
               </p>
-              <button type="button" onClick={handleSnapshotToCart} disabled={saving || !snapshotRestaurantId}
-                className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-200 text-sm font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5">
-                <span>カートに入れる</span>
-                <span className="text-[11px] font-normal text-gray-400 leading-tight">
-                  メニューには登録しない・あとで「記録する」でまとめて保存
-                </span>
-              </button>
-              <button type="button" onClick={() => void handleSnapshotLogOnly()} disabled={saving || !snapshotRestaurantId}
-                className="w-full py-2.5 border border-gray-600 hover:border-gray-500 disabled:opacity-50 text-gray-200 text-sm font-medium rounded-xl transition-colors flex flex-col items-center gap-0.5">
-                <span>今すぐ食事ログに記録</span>
-                <span className="text-[11px] font-normal text-gray-400 leading-tight">
-                  カートを使わず、この内容だけいま保存
-                </span>
-              </button>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={handleSnapshotToCart}
+                  disabled={saving || !snapshotRestaurantId}
+                  className="rounded-xl bg-gray-800 py-2.5 text-center text-xs font-medium text-gray-200 transition-colors hover:bg-gray-700 disabled:opacity-50 sm:flex sm:flex-col sm:items-center sm:gap-0.5 sm:py-2.5 sm:text-sm"
+                >
+                  <span>カートへ</span>
+                  <span className="mt-0.5 hidden text-[11px] font-normal leading-tight text-gray-400 sm:block">
+                    メニュー未登録・あとで記録
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSnapshotLogOnly()}
+                  disabled={saving || !snapshotRestaurantId}
+                  className="rounded-xl border border-gray-600 py-2.5 text-center text-xs font-medium text-gray-200 transition-colors hover:border-gray-500 disabled:opacity-50 sm:flex sm:flex-col sm:items-center sm:gap-0.5 sm:py-2.5 sm:text-sm"
+                >
+                  <span className="sm:hidden">今すぐ記録</span>
+                  <span className="hidden sm:inline">今すぐ食事ログに記録</span>
+                  <span className="mt-0.5 hidden text-[11px] font-normal leading-tight text-gray-400 sm:block">
+                    カートを使わずいま保存
+                  </span>
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -1699,7 +1866,14 @@ export default function TodayClient({
   const [mealType, setMealType]     = useState<MealType>(initialMealType);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(["控えめ", "避ける"]));
   const [saving, setSaving]         = useState(false);
-  const [cartExpanded, setCartExpanded] = useState(true);
+  const [cartExpanded, setCartExpanded] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const wide = window.matchMedia("(min-width: 640px)").matches;
+      if (wide) setCartExpanded(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
   const [itemDrawer, setItemDrawer] = useState<ItemDrawerState | null>(null);
   const [deletingRestaurant, setDeletingRestaurant] = useState(false);
   const [confirmDeleteRestaurant, setConfirmDeleteRestaurant] = useState(false);
@@ -2283,114 +2457,86 @@ export default function TodayClient({
           )}
         </div>
 
-        {/* カートパネル（記録先の食事区分の色＝上部タブと同期） */}
+        {/* カート: sm+ は従来どおりインライン展開。未満は折りたたみバー＋展開時オーバーレイ（メニュー領域を確保） */}
         {hasCart && (
-          <div
-            className={`flex-none pb-[env(safe-area-inset-bottom)] ${MEAL_CART_SHELL[mealType]}`}
-          >
-            <button type="button" onClick={() => setCartExpanded((v) => !v)}
-              className="w-full flex items-center justify-between gap-2 px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0 text-left">
-              <div className="flex flex-col items-start min-w-0 flex-1 gap-0.5">
-                <span className="text-base sm:text-sm font-medium text-white">
-                  カート（{cartEntries.length}品）
-                </span>
-                <span className={`text-[11px] sm:text-xs leading-snug ${MEAL_TAB_STYLES[mealType].label}`}>
-                  {MEAL_LABELS[mealType]}に記録
-                </span>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="text-sm sm:text-xs text-gray-400 tabular-nums">
-                  P{fmt(cartPFC.p)} F{fmt(cartPFC.f)} C{fmt(cartPFC.c)}
-                </span>
-                <span className="text-gray-400 text-sm sm:text-xs">{cartExpanded ? "▼" : "▲"}</span>
-              </div>
-            </button>
+          <>
+            <div
+              className={`sm:hidden flex-none pb-[env(safe-area-inset-bottom)] ${MEAL_CART_SHELL[mealType]} ${cartExpanded ? "hidden" : ""}`}
+            >
+              <CartBarHeader
+                cartExpanded={cartExpanded}
+                onToggle={() => setCartExpanded((v) => !v)}
+                cartEntryCount={cartEntries.length}
+                cartPFC={cartPFC}
+                mealType={mealType}
+              />
+            </div>
+
             {cartExpanded && (
-              <>
-                <div className="px-3 pt-1 pb-2 border-t border-gray-800/70">
-                  <p className="text-[10px] text-gray-500 mb-1.5 px-0.5">記録する食事</p>
-                  <div className="flex gap-1">
-                    {(Object.keys(MEAL_LABELS) as MealType[]).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setMealType(t)}
-                        className={`flex-1 min-h-10 min-w-0 px-0.5 py-2 rounded-lg text-[10px] sm:text-xs font-medium border-2 transition-colors touch-manipulation ${
-                          mealType === t
-                            ? MEAL_CART_SEGMENT_ACTIVE[t]
-                            : "border-gray-700/90 bg-gray-800/70 text-gray-500 hover:text-gray-300 hover:border-gray-600"
-                        }`}
-                      >
-                        {MEAL_LABELS[t]}
-                      </button>
-                    ))}
+              <div
+                className="sm:hidden fixed inset-0 z-[38] flex flex-col justify-end pointer-events-none"
+                role="dialog"
+                aria-modal="true"
+                aria-label="カートの詳細"
+              >
+                <button
+                  type="button"
+                  className="pointer-events-auto absolute inset-0 border-0 bg-black/50"
+                  aria-label="カートを閉じる"
+                  onClick={() => setCartExpanded(false)}
+                />
+                <div
+                  className={`pointer-events-auto relative z-[1] flex max-h-[min(85svh,560px)] flex-col rounded-t-2xl border-x border-t border-gray-700 ${MEAL_CART_SHELL[mealType]} pb-[env(safe-area-inset-bottom)] max-w-md mx-auto w-full min-h-0`}
+                >
+                  <div className="flex-none flex justify-center pt-2 pb-1">
+                    <div className="w-10 h-1 rounded-full bg-gray-600" aria-hidden />
+                  </div>
+                  <CartBarHeader
+                    cartExpanded={cartExpanded}
+                    onToggle={() => setCartExpanded((v) => !v)}
+                    cartEntryCount={cartEntries.length}
+                    cartPFC={cartPFC}
+                    mealType={mealType}
+                  />
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <CartExpandedBody
+                      layout="sheet"
+                      mealType={mealType}
+                      setMealType={setMealType}
+                      cartEntries={cartEntries}
+                      cartPFC={cartPFC}
+                      removeCartLine={removeCartLine}
+                      onSave={handleSave}
+                      saving={saving}
+                    />
                   </div>
                 </div>
-                <div className="max-h-36 overflow-y-auto border-t border-gray-800/70">
-                  {cartEntries.map((entry) => {
-                    const totalGrams = entry.gramsPerServing * entry.count;
-                    const v =
-                      entry.kind === "menu"
-                        ? pfc(entry.item, totalGrams)
-                        : pfcFromPer100(
-                            entry.protein_per_100g,
-                            entry.fat_per_100g,
-                            entry.carbs_per_100g,
-                            totalGrams
-                          );
-                    const lineKey =
-                      entry.kind === "menu" ? entry.item.id : entry.cartKey;
-                    const title =
-                      entry.kind === "menu"
-                        ? entry.item.name
-                        : entry.name;
-                    const snapshotTag =
-                      entry.kind === "snapshot" ? (
-                        <span className="text-gray-600 ml-1 text-[10px] shrink-0">
-                          スナップショット
-                        </span>
-                      ) : null;
-                    return (
-                      <div
-                        key={lineKey}
-                        className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-800/50"
-                      >
-                        <span className="text-sm text-gray-200 truncate flex-1 min-w-0">
-                          {title}
-                          {snapshotTag}
-                          <span className="text-gray-500 ml-1 text-xs whitespace-nowrap">
-                            ×{entry.count}（{totalGrams}g）
-                          </span>
-                        </span>
-                        <span className="text-xs text-gray-400 shrink-0 tabular-nums">
-                          P{fmt(v.p)} F{fmt(v.f)} C{fmt(v.c)}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label="カートから外す"
-                          onClick={() => removeCartLine(lineKey)}
-                          className="shrink-0 min-w-9 min-h-9 sm:min-w-8 sm:min-h-8 flex items-center justify-center text-gray-500 hover:text-white text-lg leading-none touch-manipulation rounded-lg active:bg-gray-800/60"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="px-4 py-3.5 sm:py-3 flex items-center justify-between gap-3">
-                  <div className="text-base sm:text-sm text-gray-300 tabular-nums">
-                    合計 P<span className="text-white font-medium">{fmt(cartPFC.p)}</span>{" "}
-                    F<span className="text-white font-medium">{fmt(cartPFC.f)}</span>{" "}
-                    C<span className="text-white font-medium">{fmt(cartPFC.c)}</span>g
-                  </div>
-                  <button type="button" onClick={handleSave} disabled={saving}
-                    className="px-5 py-3 sm:px-4 sm:py-2 min-h-11 sm:min-h-0 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-base sm:text-sm font-medium rounded-lg transition-colors shrink-0">
-                    {saving ? "記録中..." : "記録する"}
-                  </button>
-                </div>
-              </>
+              </div>
             )}
-          </div>
+
+            <div
+              className={`hidden sm:flex sm:flex-none sm:flex-col sm:pb-[env(safe-area-inset-bottom)] ${MEAL_CART_SHELL[mealType]}`}
+            >
+              <CartBarHeader
+                cartExpanded={cartExpanded}
+                onToggle={() => setCartExpanded((v) => !v)}
+                cartEntryCount={cartEntries.length}
+                cartPFC={cartPFC}
+                mealType={mealType}
+              />
+              {cartExpanded && (
+                <CartExpandedBody
+                  mealType={mealType}
+                  setMealType={setMealType}
+                  cartEntries={cartEntries}
+                  cartPFC={cartPFC}
+                  removeCartLine={removeCartLine}
+                  onSave={handleSave}
+                  saving={saving}
+                />
+              )}
+            </div>
+          </>
         )}
       </div>
 

@@ -52,6 +52,12 @@ import {
 import type { SharedProduct } from "@/types/database";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+import {
+  MACRO_BAR_BG,
+  MACRO_MENU_TEXT,
+  menuRowMacroHighlights,
+  type MacroHighlightTargets,
+} from "@/lib/macroHighlights";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -1452,13 +1458,14 @@ const RANK_ICON: Record<number, { icon: string; className: string }> = {
   4: { icon: "✕", className: "text-red-400" },
 };
 
-function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onToggleFavorite, isFavorited, originCaption }: {
+function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onToggleFavorite, isFavorited, originCaption, pfcTargets }: {
   item: MenuItem; entry: CartEntry | undefined;
   onAdd: (grams: number) => void; onRemove: () => void;
   onChangeGrams: (g: number) => void; onEdit: () => void;
   onToggleFavorite: () => void | Promise<void>;
   isFavorited: boolean;
   originCaption?: string | null;
+  pfcTargets: MacroHighlightTargets;
 }) {
   const [editingGrams, setEditingGrams] = useState(false);
   const [gramsInput, setGramsInput] = useState("");
@@ -1469,6 +1476,21 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onTo
   const serving = pfc(item, displayGrams);
   const count = entry?.count ?? 0;
   const rank = RANK_ICON[item.rank] ?? RANK_ICON[2];
+  const { highlightP, highlightF } =
+    item.protein_per_100g !== null
+      ? menuRowMacroHighlights(serving, item, pfcTargets)
+      : { highlightP: false, highlightF: false };
+
+  const menuItemPfcLine =
+    item.protein_per_100g !== null ? (
+      <>
+        <span className={highlightP ? MACRO_MENU_TEXT.p : "text-gray-500"}>P{fmt(serving.p)}</span>{" "}
+        <span className={highlightF ? MACRO_MENU_TEXT.f : "text-gray-500"}>F{fmt(serving.f)}</span>{" "}
+        <span className="text-gray-500">C{fmt(serving.c)}</span>
+      </>
+    ) : (
+      <span className="text-gray-500">PFC未設定 — タップして編集</span>
+    );
 
   function startGramsEdit() {
     setGramsInput(displayGrams.toString());
@@ -1509,18 +1531,10 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onTo
         {originCaption ? (
           <>
             <p className="text-sm sm:text-xs text-gray-400 mt-0.5 truncate">{originCaption}</p>
-            <p className="text-sm sm:text-xs text-gray-500 mt-0.5">
-              {item.protein_per_100g !== null
-                ? `P${fmt(serving.p)} F${fmt(serving.f)} C${fmt(serving.c)}`
-                : "PFC未設定 — タップして編集"}
-            </p>
+            <p className="text-sm sm:text-xs mt-0.5 tabular-nums">{menuItemPfcLine}</p>
           </>
         ) : (
-          <p className="text-sm sm:text-xs text-gray-500 mt-0.5">
-            {item.protein_per_100g !== null
-              ? `P${fmt(serving.p)} F${fmt(serving.f)} C${fmt(serving.c)}`
-              : "PFC未設定 — タップして編集"}
-          </p>
+          <p className="text-sm sm:text-xs mt-0.5 tabular-nums">{menuItemPfcLine}</p>
         )}
       </button>
 
@@ -2393,9 +2407,9 @@ export default function TodayClient({
 
         {/* PFCバー */}
         <div className="flex-none px-4 py-3.5 sm:py-3 bg-gray-900 border-b border-gray-800 space-y-2 sm:space-y-1.5">
-          <PFCBar label="P" current={totalPFC.p} target={currentSettings.protein_target_g} color="bg-blue-500" />
-          <PFCBar label="F" current={totalPFC.f} target={currentSettings.fat_target_g}     color="bg-yellow-500" />
-          <PFCBar label="C" current={totalPFC.c} target={currentSettings.carbs_target_g}   color="bg-emerald-500" />
+          <PFCBar label="P" current={totalPFC.p} target={currentSettings.protein_target_g} color={MACRO_BAR_BG.p} />
+          <PFCBar label="F" current={totalPFC.f} target={currentSettings.fat_target_g}     color={MACRO_BAR_BG.f} />
+          <PFCBar label="C" current={totalPFC.c} target={currentSettings.carbs_target_g}   color={MACRO_BAR_BG.c} />
         </div>
 
         {/* 記録済みパネル */}
@@ -2535,6 +2549,10 @@ export default function TodayClient({
                   onEdit={() => setItemDrawer({ kind: "edit", item })}
                   onToggleFavorite={() => void handleToggleFavorite(item)}
                   isFavorited={favoriteMenuItemIds.has(item.id)}
+                  pfcTargets={{
+                    protein_target_g: currentSettings.protein_target_g,
+                    fat_target_g: currentSettings.fat_target_g,
+                  }}
                 />
               ));
             }
@@ -2571,6 +2589,10 @@ export default function TodayClient({
                     onToggleFavorite={() => void handleToggleFavorite(item)}
                     isFavorited={favoriteMenuItemIds.has(item.id)}
                     originCaption={group.originByItemId?.[item.id] ?? null}
+                    pfcTargets={{
+                      protein_target_g: currentSettings.protein_target_g,
+                      fat_target_g: currentSettings.fat_target_g,
+                    }}
                   />
                 ))}
               </div>

@@ -419,6 +419,7 @@ function MenuItemDrawer({
   const [lastLookup, setLastLookup] = useState<{ barcode: string; at: number } | null>(null);
   const [servingHint, setServingHint] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const cameraSupported =
     typeof window !== "undefined" &&
     Boolean(navigator.mediaDevices?.getUserMedia) &&
@@ -599,6 +600,15 @@ function MenuItemDrawer({
     };
   }, [isEdit, cameraOn, cameraSupported, handleLookupBarcode]);
 
+  useEffect(() => {
+    if (isEdit) return;
+    const id = requestAnimationFrame(() => {
+      if (!window.matchMedia("(min-width: 640px)").matches) return;
+      nameInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isEdit]);
+
   function buildMenuPayload(): MenuItemUpdate {
     return {
       name: name.trim(),
@@ -741,9 +751,13 @@ function MenuItemDrawer({
         <div className="min-h-0 flex-1 overflow-y-auto space-y-4 px-4 py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div>
             <label className="block text-xs text-gray-400 mb-1">名前</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-              autoFocus={!isEdit}
-              className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
+            />
           </div>
 
           {!isEdit && (

@@ -58,6 +58,13 @@ import {
   menuRowMacroHighlights,
   type MacroHighlightTargets,
 } from "@/lib/macroHighlights";
+import {
+  computeHeaderHintText,
+  getActiveHintSlot,
+  getCachedHeaderHint,
+  setCachedHeaderHint,
+  targetsFingerprint,
+} from "@/lib/header-hint";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -2088,6 +2095,69 @@ export default function TodayClient({
     c: consumedForDate.carbs + cartPFC.c,
   };
 
+  const [headerHintTimeTick, setHeaderHintTimeTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setHeaderHintTimeTick((n) => n + 1);
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const headerHint = useMemo(() => {
+    void headerHintTimeTick;
+    if (selectedDate !== today) return null;
+    const slot = getActiveHintSlot(new Date());
+    if (!slot) return null;
+    const fp = targetsFingerprint(currentSettings);
+    const cached = getCachedHeaderHint(selectedDate, slot, fp);
+    if (cached !== null) return cached;
+    return computeHeaderHintText({
+      slot,
+      consumed: { p: totalPFC.p, f: totalPFC.f, c: totalPFC.c },
+      targets: {
+        p: currentSettings.protein_target_g,
+        f: currentSettings.fat_target_g,
+        c: currentSettings.carbs_target_g,
+      },
+    });
+  }, [
+    selectedDate,
+    today,
+    currentSettings,
+    totalPFC.p,
+    totalPFC.f,
+    totalPFC.c,
+    headerHintTimeTick,
+  ]);
+
+  useEffect(() => {
+    void headerHintTimeTick;
+    if (selectedDate !== today) return;
+    const slot = getActiveHintSlot(new Date());
+    if (!slot) return;
+    const fp = targetsFingerprint(currentSettings);
+    if (getCachedHeaderHint(selectedDate, slot, fp) !== null) return;
+    const text = computeHeaderHintText({
+      slot,
+      consumed: { p: totalPFC.p, f: totalPFC.f, c: totalPFC.c },
+      targets: {
+        p: currentSettings.protein_target_g,
+        f: currentSettings.fat_target_g,
+        c: currentSettings.carbs_target_g,
+      },
+    });
+    setCachedHeaderHint(selectedDate, slot, fp, text);
+  }, [
+    selectedDate,
+    today,
+    currentSettings,
+    totalPFC.p,
+    totalPFC.f,
+    totalPFC.c,
+    headerHintTimeTick,
+  ]);
+
   const cartEntries = useMemo(() => Array.from(cart.values()).filter((e) => e.count > 0), [cart]);
   const hasCart = cartEntries.length > 0;
 
@@ -2354,8 +2424,8 @@ export default function TodayClient({
   return (
     <>
       {/* ヘッダー */}
-      <header className="flex-none flex items-center justify-between px-4 py-3.5 sm:py-3 border-b border-gray-800 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <h1 className="text-lg sm:text-base font-bold text-white">
+      <header className="flex-none flex items-center gap-2 px-4 py-3.5 sm:py-3 border-b border-gray-800 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <h1 className="text-lg sm:text-base font-bold text-white shrink-0">
           Ketolog
           {changelogUrl ? (
             <a
@@ -2371,9 +2441,19 @@ export default function TodayClient({
             <span className="text-sm sm:text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
           )}
         </h1>
+        <div className="flex-1 min-w-0 flex justify-center items-center px-1">
+          {headerHint ? (
+            <p
+              className="text-center text-xs sm:text-[11px] text-gray-400 leading-snug truncate max-w-full"
+              title={headerHint}
+            >
+              {headerHint}
+            </p>
+          ) : null}
+        </div>
         <button onClick={() => setShowSettings(true)}
           type="button"
-          className="text-gray-400 hover:text-white transition-colors text-xl sm:text-lg leading-none min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg sm:rounded-none active:bg-gray-800/60 sm:active:bg-transparent">
+          className="shrink-0 text-gray-400 hover:text-white transition-colors text-xl sm:text-lg leading-none min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg sm:rounded-none active:bg-gray-800/60 sm:active:bg-transparent">
           ⚙
         </button>
       </header>

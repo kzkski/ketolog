@@ -1,5 +1,5 @@
 -- Ketolog public schema baseline (Issue #72).
--- Captured from linked Supabase project introspection; includes tables beyond the Next app when present.
+-- Captured from linked Supabase project introspection; trimmed to objects the app uses (see #74).
 -- Regenerate from your DB: `npm run db:dump-baseline` (requires `supabase link` or DATABASE_URL).
 -- Note: `restaurants.display_order` is required by the app; included here even if an older remote lacked it.
 
@@ -101,52 +101,6 @@ CREATE TABLE public.favorite_entries (
   display_order integer NOT NULL DEFAULT 0
 );
 
-CREATE TABLE public.body_composition (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
-  date date NOT NULL,
-  weight_kg numeric,
-  body_fat_pct numeric,
-  muscle_mass_kg numeric,
-  bmr_kcal integer,
-  visceral_fat_level integer,
-  body_age integer,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT body_composition_user_id_date_key UNIQUE (user_id, date)
-);
-
-CREATE TABLE public.daily_summary (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
-  date date NOT NULL,
-  sleep_hours numeric,
-  calories_burned integer,
-  exercise text,
-  notes text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT daily_summary_user_id_date_key UNIQUE (user_id, date)
-);
-
-CREATE SEQUENCE public.daily_log_id_seq;
-
-CREATE TABLE public.daily_log (
-  id bigint PRIMARY KEY DEFAULT nextval('public.daily_log_id_seq'::regclass),
-  date date NOT NULL,
-  weight_kg numeric,
-  body_fat_pct numeric,
-  sleep_hours text,
-  calories_burned numeric,
-  protein_g numeric,
-  fat_g numeric,
-  carbs_g numeric,
-  exercise text,
-  notes text,
-  created_at timestamptz DEFAULT now(),
-  CONSTRAINT daily_log_date_key UNIQUE (date)
-);
-
-ALTER SEQUENCE public.daily_log_id_seq OWNED BY public.daily_log.id;
-
 -- Indexes (non-PK / non-embedded-unique)
 CREATE INDEX menu_items_restaurant_id_rank_order_count_idx
   ON public.menu_items (restaurant_id, rank, order_count DESC);
@@ -156,8 +110,6 @@ CREATE INDEX idx_shared_products_last_checked_at ON public.shared_products (last
 CREATE INDEX food_log_user_id_date_idx ON public.food_log (user_id, date);
 CREATE INDEX idx_favorite_groups_user_display ON public.favorite_groups (user_id, display_order);
 CREATE INDEX idx_favorite_entries_group_display ON public.favorite_entries (favorite_group_id, display_order);
-CREATE INDEX body_composition_user_id_date_idx ON public.body_composition (user_id, date);
-CREATE INDEX daily_summary_user_id_date_idx ON public.daily_summary (user_id, date);
 
 -- Row level security
 ALTER TABLE public.shared_products ENABLE ROW LEVEL SECURITY;
@@ -167,9 +119,6 @@ ALTER TABLE public.food_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.favorite_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.favorite_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.body_composition ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.daily_summary ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.daily_log ENABLE ROW LEVEL SECURITY;
 
 -- Policies: shared_products (authenticated read/write cache)
 CREATE POLICY shared_products_select_authenticated ON public.shared_products
@@ -240,16 +189,6 @@ CREATE POLICY favorite_entries_delete_own ON public.favorite_entries
       WHERE fg.id = favorite_group_id AND fg.user_id = auth.uid()
     )
   );
-
--- Policies: optional legacy / other tables (match prior project)
-CREATE POLICY "Users can manage their own body_composition" ON public.body_composition
-  FOR ALL TO public USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can manage their own daily_summary" ON public.daily_summary
-  FOR ALL TO public USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "anon can select" ON public.daily_log FOR SELECT TO anon USING (true);
-CREATE POLICY "anon can insert" ON public.daily_log FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "anon can update" ON public.daily_log FOR UPDATE TO anon USING (true) WITH CHECK (true);
 
 -- Grants (Supabase API roles)
 GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;

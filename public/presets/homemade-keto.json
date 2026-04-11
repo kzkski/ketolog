@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "name": "マイフード",
+  "name": "汎用食材",
   "category": "homemade",
   "menuItems": [
     { "name": "バターコーヒー（グラスフェッドバター+MCTオイル）", "protein_per_100g": 0.1, "fat_per_100g": 9.15, "carbs_per_100g": 0, "default_grams": 200, "rank": 1, "notes": "バター10g+MCT10g=F18.3g想定", "group": "朝食" },

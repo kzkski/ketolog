@@ -27,6 +27,7 @@ export type MenuItem = {
   group_name: string | null;
   group_order: number;
   shared_barcode?: string | null;
+  is_favorite?: boolean;
 };
 
 export type SharedProduct = {

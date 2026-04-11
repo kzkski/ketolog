@@ -54,7 +54,6 @@ export default async function TodayPage() {
     carbs_target_g: 40,
   };
 
-  // マイフード（category=homemade）を先頭に固定し、以降はdisplay_order昇順
   const rawRestaurants: Restaurant[] = restaurantsRes.data ?? [];
   const snapshotRestaurant = await getOrCreateSnapshotRestaurant();
   const rawWithSnapshot =
@@ -63,19 +62,14 @@ export default async function TodayPage() {
       ? [...rawRestaurants, snapshotRestaurant.data]
       : rawRestaurants;
 
-  const restaurants: Restaurant[] = [
-    ...rawWithSnapshot.filter((r) => r.category === "homemade"),
-    ...rawWithSnapshot
-      .filter((r) => r.category !== "homemade")
-      .sort((a, b) => {
-        const ao = a.display_order ?? 0;
-        const bo = b.display_order ?? 0;
-        if (ao !== bo) {
-          return ao - bo;
-        }
-        return b.order_count - a.order_count;
-      }),
-  ];
+  const restaurants: Restaurant[] = [...rawWithSnapshot].sort((a, b) => {
+    const ao = a.display_order ?? 0;
+    const bo = b.display_order ?? 0;
+    if (ao !== bo) {
+      return ao - bo;
+    }
+    return b.order_count - a.order_count;
+  });
 
   const initialMealType = getMealTypeForTimeZone(new Date(), "Asia/Tokyo");
 

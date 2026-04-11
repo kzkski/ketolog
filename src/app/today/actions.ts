@@ -430,6 +430,28 @@ export async function updateMenuItem(
   return { data: row as MenuItem, error: null };
 }
 
+export async function setMenuItemFavorite(
+  id: string,
+  isFavorite: boolean
+): Promise<{ data: MenuItem | null; error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "認証が必要です" };
+
+  const { data: row, error } = await supabase
+    .from("menu_items")
+    .update({ is_favorite: isFavorite })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select()
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data: row as MenuItem, error: null };
+}
+
 export async function addMenuItem(
   restaurantId: string,
   data: MenuItemUpdate
@@ -489,7 +511,6 @@ async function nextRestaurantDisplayOrder(
     .from("restaurants")
     .select("display_order")
     .eq("user_id", userId)
-    .neq("category", "homemade")
     .order("display_order", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -504,8 +525,7 @@ export async function addRestaurant(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: null, error: "認証が必要です" };
 
-  const displayOrder =
-    category === "homemade" ? 0 : await nextRestaurantDisplayOrder(supabase, user.id);
+  const displayOrder = await nextRestaurantDisplayOrder(supabase, user.id);
 
   const first = await supabase
     .from("restaurants")
@@ -527,27 +547,24 @@ export async function addRestaurant(
 }
 
 export async function reorderRestaurants(
-  orderedNonHomemadeIds: string[]
+  orderedRestaurantIds: string[]
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "認証が必要です" };
-  if (orderedNonHomemadeIds.length === 0) return { error: null };
+  if (orderedRestaurantIds.length === 0) return { error: null };
 
   const { data: rows, error: fetchErr } = await supabase
     .from("restaurants")
-    .select("id, category")
+    .select("id")
     .eq("user_id", user.id)
-    .in("id", orderedNonHomemadeIds);
+    .in("id", orderedRestaurantIds);
   if (fetchErr) return { error: fetchErr.message };
-  if (!rows || rows.length !== orderedNonHomemadeIds.length) {
+  if (!rows || rows.length !== orderedRestaurantIds.length) {
     return { error: "お店の指定が不正です" };
   }
-  if (rows.some((r: { category: string }) => r.category === "homemade")) {
-    return { error: "マイフードの順序は変更できません" };
-  }
 
-  const updates = orderedNonHomemadeIds.map((id, index) =>
+  const updates = orderedRestaurantIds.map((id, index) =>
     supabase
       .from("restaurants")
       .update({ display_order: index })
@@ -562,8 +579,8 @@ export async function reorderRestaurants(
     }
 
     // 旧スキーマ互換: display_order が未適用の場合は order_count で順序を保存する
-    const base = orderedNonHomemadeIds.length;
-    const fallbackUpdates = orderedNonHomemadeIds.map((id, index) =>
+    const base = orderedRestaurantIds.length;
+    const fallbackUpdates = orderedRestaurantIds.map((id, index) =>
       supabase
         .from("restaurants")
         .update({ order_count: base - index })
@@ -600,7 +617,6 @@ export async function getOrCreateSnapshotRestaurant(): Promise<{
     .from("restaurants")
     .select("display_order")
     .eq("user_id", user.id)
-    .neq("category", "homemade")
     .order("display_order", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -674,6 +690,7 @@ export type ImportRestaurantItem = {
   rank: number;
   notes: string | null;
   group?: string | null;
+  is_favorite?: boolean;
 };
 
 export type ImportRestaurantEntry = {
@@ -711,8 +728,7 @@ export async function importRestaurantData(data: ImportData): Promise<{
   for (const r of data.restaurants) {
     if (existingNames.has(r.name)) { skipped.push(r.name); continue; }
 
-    const displayOrder =
-      r.category === "homemade" ? 0 : await nextRestaurantDisplayOrder(supabase, user.id);
+    const displayOrder = await nextRestaurantDisplayOrder(supabase, user.id);
     let { data: newR, error: rErr } = await supabase
       .from("restaurants")
       .insert({ user_id: user.id, name: r.name, category: r.category, display_order: displayOrder })
@@ -734,7 +750,7 @@ export async function importRestaurantData(data: ImportData): Promise<{
       const groupOrderMap = new Map<string, number>();
       const { data: items } = await supabase
         .from("menu_items")
-        .insert(r.menuItems.map(({ group, shared_barcode, ...item }) => {
+        .insert(r.menuItems.map(({ group, shared_barcode, is_favorite, ...item }) => {
           const g = group ?? null;
           if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
           return {
@@ -742,6 +758,7 @@ export async function importRestaurantData(data: ImportData): Promise<{
             restaurant_id: newR.id,
             ...item,
             shared_barcode: shared_barcode ?? null,
+            is_favorite: is_favorite === true,
             group_name: g,
             group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0,
           };
@@ -765,7 +782,7 @@ export async function importMenuItemsToRestaurant(
   const groupOrderMap = new Map<string, number>();
   const { data, error } = await supabase
     .from("menu_items")
-    .insert(items.map(({ group, shared_barcode, ...item }) => {
+    .insert(items.map(({ group, shared_barcode, is_favorite, ...item }) => {
       const g = group ?? null;
       if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
       return {
@@ -773,6 +790,7 @@ export async function importMenuItemsToRestaurant(
         restaurant_id: restaurantId,
         ...item,
         shared_barcode: shared_barcode ?? null,
+        is_favorite: is_favorite === true,
         group_name: g,
         group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0,
       };

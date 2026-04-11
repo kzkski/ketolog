@@ -1,4 +1,4 @@
-import myfood from "../../public/presets/myfood-keto.json";
+import homemadePreset from "../../public/presets/homemade-keto.json";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabaseClient = { from: (table: string) => any; auth?: unknown };
@@ -13,25 +13,39 @@ export async function seedUserData(supabase: AnySupabaseClient, userId: string) 
     carbs_target_g: 40,
   });
 
-  // マイフードを自動登録（重複はスキップ）
+  // 汎用食材プリセットを通常レストランとして登録（重複はスキップ）
   const { data: existing } = await supabase
     .from("restaurants")
     .select("id")
     .eq("user_id", userId)
-    .eq("name", myfood.name)
+    .eq("name", homemadePreset.name)
     .maybeSingle();
 
   if (!existing) {
+    const { data: maxRow } = await supabase
+      .from("restaurants")
+      .select("display_order")
+      .eq("user_id", userId)
+      .order("display_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const displayOrder = (maxRow?.display_order ?? -1) + 1;
+
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .insert({ user_id: userId, name: myfood.name, category: myfood.category, display_order: 0 })
+      .insert({
+        user_id: userId,
+        name: homemadePreset.name,
+        category: homemadePreset.category,
+        display_order: displayOrder,
+      })
       .select()
       .single();
 
     if (restaurant) {
       const groupOrderMap = new Map<string, number>();
       await supabase.from("menu_items").insert(
-        myfood.menuItems.map(({ group, ...item }) => {
+        homemadePreset.menuItems.map(({ group, ...item }) => {
           const g = group ?? null;
           if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
           return {

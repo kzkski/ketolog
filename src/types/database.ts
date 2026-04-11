@@ -27,7 +27,23 @@ export type MenuItem = {
   group_name: string | null;
   group_order: number;
   shared_barcode?: string | null;
-  is_favorite?: boolean;
+};
+
+/** お気に入りエントリ（menu_items 行への参照） */
+export type FavoriteEntryPayload = {
+  id: string;
+  favorite_group_id: string;
+  menu_item_id: string;
+  display_order: number;
+  menu_item: MenuItem;
+};
+
+/** ユーザー別お気に入りグループ（店名など任意のラベル） */
+export type FavoriteGroupPayload = {
+  id: string;
+  name: string;
+  display_order: number;
+  entries: FavoriteEntryPayload[];
 };
 
 export type SharedProduct = {

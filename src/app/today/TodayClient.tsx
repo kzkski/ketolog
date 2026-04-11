@@ -17,7 +17,14 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
+import type {
+  FoodLogEntry,
+  MenuItem,
+  Restaurant,
+  UserSettings,
+  TodayConsumed,
+  FavoriteGroupPayload,
+} from "@/types/database";
 import type { MealType } from "@/lib/meal-timezone";
 import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { createClient } from "@/lib/supabase/client";
@@ -26,7 +33,8 @@ import {
   updateMenuItem,
   addMenuItem,
   deleteMenuItem,
-  setMenuItemFavorite,
+  addMenuItemToFavorites,
+  removeMenuItemFromFavorites,
   addRestaurant,
   deleteRestaurant,
   reorderRestaurants,
@@ -1058,7 +1066,6 @@ const EXPORT_SCHEMA = {
     "menuItems[].rank": "1〜4の整数 (必須) — 1=◎最優先 / 2=○通常 / 3=△控えめ / 4=✕避ける",
     "menuItems[].notes": "string or null — メモ（任意）",
     "menuItems[].group": "string or null — グループ名（任意。同じ値のアイテムがまとめて表示されます）",
-    "menuItems[].is_favorite": "boolean（任意）— true のときお気に入りとして扱う",
   },
 } as const;
 
@@ -1080,7 +1087,6 @@ function downloadRestaurantJson(restaurant: Restaurant, menuItems: MenuItem[]) {
         rank: m.rank,
         notes: m.notes,
         group: m.group_name,
-        is_favorite: m.is_favorite === true,
       })),
   };
   const date = new Date().toISOString().split("T")[0];
@@ -1147,7 +1153,6 @@ function downloadTemplate() {
         rank: 2,
         notes: null,
         group: null,
-        is_favorite: false,
       },
     ],
   };
@@ -1447,11 +1452,13 @@ const RANK_ICON: Record<number, { icon: string; className: string }> = {
   4: { icon: "✕", className: "text-red-400" },
 };
 
-function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onToggleFavorite }: {
+function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onToggleFavorite, isFavorited, originCaption }: {
   item: MenuItem; entry: CartEntry | undefined;
   onAdd: (grams: number) => void; onRemove: () => void;
   onChangeGrams: (g: number) => void; onEdit: () => void;
   onToggleFavorite: () => void | Promise<void>;
+  isFavorited: boolean;
+  originCaption?: string | null;
 }) {
   const [editingGrams, setEditingGrams] = useState(false);
   const [gramsInput, setGramsInput] = useState("");
@@ -1462,7 +1469,6 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onTo
   const serving = pfc(item, displayGrams);
   const count = entry?.count ?? 0;
   const rank = RANK_ICON[item.rank] ?? RANK_ICON[2];
-  const isFavorite = item.is_favorite === true;
 
   function startGramsEdit() {
     setGramsInput(displayGrams.toString());
@@ -1486,25 +1492,36 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onTo
     <div className="flex items-center gap-2.5 sm:gap-2 px-4 py-3 sm:py-2.5 border-b border-gray-800/60">
       <button
         type="button"
-        aria-label={isFavorite ? "お気に入りを解除" : "お気に入りに追加"}
+        aria-label={isFavorited ? "お気に入りを解除" : "お気に入りに追加"}
         onClick={(e) => {
           e.stopPropagation();
           void onToggleFavorite();
         }}
         className={`shrink-0 w-10 h-11 sm:w-8 sm:h-8 flex items-center justify-center text-lg sm:text-base leading-none rounded-lg sm:rounded-md active:bg-gray-800/70 touch-manipulation ${
-          isFavorite ? "text-amber-400" : "text-gray-600 hover:text-gray-400"
+          isFavorited ? "text-amber-400" : "text-gray-600 hover:text-gray-400"
         }`}
       >
-        {isFavorite ? "★" : "☆"}
+        {isFavorited ? "★" : "☆"}
       </button>
       <span className={`text-sm sm:text-xs shrink-0 w-5 sm:w-4 flex justify-center ${rank.className}`}>{rank.icon}</span>
       <button type="button" className="flex-1 min-w-0 text-left py-0.5 -my-0.5" onClick={onEdit}>
         <p className="text-base sm:text-sm text-white truncate">{item.name}</p>
-        <p className="text-sm sm:text-xs text-gray-500 mt-0.5">
-          {item.protein_per_100g !== null
-            ? `P${fmt(serving.p)} F${fmt(serving.f)} C${fmt(serving.c)}`
-            : "PFC未設定 — タップして編集"}
-        </p>
+        {originCaption ? (
+          <>
+            <p className="text-sm sm:text-xs text-gray-400 mt-0.5 truncate">{originCaption}</p>
+            <p className="text-sm sm:text-xs text-gray-500 mt-0.5">
+              {item.protein_per_100g !== null
+                ? `P${fmt(serving.p)} F${fmt(serving.f)} C${fmt(serving.c)}`
+                : "PFC未設定 — タップして編集"}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm sm:text-xs text-gray-500 mt-0.5">
+            {item.protein_per_100g !== null
+              ? `P${fmt(serving.p)} F${fmt(serving.f)} C${fmt(serving.c)}`
+              : "PFC未設定 — タップして編集"}
+          </p>
+        )}
       </button>
 
       <div className="shrink-0">
@@ -1800,7 +1817,6 @@ function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]
           rank: m.rank,
           notes: m.notes,
           group: m.group_name,
-          is_favorite: m.is_favorite === true,
         })),
     })),
   };
@@ -1868,6 +1884,7 @@ function SortableRestaurantTab({
 interface Props {
   restaurants: Restaurant[];
   menuItems: MenuItem[];
+  initialFavoriteGroups: FavoriteGroupPayload[];
   settings: UserSettings;
   todayConsumed: TodayConsumed;
   today: string;
@@ -1880,6 +1897,7 @@ interface Props {
 export default function TodayClient({
   restaurants: initialRestaurants,
   menuItems: initialMenuItems,
+  initialFavoriteGroups,
   settings,
   todayConsumed,
   today,
@@ -1892,6 +1910,7 @@ export default function TodayClient({
   const [showSettings, setShowSettings]       = useState(false);
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
   const [menuItems, setMenuItems]     = useState<MenuItem[]>(initialMenuItems);
+  const [favoriteGroups, setFavoriteGroups] = useState<FavoriteGroupPayload[]>(initialFavoriteGroups);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(() =>
     firstTabRestaurantId(initialRestaurants)
   );
@@ -1969,6 +1988,20 @@ export default function TodayClient({
     () => tabRestaurants.map((r) => r.id),
     [tabRestaurants]
   );
+
+  const restaurantNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of restaurants) m.set(r.id, r.name);
+    return m;
+  }, [restaurants]);
+
+  const favoriteMenuItemIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const g of favoriteGroups) {
+      for (const e of g.entries) s.add(e.menu_item_id);
+    }
+    return s;
+  }, [favoriteGroups]);
   const restaurantSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } })
@@ -1998,18 +2031,21 @@ export default function TodayClient({
   }
 
   async function handleToggleFavorite(item: MenuItem) {
-    const next = !item.is_favorite;
-    setMenuItems((prev) =>
-      prev.map((m) => (m.id === item.id ? { ...m, is_favorite: next } : m))
-    );
-    const result = await setMenuItemFavorite(item.id, next);
-    if (result.error) {
-      alert(result.error);
-      setMenuItems((prev) =>
-        prev.map((m) => (m.id === item.id ? { ...m, is_favorite: item.is_favorite } : m))
-      );
-    } else if (result.data) {
-      setMenuItems((prev) => prev.map((m) => (m.id === item.id ? result.data! : m)));
+    const was = favoriteMenuItemIds.has(item.id);
+    if (was) {
+      const result = await removeMenuItemFromFavorites(item.id);
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      if (result.data) setFavoriteGroups(result.data);
+    } else {
+      const result = await addMenuItemToFavorites(item.id);
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      if (result.data) setFavoriteGroups(result.data);
     }
   }
 
@@ -2047,41 +2083,36 @@ export default function TodayClient({
     groupName: string | null;
     groupOrder: number;
     items: MenuItem[];
+    /** お気に入りタブ用: 行ごとの由来（店名・店内グループ） */
+    originByItemId?: Record<string, string>;
   };
-
-  const restaurantOrderIndex = useMemo(() => {
-    const m = new Map<string, number>();
-    tabRestaurants.forEach((r, i) => m.set(r.id, i));
-    return m;
-  }, [tabRestaurants]);
 
   const menuGroups = useMemo((): MenuGroup[] => {
     if (selectedRestaurantIdResolved === FAVORITES_TAB_ID) {
-      const items = menuItems.filter((m) => m.is_favorite === true);
-      const byRest = new Map<string, MenuItem[]>();
-      for (const item of items) {
-        const list = byRest.get(item.restaurant_id) ?? [];
-        list.push(item);
-        byRest.set(item.restaurant_id, list);
-      }
-      const restIds = [...byRest.keys()].sort(
-        (a, b) =>
-          (restaurantOrderIndex.get(a) ?? 999) - (restaurantOrderIndex.get(b) ?? 999)
-      );
-      return restIds.map((rid) => {
-        const rest = tabRestaurants.find((r) => r.id === rid);
-        const label = rest?.name ?? "お店";
-        const groupItems = [...(byRest.get(rid) ?? [])].sort((a, b) => {
-          if (a.rank !== b.rank) return a.rank - b.rank;
-          return a.name.localeCompare(b.name, "ja");
+      return favoriteGroups
+        .filter((g) => g.entries.length > 0)
+        .slice()
+        .sort((a, b) => a.display_order - b.display_order)
+        .map((g) => {
+          const originByItemId: Record<string, string> = {};
+          const items: MenuItem[] = g.entries
+            .slice()
+            .sort((x, y) => x.display_order - y.display_order)
+            .map((e) => {
+              const live = menuItems.find((m) => m.id === e.menu_item_id) ?? e.menu_item;
+              const rname = restaurantNameById.get(live.restaurant_id) ?? "お店";
+              const gn = live.group_name?.trim();
+              originByItemId[live.id] = gn ? `${rname} · ${gn}` : rname;
+              return live;
+            });
+          return {
+            sectionKey: `favg:${g.id}`,
+            groupName: g.name,
+            groupOrder: g.display_order,
+            items,
+            originByItemId,
+          };
         });
-        return {
-          sectionKey: `fav:${rid}`,
-          groupName: label,
-          groupOrder: restaurantOrderIndex.get(rid) ?? 0,
-          items: groupItems,
-        };
-      });
     }
 
     const items = menuItems.filter(
@@ -2108,7 +2139,7 @@ export default function TodayClient({
         if (b.groupName === null) return 1;
         return a.groupOrder - b.groupOrder;
       });
-  }, [menuItems, selectedRestaurantIdResolved, restaurantOrderIndex, tabRestaurants]);
+  }, [menuItems, selectedRestaurantIdResolved, favoriteGroups, restaurantNameById]);
 
   // ── カート操作 ──────────────────────────────────────────────────────────────
   function addItem(item: MenuItem, grams: number) {
@@ -2160,6 +2191,14 @@ export default function TodayClient({
       if (idx >= 0) return prev.map((m) => m.id === saved.id ? saved : m);
       return [...prev, saved]; // 追加の場合
     });
+    setFavoriteGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        entries: g.entries.map((e) =>
+          e.menu_item_id === saved.id ? { ...e, menu_item: saved } : e
+        ),
+      }))
+    );
     // カートにあれば item を更新（gramsPerServing はユーザーの手動編集値を保持）
     setCart((prev) => {
       const entry = prev.get(saved.id);
@@ -2172,6 +2211,14 @@ export default function TodayClient({
 
   function handleItemDeleted(id: string) {
     setMenuItems((prev) => prev.filter((m) => m.id !== id));
+    setFavoriteGroups((prev) =>
+      prev
+        .map((g) => ({
+          ...g,
+          entries: g.entries.filter((e) => e.menu_item_id !== id),
+        }))
+        .filter((g) => g.entries.length > 0)
+    );
     setCart((prev) => { const next = new Map(prev); next.delete(id); return next; });
   }
 
@@ -2181,9 +2228,21 @@ export default function TodayClient({
     setDeletingRestaurant(true);
     const result = await deleteRestaurant(selectedRestaurant.id);
     if (result.error) { alert(result.error); setDeletingRestaurant(false); return; }
-    const next = restaurants.filter((r) => r.id !== selectedRestaurant.id);
+    const rid = selectedRestaurant.id;
+    const next = restaurants.filter((r) => r.id !== rid);
     setRestaurants(next);
-    setMenuItems((prev) => prev.filter((m) => m.restaurant_id !== selectedRestaurant.id));
+    setMenuItems((prev) => prev.filter((m) => m.restaurant_id !== rid));
+    setFavoriteGroups((prev) =>
+      prev
+        .map((g) => ({
+          ...g,
+          entries: g.entries.filter((e) => {
+            const it = menuItems.find((m) => m.id === e.menu_item_id) ?? e.menu_item;
+            return it.restaurant_id !== rid;
+          }),
+        }))
+        .filter((g) => g.entries.length > 0)
+    );
     setSelectedRestaurantId(next[0]?.id ?? "");
     setConfirmDeleteRestaurant(false);
     setDeletingRestaurant(false);
@@ -2475,6 +2534,7 @@ export default function TodayClient({
                   onChangeGrams={(g) => updateGrams(item.id, g)}
                   onEdit={() => setItemDrawer({ kind: "edit", item })}
                   onToggleFavorite={() => void handleToggleFavorite(item)}
+                  isFavorited={favoriteMenuItemIds.has(item.id)}
                 />
               ));
             }
@@ -2509,6 +2569,8 @@ export default function TodayClient({
                     onChangeGrams={(g) => updateGrams(item.id, g)}
                     onEdit={() => setItemDrawer({ kind: "edit", item })}
                     onToggleFavorite={() => void handleToggleFavorite(item)}
+                    isFavorited={favoriteMenuItemIds.has(item.id)}
+                    originCaption={group.originByItemId?.[item.id] ?? null}
                   />
                 ))}
               </div>

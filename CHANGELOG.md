@@ -12,8 +12,8 @@
 
 ### Added
 
-- **お気に入り**: メニュー行の星でトグル。先頭の「お気に入り」タブに店別で集約表示し、そこからカート・記録できる（[#6](https://github.com/kzkski/ketolog/issues/6)）。
-- **DB**: `menu_items.is_favorite`（マイグレーション `20260411120000_menu_items_is_favorite.sql`）。
+- **お気に入り**: メニュー行の星でトグル。先頭の「お気に入り」タブからカート・記録できる（[#6](https://github.com/kzkski/ketolog/issues/6)）。
+- **お気に入り（DB 再設計）**: `favorite_groups` / `favorite_entries` で `menu_items` を参照。お気に入りタブは **グループ単位**（初期は店名）で表示し、各行に **店名・店内グループ** 由来を表示（[#66](https://github.com/kzkski/ketolog/issues/66)）。マイグレーション `20260412120000_favorite_groups_entries.sql`（既存 `is_favorite` を移行のうえ列廃止）。
 
 ### Fixed
 
@@ -23,7 +23,8 @@
 
 - **自炊・プリセット**: 「マイフード」の特別扱い（タブ先頭固定・削除・並べ替え不可）を廃止。同梱プリセットを `homemade-keto.json`（店名 **汎用食材**）に統一し、他店と同様に並べ替え・削除できる。新規シードも `display_order` に従う（[#6](https://github.com/kzkski/ketolog/issues/6)）。
 - **`homemade-keto.json`**: Issue #6 コメント添付の JSON をそのまま反映（55 品・`_schema` 付きエクスポート形式）。
-- **JSON エクスポート/インポート**: メニューに任意の `is_favorite`（boolean）を含められるようにした。
+- **JSON エクスポート**: 単店・全店エクスポートから `is_favorite` を削除（お気に入りは DB の `favorite_entries` で管理）。
+- **JSON インポート**: メニューに `is_favorite: true` があれば、取り込み後に `favorite_entries` へ反映（店名グループへ配置）。
 - **今日ページ（スマホ）**: カートは折りたたみ時は細いバーのみとし、展開時はボトムシートのオーバーレイに表示してメニュー一覧の縦スペースを確保した（[#60](https://github.com/kzkski/ketolog/issues/60)）。
 - **メニュー追加ドロワー**: 見出しを「{店名}へメニューを追加」形式に集約し、登録先の説明ブロックをなくした。バーコード映像は最大高さ付きでスクロール内に表示。新規追加時の登録系3ボタンはスマホで2列＋短いラベルとし、固定フッターではなくフォーム末尾までスクロールして操作する。
 

@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMealTypeForTimeZone } from "@/lib/meal-timezone";
 import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
-import { getOrCreateSnapshotRestaurant } from "./actions";
+import { getOrCreateSnapshotRestaurant, fetchFavoriteGroupsPayload } from "./actions";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 import fs from "fs";
 import path from "path";
@@ -30,7 +30,7 @@ export default async function TodayPage() {
 
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
 
-  const [settingsRes, restaurantsRes, menuItemsRes, foodLogRes] = await Promise.all([
+  const [settingsRes, restaurantsRes, menuItemsRes, foodLogRes, favoritePayload] = await Promise.all([
     supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("restaurants").select("*").eq("user_id", user.id),
     supabase
@@ -45,6 +45,7 @@ export default async function TodayPage() {
       .eq("user_id", user.id)
       .eq("date", today)
       .order("created_at", { ascending: true }),
+    fetchFavoriteGroupsPayload(),
   ]);
 
   const settings: UserSettings = settingsRes.data ?? {
@@ -86,12 +87,14 @@ export default async function TodayPage() {
   );
 
   const presets = loadPresets();
+  const initialFavoriteGroups = favoritePayload.error ? [] : favoritePayload.data;
 
   return (
     <div className="flex flex-col h-svh bg-gray-950 w-full">
       <TodayClient
         restaurants={restaurants}
         menuItems={menuItems}
+        initialFavoriteGroups={initialFavoriteGroups}
         settings={settings}
         todayConsumed={todayConsumed}
         today={today}

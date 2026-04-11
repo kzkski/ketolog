@@ -10,6 +10,12 @@
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-04-11
+
+### Added
+
+- **開発者向け**: Supabase CLI（`devDependency`）と `supabase/config.toml` を追加。`supabase db push` で `public` スキーマを再現可能に。ベースラインは `supabase/migrations/20260211120000_baseline.sql`（旧差分は `supabase/migrations_archive/issue72_before_baseline/` に退避）。README にセットアップ手順と `npm run db:dump-baseline`（リンク済みプロジェクトからのスキーマダンプ）を記載（[#72](https://github.com/kzkski/ketolog/issues/72)）。
+
 ## [1.13.0] - 2026-04-11
 
 ### Added

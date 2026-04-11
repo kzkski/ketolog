@@ -48,6 +48,30 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
+### Supabase（DB スキーマの用意）
+
+アプリは **PostgreSQL の `public` スキーマ**（テーブル・RLS）を前提とする。空の Supabase プロジェクトにスキーマだけ反映する手順は次のとおり。
+
+1. [Supabase CLI](https://supabase.com/docs/guides/cli) を入れる（本リポジトリでは `npm install` 後に `npx supabase` で利用可）。
+2. 対象プロジェクトをリンクする（初回のみ）。
+   - `npx supabase login`
+   - `npx supabase link --project-ref <Project ref>`（ダッシュボードの Project Settings → General に表示される参照 ID）
+   - パスワードは **Database** のデータベースパスワードを求められたら入力
+3. マイグレーションをリモートに適用する。
+   - `npx supabase db push`
+
+**既存のプロジェクトの定義をファイルに取り込み直す**（ベースライン SQL の再生成）には、リンク済みの状態で次を実行する。
+
+```bash
+npm run db:dump-baseline
+```
+
+`supabase/migrations/20260211120000_baseline.sql` が上書きされる。接続文字列で直接ダンプする場合は、Dashboard の **Database → Connection string（URI）** を `DATABASE_URL` に設定し、`npm run db:dump-baseline:url` を使う（パスワードに `@` 等が含まれる場合は [公式ドキュメント](https://supabase.com/docs/guides/cli/getting-started) のとおりパーセントエンコードする）。
+
+CLI が使えない場合の代替として、同じ SQL を Supabase の SQL Editor に貼り実行してもよい（主手順は上記 CLI）。
+
+DDL の正は `supabase/migrations/` とする。[`src/types/database.ts`](src/types/database.ts) はアプリ用の行型であり、スキーマ変更時は必要に応じて型を合わせる（`supabase gen types` の利用は任意）。
+
 開発サーバー:
 
 ```bash

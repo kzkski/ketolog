@@ -125,6 +125,7 @@ chore: バージョンを X.Y.Z に更新
 `CHANGELOG.md` はユーザー向けの変更点を簡潔に残す。
 
 - **`feat/` / `fix/` / `refactor/` / `docs/` ブランチの PR は、原則 `CHANGELOG.md` 更新を必須**とする
+- **`feat/` / `fix/` の PR で `package.json` のバージョンを上げる場合**（`chore: バージョンを X.Y.Z に更新` を含める場合）、**その PR がリリースするユーザー向け変更を `## [Unreleased]` から `## [X.Y.Z] - YYYY-MM-DD` に移す**。`[Unreleased]` には未リリースの予定分だけを残す（リリース済みの箇条書きを置いたままにしない）。
 - `chore/` のみの変更は必須ではない（必要に応じて更新は可）
 - `ROADMAP.md` は背景・計画・補足を扱い、リリース要点は `CHANGELOG.md` を正とする
 - CI で上記必須条件をチェックする（差分に `CHANGELOG.md` が無い対象PRは失敗）

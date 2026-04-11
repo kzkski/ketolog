@@ -54,6 +54,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 npm run dev
 ```
 
+### モバイル表示の手元確認
+
+ローカルでブラウザから確認する際、開発者ツールのレスポンシブ／デバイスモードで **viewport の幅を変えれば**、スマートフォン相当のレイアウトや主要な挙動を **最低限** 確認できます。実機や Playwright などの E2E での回帰テストは、必要になったタイミングで別途検討してください。
+
 ## Open Food Facts API
 
 バーコードから商品情報を取り込む機能は [Open Food Facts](https://world.openfoodfacts.org)（OFF）の API を利用する。利用前に次を確認すること。

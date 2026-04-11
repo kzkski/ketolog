@@ -714,32 +714,31 @@ function MenuItemDrawer({
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl max-w-md mx-auto border-x border-t border-gray-700 max-h-[85svh] flex flex-col pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85svh] max-w-md flex-col rounded-t-2xl border-x border-t border-gray-700 bg-gray-900 mx-auto">
         <div className="flex-none flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
-        <div className="flex-none flex items-center justify-between px-4 pb-3 border-b border-gray-800">
-          <h2 className="text-base font-semibold text-white">
-            {isEdit ? "メニュー編集" : "メニューを追加"}
+        <div className="flex-none flex items-center justify-between gap-2 border-b border-gray-800 px-4 pb-3">
+          <h2 className="flex min-w-0 flex-1 items-baseline gap-x-1 text-base font-semibold text-white">
+            {isEdit ? (
+              "メニュー編集"
+            ) : registerTargetRestaurantName ? (
+              <>
+                <span className="truncate" title={registerTargetRestaurantName}>
+                  {registerTargetRestaurantName}
+                </span>
+                <span className="shrink-0 whitespace-nowrap">へメニューを追加</span>
+              </>
+            ) : (
+              "メニューを追加"
+            )}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">
+          <button onClick={onClose} className="shrink-0 text-sm text-gray-400 hover:text-white">
             キャンセル
           </button>
         </div>
 
-        {!isEdit && registerTargetRestaurantName && (
-          <div className="flex-none px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
-            <p className="text-[11px] text-gray-500 leading-snug">メニューに登録するお店</p>
-            <p className="text-sm font-medium text-white truncate mt-0.5" title={registerTargetRestaurantName}>
-              {registerTargetRestaurantName}
-            </p>
-            <p className="text-[11px] text-gray-500 leading-snug mt-1.5">
-              別のお店へ登録するときは、閉じて上のお店タブを切り替えてから、もう一度開いてください。
-            </p>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto space-y-4 px-4 py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div>
             <label className="block text-xs text-gray-400 mb-1">名前</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
@@ -748,9 +747,7 @@ function MenuItemDrawer({
           </div>
 
           {!isEdit && (
-            <div
-              className={`space-y-2 ${cameraOn ? "sticky top-0 z-[2] -mx-4 border-b border-gray-800/80 bg-gray-900 px-4 pb-3 pt-0 sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0" : ""}`}
-            >
+            <div className="space-y-2">
               <button
                 type="button"
                 onClick={() => {
@@ -887,74 +884,77 @@ function MenuItemDrawer({
               )}
             </div>
           )}
-        </div>
 
-        <div className="flex-none space-y-2 border-t border-gray-800 px-4 py-3 sm:py-4">
-          {isEdit ? (
-            <button onClick={() => void handleSave()} disabled={saving}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors">
-              {saving ? "保存中..." : "保存する"}
-            </button>
-          ) : (
-            <>
+          <div className="space-y-2 border-t border-gray-800 pt-4">
+            {isEdit ? (
               <button
-                type="button"
                 onClick={() => void handleSave()}
                 disabled={saving}
-                title={
-                  registerTargetRestaurantName
-                    ? `「${registerTargetRestaurantName}」のメニュー一覧に追加します`
-                    : undefined
-                }
-                className="flex w-full flex-col items-center gap-0.5 rounded-xl bg-emerald-600 py-2.5 font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50 sm:py-3"
+                className="w-full rounded-xl bg-emerald-600 py-3 font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
               >
-                {saving ? (
-                  "保存中..."
-                ) : (
-                  <>
-                    <span className="text-sm sm:text-base">メニューに登録</span>
-                    {registerTargetRestaurantName ? (
-                      <span className="max-w-full truncate px-1 text-[11px] font-normal text-emerald-100/90 sm:text-xs">
-                        {registerTargetRestaurantName}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-normal text-emerald-100/80 sm:text-xs">
-                        （お店タブを確認）
-                      </span>
-                    )}
-                  </>
-                )}
+                {saving ? "保存中..." : "保存する"}
               </button>
-              <p className="hidden px-1 text-center text-[11px] leading-snug text-gray-500 sm:block">
-                メニュー一覧に載せずに記録するとき
-              </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 sm:gap-2">
+            ) : (
+              <>
                 <button
                   type="button"
-                  onClick={handleSnapshotToCart}
-                  disabled={saving || !snapshotRestaurantId}
-                  className="rounded-xl bg-gray-800 py-2.5 text-center text-xs font-medium text-gray-200 transition-colors hover:bg-gray-700 disabled:opacity-50 sm:flex sm:flex-col sm:items-center sm:gap-0.5 sm:py-2.5 sm:text-sm"
+                  onClick={() => void handleSave()}
+                  disabled={saving}
+                  title={
+                    registerTargetRestaurantName
+                      ? `「${registerTargetRestaurantName}」のメニュー一覧に追加します`
+                      : undefined
+                  }
+                  className="flex w-full flex-col items-center gap-0.5 rounded-xl bg-emerald-600 py-2.5 font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50 sm:py-3"
                 >
-                  <span>カートへ</span>
-                  <span className="mt-0.5 hidden text-[11px] font-normal leading-tight text-gray-400 sm:block">
-                    メニュー未登録・あとで記録
-                  </span>
+                  {saving ? (
+                    "保存中..."
+                  ) : (
+                    <>
+                      <span className="text-sm sm:text-base">メニューに登録</span>
+                      {registerTargetRestaurantName ? (
+                        <span className="max-w-full truncate px-1 text-[11px] font-normal text-emerald-100/90 sm:text-xs">
+                          {registerTargetRestaurantName}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-normal text-emerald-100/80 sm:text-xs">
+                          （お店タブを確認）
+                        </span>
+                      )}
+                    </>
+                  )}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void handleSnapshotLogOnly()}
-                  disabled={saving || !snapshotRestaurantId}
-                  className="rounded-xl border border-gray-600 py-2.5 text-center text-xs font-medium text-gray-200 transition-colors hover:border-gray-500 disabled:opacity-50 sm:flex sm:flex-col sm:items-center sm:gap-0.5 sm:py-2.5 sm:text-sm"
-                >
-                  <span className="sm:hidden">今すぐ記録</span>
-                  <span className="hidden sm:inline">今すぐ食事ログに記録</span>
-                  <span className="mt-0.5 hidden text-[11px] font-normal leading-tight text-gray-400 sm:block">
-                    カートを使わずいま保存
-                  </span>
-                </button>
-              </div>
-            </>
-          )}
+                <p className="hidden px-1 text-center text-[11px] leading-snug text-gray-500 sm:block">
+                  メニュー一覧に載せずに記録するとき
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSnapshotToCart}
+                    disabled={saving || !snapshotRestaurantId}
+                    className="rounded-xl bg-gray-800 py-2.5 text-center text-xs font-medium text-gray-200 transition-colors hover:bg-gray-700 disabled:opacity-50 sm:flex sm:flex-col sm:items-center sm:gap-0.5 sm:py-2.5 sm:text-sm"
+                  >
+                    <span>カートへ</span>
+                    <span className="mt-0.5 hidden text-[11px] font-normal leading-tight text-gray-400 sm:block">
+                      メニュー未登録・あとで記録
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSnapshotLogOnly()}
+                    disabled={saving || !snapshotRestaurantId}
+                    className="rounded-xl border border-gray-600 py-2.5 text-center text-xs font-medium text-gray-200 transition-colors hover:border-gray-500 disabled:opacity-50 sm:flex sm:flex-col sm:items-center sm:gap-0.5 sm:py-2.5 sm:text-sm"
+                  >
+                    <span className="sm:hidden">今すぐ記録</span>
+                    <span className="hidden sm:inline">今すぐ食事ログに記録</span>
+                    <span className="mt-0.5 hidden text-[11px] font-normal leading-tight text-gray-400 sm:block">
+                      カートを使わずいま保存
+                    </span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>

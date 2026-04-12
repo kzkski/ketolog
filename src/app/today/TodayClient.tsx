@@ -1581,7 +1581,7 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onTo
   }
 
   return (
-    <div className="flex items-center gap-2.5 sm:gap-2 px-4 py-3 sm:py-2.5 border-b border-gray-800/60">
+    <div className="flex items-center gap-2 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 border-b border-gray-800/60">
       <button
         type="button"
         aria-label={isFavorited ? "お気に入りを解除" : "お気に入りに追加"}
@@ -1589,22 +1589,22 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onTo
           e.stopPropagation();
           void onToggleFavorite();
         }}
-        className={`shrink-0 w-10 h-11 sm:w-8 sm:h-8 flex items-center justify-center text-lg sm:text-base leading-none rounded-lg sm:rounded-md active:bg-gray-800/70 touch-manipulation ${
+        className={`shrink-0 w-9 h-10 sm:w-8 sm:h-8 flex items-center justify-center text-base leading-none rounded-lg sm:rounded-md active:bg-gray-800/70 touch-manipulation ${
           isFavorited ? "text-amber-400" : "text-gray-600 hover:text-gray-400"
         }`}
       >
         {isFavorited ? "★" : "☆"}
       </button>
-      <span className={`text-sm sm:text-xs shrink-0 w-5 sm:w-4 flex justify-center ${rank.className}`}>{rank.icon}</span>
+      <span className={`text-xs shrink-0 w-4 sm:w-4 flex justify-center ${rank.className}`}>{rank.icon}</span>
       <button type="button" className="flex-1 min-w-0 text-left py-0.5 -my-0.5" onClick={onEdit}>
-        <p className="text-base sm:text-sm text-white truncate">{item.name}</p>
+        <p className="text-sm text-white truncate">{item.name}</p>
         {originCaption ? (
           <>
-            <p className="text-sm sm:text-xs text-gray-400 mt-0.5 truncate">{originCaption}</p>
-            <p className="text-sm sm:text-xs mt-0.5 tabular-nums">{menuItemPfcLine}</p>
+            <p className="text-xs text-gray-400 mt-0.5 truncate">{originCaption}</p>
+            <p className="text-xs mt-0.5 tabular-nums">{menuItemPfcLine}</p>
           </>
         ) : (
-          <p className="text-sm sm:text-xs mt-0.5 tabular-nums">{menuItemPfcLine}</p>
+          <p className="text-xs mt-0.5 tabular-nums">{menuItemPfcLine}</p>
         )}
       </button>
 
@@ -1614,10 +1614,10 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onTo
             onChange={(e) => setGramsInput(e.target.value)}
             onBlur={commitGramsEdit}
             onKeyDown={(e) => e.key === "Enter" && commitGramsEdit()}
-            className="w-16 sm:w-14 text-center text-base sm:text-sm bg-gray-800 border border-emerald-500 rounded px-1 py-1 sm:py-0.5 text-white" />
+            className="w-[3.75rem] sm:w-14 text-center text-sm bg-gray-800 border border-emerald-500 rounded px-1 py-0.5 sm:py-0.5 text-white" />
         ) : (
           <button type="button" onClick={startGramsEdit}
-            className="text-sm sm:text-xs text-gray-400 hover:text-white transition-colors min-h-9 min-w-9 sm:min-h-0 sm:min-w-0 px-1 py-1 rounded-md sm:rounded-none active:bg-gray-800/80">
+            className="text-xs text-gray-400 hover:text-white transition-colors min-h-8 min-w-8 sm:min-h-0 sm:min-w-0 px-1 py-0.5 rounded-md sm:rounded-none active:bg-gray-800/80">
             {displayGrams}g
           </button>
         )}
@@ -1625,16 +1625,16 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onTo
 
       {count === 0 ? (
         <button type="button" onClick={() => onAdd(displayGrams)}
-          className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xl sm:text-lg font-bold shrink-0">
+          className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-lg font-bold shrink-0">
           +
         </button>
       ) : (
-        <div className="flex items-center gap-1.5 sm:gap-1 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1 shrink-0">
           <button type="button" onClick={onRemove}
-            className="w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-white text-lg sm:text-base">−</button>
-          <span className="w-6 sm:w-5 text-center text-base sm:text-sm font-bold text-emerald-400 tabular-nums">{count}</span>
+            className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-white text-base sm:text-base">−</button>
+          <span className="w-5 sm:w-5 text-center text-sm font-bold text-emerald-400 tabular-nums">{count}</span>
           <button type="button" onClick={() => onAdd(displayGrams)}
-            className="w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-lg sm:text-base">+</button>
+            className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-base sm:text-base">+</button>
         </div>
       )}
     </div>

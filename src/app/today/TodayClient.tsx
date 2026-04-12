@@ -59,6 +59,8 @@ import {
   type MacroHighlightTargets,
 } from "@/lib/macroHighlights";
 import { computeHeaderHintText, getActiveHintSlot } from "@/lib/header-hint";
+import { STANDARD_FOOD_TAB_TITLE } from "@/lib/standard-food-groups";
+import { StandardFoodPanel } from "./StandardFoodPanel";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -111,6 +113,9 @@ const MEAL_CART_SHELL: Record<MealType, string> = {
 /** レストランタブではない「お気に入り」集約ビュー */
 const FAVORITES_TAB_ID = "__ketolog_favorites__";
 
+/** 文科省標準成分表検索パネル（仮想タブ） */
+const MEXT_COMPOSITION_TAB_ID = "__ketolog_mext_std__";
+
 const RANK_OPTIONS = [
   { value: 1, label: "◎ 最優先" },
   { value: 2, label: "○ 通常" },
@@ -140,10 +145,25 @@ type CartEntry =
     };
 type NutrientMode = "per100g" | "perServing";
 
+type StandardFoodDraft = {
+  food_code: string;
+  name: string;
+  protein_per_100g: number | null;
+  fat_per_100g: number | null;
+  carbs_per_100g: number | null;
+};
+
 // ドロワーの種別
 type ItemDrawerState =
   | { kind: "edit"; item: MenuItem }
-  | { kind: "add"; restaurantId: string; logMealType?: MealType };
+  | {
+      kind: "add";
+      restaurantId: string;
+      /** ドロワー再マウント用（同一お店への連続追加でもフォームをリセットする） */
+      openedAt: number;
+      logMealType?: MealType;
+      standardFoodDraft?: StandardFoodDraft;
+    };
 
 const HEADER_HINT_DEBOUNCE_MS = 300;
 
@@ -387,6 +407,7 @@ function MenuItemDrawer({
   onAfterSnapshotLog,
   onSnapshotCart,
   registerTargetRestaurantName,
+  onOpenStandardFoodSearch,
 }: {
   state: ItemDrawerState;
   existingGroupNames: string[];
@@ -407,19 +428,39 @@ function MenuItemDrawer({
     grams: number;
     shared_barcode: string | null;
   }) => void;
+  onOpenStandardFoodSearch?: () => void;
 }) {
   const groupListId = useId();
   const isEdit = state.kind === "edit";
   const existing = isEdit ? state.item : null;
+  const draft = state.kind === "add" ? state.standardFoodDraft : undefined;
 
-  const [name, setName]       = useState(existing?.name ?? "");
-  const [protein, setProtein] = useState(existing?.protein_per_100g?.toString() ?? "");
-  const [fat, setFat]         = useState(existing?.fat_per_100g?.toString() ?? "");
-  const [carbs, setCarbs]     = useState(existing?.carbs_per_100g?.toString() ?? "");
+  const [name, setName]       = useState(() =>
+    draft ? draft.name : (existing?.name ?? "")
+  );
+  const [protein, setProtein] = useState(() =>
+    draft
+      ? draft.protein_per_100g?.toString() ?? ""
+      : (existing?.protein_per_100g?.toString() ?? "")
+  );
+  const [fat, setFat]         = useState(() =>
+    draft
+      ? draft.fat_per_100g?.toString() ?? ""
+      : (existing?.fat_per_100g?.toString() ?? "")
+  );
+  const [carbs, setCarbs]     = useState(() =>
+    draft
+      ? draft.carbs_per_100g?.toString() ?? ""
+      : (existing?.carbs_per_100g?.toString() ?? "")
+  );
   const [grams, setGrams]     = useState(existing?.default_grams?.toString() ?? "100");
   const [rank, setRank]           = useState(existing?.rank ?? 2);
   const [groupName, setGroupName] = useState(existing?.group_name ?? "");
-  const [notes, setNotes]         = useState(existing?.notes ?? "");
+  const [notes, setNotes]         = useState(() =>
+    draft && !existing
+      ? "文科省標準成分表（利用可能炭水化物・質量計）"
+      : (existing?.notes ?? "")
+  );
   const [mode, setMode]       = useState<NutrientMode>("per100g");
   const [rawP, setRawP]       = useState<string | null>(null);
   const [rawF, setRawF]       = useState<string | null>(null);
@@ -428,7 +469,12 @@ function MenuItemDrawer({
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError]     = useState<string | null>(null);
-  const [sharedBarcode, setSharedBarcode] = useState(existing?.shared_barcode ?? null);
+  const [sharedBarcode, setSharedBarcode] = useState(
+    () => (draft ? null : (existing?.shared_barcode ?? null))
+  );
+  const [standardFoodCode, setStandardFoodCode] = useState<string | null>(() =>
+    draft ? draft.food_code : (existing?.standard_food_code ?? null)
+  );
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
@@ -478,6 +524,7 @@ function MenuItemDrawer({
     }
     setCameraResult(res.product);
     setSharedBarcode(res.product.barcode);
+    setStandardFoodCode(null);
     setName(res.product.product_name);
     setProtein(res.product.protein_per_100g?.toString() ?? "");
     setFat(res.product.fat_per_100g?.toString() ?? "");
@@ -633,6 +680,7 @@ function MenuItemDrawer({
       fat_per_100g: fat === "" ? null : parseFloat(fat),
       carbs_per_100g: carbs === "" ? null : parseFloat(carbs),
       shared_barcode: sharedBarcode,
+      standard_food_code: standardFoodCode,
       default_grams: parseFloat(grams) || 100,
       rank,
       notes: notes.trim() || null,
@@ -818,6 +866,15 @@ function MenuItemDrawer({
               <p className="text-[11px] text-gray-500">
                 Data source: Open Food Facts (ODbL)
               </p>
+              {onOpenStandardFoodSearch && (
+                <button
+                  type="button"
+                  onClick={onOpenStandardFoodSearch}
+                  className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm rounded-lg transition-colors"
+                >
+                  文科省成分表で検索
+                </button>
+              )}
             </div>
           )}
 
@@ -1071,6 +1128,7 @@ const EXPORT_SCHEMA = {
     "menuItems[].fat_per_100g": "number or null — 100gあたり脂質 (g)",
     "menuItems[].carbs_per_100g": "number or null — 100gあたり糖質 (g)",
     "menuItems[].shared_barcode": "string or null — 市販品参照バーコード（OFF連携時）",
+    "menuItems[].standard_food_code": "string or null — 文科省標準成分表の食品番号（5桁）",
     "menuItems[].default_grams": "number (必須, 1以上) — 1回分のデフォルト重量 (g)",
     "menuItems[].rank": "1〜4の整数 (必須) — 1=◎最優先 / 2=○通常 / 3=△控えめ / 4=✕避ける",
     "menuItems[].notes": "string or null — メモ（任意）",
@@ -1092,6 +1150,7 @@ function downloadRestaurantJson(restaurant: Restaurant, menuItems: MenuItem[]) {
         fat_per_100g: m.fat_per_100g,
         carbs_per_100g: m.carbs_per_100g,
         shared_barcode: m.shared_barcode ?? null,
+        standard_food_code: m.standard_food_code ?? null,
         default_grams: m.default_grams,
         rank: m.rank,
         notes: m.notes,
@@ -1128,6 +1187,13 @@ function parseSingleRestaurantJson(text: string): SingleRestaurantJson | { error
         if (item.shared_barcode !== undefined && item.shared_barcode !== null && typeof item.shared_barcode !== "string") {
           return `${i + 1}番目「${item.name}」の shared_barcode が不正です（文字列またはnull）`;
         }
+        if (
+          item.standard_food_code !== undefined &&
+          item.standard_food_code !== null &&
+          (typeof item.standard_food_code !== "string" || !/^\d{5}$/.test(item.standard_food_code))
+        ) {
+          return `${i + 1}番目「${item.name}」の standard_food_code は5桁の数字文字列またはnullにしてください`;
+        }
         if (item.rank < 1 || item.rank > 4 || !Number.isInteger(item.rank)) {
           return `${i + 1}番目「${item.name}」の rank が不正です（1〜4の整数を指定してください）`;
         }
@@ -1158,6 +1224,7 @@ function downloadTemplate() {
         fat_per_100g: null,
         carbs_per_100g: null,
         shared_barcode: null,
+        standard_food_code: null,
         default_grams: 100,
         rank: 2,
         notes: null,
@@ -1830,6 +1897,7 @@ function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]
           fat_per_100g: m.fat_per_100g,
           carbs_per_100g: m.carbs_per_100g,
           shared_barcode: m.shared_barcode ?? null,
+          standard_food_code: m.standard_food_code ?? null,
           default_grams: m.default_grams,
           rank: m.rank,
           notes: m.notes,
@@ -1946,6 +2014,9 @@ export default function TodayClient({
     return () => cancelAnimationFrame(id);
   }, []);
   const [itemDrawer, setItemDrawer] = useState<ItemDrawerState | null>(null);
+  const [compositionTargetRestaurantId, setCompositionTargetRestaurantId] =
+    useState("");
+  const lastRealRestaurantTabIdRef = useRef<string>("");
   const [deletingRestaurant, setDeletingRestaurant] = useState(false);
   const [confirmDeleteRestaurant, setConfirmDeleteRestaurant] = useState(false);
   const [showImportMenuItems, setShowImportMenuItems] = useState(false);
@@ -1968,6 +2039,9 @@ export default function TodayClient({
 
   const selectedRestaurantIdResolved = useMemo(() => {
     if (selectedRestaurantId === FAVORITES_TAB_ID) return FAVORITES_TAB_ID;
+    if (selectedRestaurantId === MEXT_COMPOSITION_TAB_ID) {
+      return MEXT_COMPOSITION_TAB_ID;
+    }
     if (tabRestaurants.length === 0) return "";
     if (tabRestaurants.some((r) => r.id === selectedRestaurantId)) {
       return selectedRestaurantId;
@@ -1975,12 +2049,36 @@ export default function TodayClient({
     return tabRestaurants[0].id;
   }, [tabRestaurants, selectedRestaurantId]);
 
+  useEffect(() => {
+    if (
+      selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
+      selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID &&
+      selectedRestaurantIdResolved
+    ) {
+      lastRealRestaurantTabIdRef.current = selectedRestaurantIdResolved;
+    }
+  }, [selectedRestaurantIdResolved]);
+
+  const resolvedCompositionTargetId = useMemo(() => {
+    if (tabRestaurants.length === 0) return "";
+    if (
+      compositionTargetRestaurantId &&
+      tabRestaurants.some((r) => r.id === compositionTargetRestaurantId)
+    ) {
+      return compositionTargetRestaurantId;
+    }
+    return tabRestaurants[0]!.id;
+  }, [tabRestaurants, compositionTargetRestaurantId]);
+
   const menuAddRestaurantId = useMemo(() => {
+    if (selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID) {
+      return resolvedCompositionTargetId;
+    }
     if (selectedRestaurantIdResolved === FAVORITES_TAB_ID) {
       return tabRestaurants[0]?.id ?? "";
     }
     return selectedRestaurantIdResolved;
-  }, [selectedRestaurantIdResolved, tabRestaurants]);
+  }, [selectedRestaurantIdResolved, tabRestaurants, resolvedCompositionTargetId]);
 
   const selectedRestaurant = restaurants.find(
     (r) => r.id === selectedRestaurantIdResolved
@@ -2557,7 +2655,7 @@ export default function TodayClient({
                 );
                 return;
               }
-              setItemDrawer({ kind: "add", restaurantId: rid });
+              setItemDrawer({ kind: "add", restaurantId: rid, openedAt: Date.now() });
             }}
             className="shrink-0 min-w-[3rem] w-[3rem] sm:min-w-11 sm:w-11 flex items-center justify-center text-[1.35rem] sm:text-xl font-semibold leading-none touch-manipulation border-l border-gray-800/80 transition-colors bg-emerald-600/25 text-emerald-200 hover:bg-emerald-500/45 hover:text-white active:bg-emerald-500/55"
           >
@@ -2580,6 +2678,36 @@ export default function TodayClient({
             }`}
           >
             お気に入り
+          </button>
+          <button
+            type="button"
+            title={STANDARD_FOOD_TAB_TITLE}
+            onClick={() => {
+              if (tabRestaurants.length === 0) {
+                alert(
+                  "先にお店を追加してください。上の「＋」からお店を登録できます。"
+                );
+                return;
+              }
+              if (
+                selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
+                selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID
+              ) {
+                setCompositionTargetRestaurantId(selectedRestaurantIdResolved);
+              }
+              setConfirmDeleteRestaurant(false);
+              setSelectedRestaurantId(MEXT_COMPOSITION_TAB_ID);
+            }}
+            className={`px-3 py-3.5 sm:py-2.5 text-sm sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-12 sm:min-h-0 touch-manipulation max-w-[9.5rem] sm:max-w-none ${
+              selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID
+                ? "border-sky-500 text-sky-100"
+                : "border-transparent text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            <span className="sm:hidden">成分表</span>
+            <span className="hidden sm:inline truncate block">
+              文科省表2023
+            </span>
           </button>
           <DndContext
             sensors={restaurantSensors}
@@ -2606,8 +2734,40 @@ export default function TodayClient({
           </button>
         </div>
 
-        {/* メニューリスト */}
+        {/* メニューリスト / 成分表パネル */}
         <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+          {selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID ? (
+            <StandardFoodPanel
+              visibleRestaurants={tabRestaurants}
+              compositionTargetRestaurantId={resolvedCompositionTargetId}
+              onCompositionTargetChange={setCompositionTargetRestaurantId}
+              onPickFood={(row) => {
+                const rid = resolvedCompositionTargetId;
+                if (!rid) return;
+                const back = lastRealRestaurantTabIdRef.current;
+                const safeBack =
+                  back &&
+                  back !== MEXT_COMPOSITION_TAB_ID &&
+                  back !== FAVORITES_TAB_ID
+                    ? back
+                    : rid;
+                setSelectedRestaurantId(safeBack);
+                setItemDrawer({
+                  kind: "add",
+                  restaurantId: rid,
+                  openedAt: Date.now(),
+                  standardFoodDraft: {
+                    food_code: row.food_code,
+                    name: row.name,
+                    protein_per_100g: row.protein_per_100g,
+                    fat_per_100g: row.fat_per_100g,
+                    carbs_per_100g: row.carbs_per_100g,
+                  },
+                });
+              }}
+            />
+          ) : (
+            <>
           {menuGroups.map((group) => {
             if (group.groupName === null) {
               return group.items.map((item) => (
@@ -2680,6 +2840,7 @@ export default function TodayClient({
                   setItemDrawer({
                     kind: "add",
                     restaurantId: selectedRestaurantIdResolved,
+                    openedAt: Date.now(),
                   })
                 }
                 className="w-full py-2 border border-dashed border-gray-700 rounded-lg text-gray-400 hover:text-white hover:border-gray-500 text-sm transition-colors">
@@ -2736,6 +2897,8 @@ export default function TodayClient({
             <p className="text-center text-gray-500 text-base sm:text-sm py-8">
               メニューがまだありません
             </p>
+          )}
+            </>
           )}
         </div>
 
@@ -2825,6 +2988,11 @@ export default function TodayClient({
       {/* メニュー追加・編集ドロワー */}
       {itemDrawer && (
         <MenuItemDrawer
+          key={
+            itemDrawer.kind === "edit"
+              ? `edit:${itemDrawer.item.id}`
+              : `add:${itemDrawer.openedAt}`
+          }
           state={itemDrawer}
           existingGroupNames={existingGroupNamesForDrawer}
           onClose={() => setItemDrawer(null)}
@@ -2838,9 +3006,26 @@ export default function TodayClient({
           logDate={selectedDate}
           snapshotRestaurantId={snapshotRestaurantId}
           registerTargetRestaurantName={
-            selectedRestaurantIdResolved === FAVORITES_TAB_ID
-              ? (tabRestaurants[0]?.name ?? "")
-              : (selectedRestaurant?.name ?? "")
+            itemDrawer.kind === "add"
+              ? (restaurantNameById.get(itemDrawer.restaurantId) ?? "")
+              : selectedRestaurantIdResolved === FAVORITES_TAB_ID
+                ? (tabRestaurants[0]?.name ?? "")
+                : (selectedRestaurant?.name ?? "")
+          }
+          onOpenStandardFoodSearch={
+            itemDrawer.kind === "add"
+              ? () => {
+                  if (tabRestaurants.length === 0) {
+                    alert(
+                      "先にお店を追加してください。上の「＋」からお店を登録できます。"
+                    );
+                    return;
+                  }
+                  setCompositionTargetRestaurantId(itemDrawer.restaurantId);
+                  setItemDrawer(null);
+                  setSelectedRestaurantId(MEXT_COMPOSITION_TAB_ID);
+                }
+              : undefined
           }
           onAfterSnapshotLog={() => refreshLogForDate(selectedDate)}
           onSnapshotCart={(draft) => {

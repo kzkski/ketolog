@@ -338,12 +338,53 @@ export async function addSharedProductMenuItem(input: {
       group_name: null,
       group_order: 0,
       shared_barcode: barcode,
+      standard_food_code: null,
     })
     .select()
     .single();
 
   if (insert.error) return { data: null, error: insert.error.message };
   return { data: insert.data as MenuItem, error: null };
+}
+
+// ─── 文科省標準成分表（standard_food_items）────────────────────────────────────
+
+export type StandardFoodSearchRow = {
+  food_code: string;
+  group_code: string;
+  name: string;
+  name_normalized: string;
+  protein_per_100g: number | null;
+  fat_per_100g: number | null;
+  carbs_per_100g: number | null;
+  source_version: string;
+  created_at: string;
+};
+
+export async function searchStandardFoods(input: {
+  query: string;
+  groupCode: string | null;
+  limit?: number;
+}): Promise<{ rows: StandardFoodSearchRow[]; error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { rows: [], error: "認証が必要です" };
+
+  const q = input.query
+    .replace(/\u3000/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const { data, error } = await supabase.rpc("search_standard_foods", {
+    p_query: q,
+    p_group_code: input.groupCode && input.groupCode.length > 0 ? input.groupCode : null,
+    p_limit: input.limit ?? 40,
+  });
+
+  if (error) return { rows: [], error: error.message };
+  return { rows: (data ?? []) as StandardFoodSearchRow[], error: null };
 }
 
 // ─── メニューアイテム ──────────────────────────────────────────────────────────
@@ -354,6 +395,7 @@ export type MenuItemUpdate = {
   fat_per_100g: number | null;
   carbs_per_100g: number | null;
   shared_barcode?: string | null;
+  standard_food_code?: string | null;
   default_grams: number;
   rank: number;
   notes: string | null;
@@ -863,6 +905,7 @@ export type ImportRestaurantItem = {
   fat_per_100g: number | null;
   carbs_per_100g: number | null;
   shared_barcode?: string | null;
+  standard_food_code?: string | null;
   default_grams: number;
   rank: number;
   notes: string | null;
@@ -927,7 +970,7 @@ export async function importRestaurantData(data: ImportData): Promise<{
       const groupOrderMap = new Map<string, number>();
       const { data: items } = await supabase
         .from("menu_items")
-        .insert(r.menuItems.map(({ group, shared_barcode, is_favorite, ...item }) => {
+        .insert(r.menuItems.map(({ group, shared_barcode, standard_food_code, is_favorite, ...item }) => {
           void is_favorite;
           const g = group ?? null;
           if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
@@ -936,6 +979,7 @@ export async function importRestaurantData(data: ImportData): Promise<{
             restaurant_id: newR.id,
             ...item,
             shared_barcode: shared_barcode ?? null,
+            standard_food_code: standard_food_code ?? null,
             group_name: g,
             group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0,
           };
@@ -981,7 +1025,7 @@ export async function importMenuItemsToRestaurant(
   const groupOrderMap = new Map<string, number>();
   const { data, error } = await supabase
     .from("menu_items")
-    .insert(items.map(({ group, shared_barcode, is_favorite, ...item }) => {
+    .insert(items.map(({ group, shared_barcode, standard_food_code, is_favorite, ...item }) => {
       void is_favorite;
       const g = group ?? null;
       if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
@@ -990,6 +1034,7 @@ export async function importMenuItemsToRestaurant(
         restaurant_id: restaurantId,
         ...item,
         shared_barcode: shared_barcode ?? null,
+        standard_food_code: standard_food_code ?? null,
         group_name: g,
         group_order: g !== null ? (groupOrderMap.get(g) ?? 0) : 0,
       };

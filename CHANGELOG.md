@@ -14,6 +14,12 @@
 
 - **開発者向け**: アプリ未使用の `body_composition` / `daily_log` / `daily_summary` をベースラインから削除（[#74](https://github.com/kzkski/ketolog/issues/74)）。ベースラインの内容を変更したため、ローカルでチェックサム不一致になる場合は `supabase db reset` するか、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) を参照。
 
+## [1.16.0] - 2026-04-12
+
+### Added
+
+- **今日ページ**: レストランタブに「文科省表2023」を追加。日本食品標準成分表（八訂）増補2023のマスタを検索し、メニュー追加ドロワーに PFC を流し込める。`menu_items.standard_food_code` で食品番号を保持。データ投入・スキーマはマイグレーションと `npm run etl:mext-ch2`（[#3](https://github.com/kzkski/ketolog/issues/3)）。
+
 ## [1.15.2] - 2026-04-12
 
 ### Fixed

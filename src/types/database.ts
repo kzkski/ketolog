@@ -27,6 +27,8 @@ export type MenuItem = {
   group_name: string | null;
   group_order: number;
   shared_barcode?: string | null;
+  /** 文科省標準成分表の食品番号（5桁） */
+  standard_food_code?: string | null;
 };
 
 /** お気に入りエントリ（menu_items 行への参照） */

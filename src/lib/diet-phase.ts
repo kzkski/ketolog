@@ -18,19 +18,19 @@ export type PhaseProfiles = Record<DietPhaseKey, PhaseProfile>;
 
 export const DEFAULT_PHASE_PROFILES: PhaseProfiles = {
   "1": {
-    name: "ケト脂肪燃焼",
+    name: "ケト導入期",
     protein_target_g: 100,
     fat_target_g: 120,
     carbs_target_g: 40,
   },
   "2": {
-    name: "TKD導入",
+    name: "ケト脂肪燃焼期間",
     protein_target_g: 110,
     fat_target_g: 110,
     carbs_target_g: 60,
   },
   "3": {
-    name: "アイアンマン",
+    name: "TKD",
     protein_target_g: 120,
     fat_target_g: 100,
     carbs_target_g: 100,

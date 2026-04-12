@@ -8,4 +8,4 @@
 | `icon-192.png` | 192×192 |
 | `icon-header.png` | 160×160（512 から縮小。今日ページヘッダー用。表示は約 40–44px で 2–3x DPR 向け） |
 
-Web App Manifest からは `/icons/icon-512.png` と `/icons/icon-192.png` を参照する想定です（[#88](https://github.com/kzkski/ketolog/issues/88)）。
+Web App Manifest（`src/app/manifest.ts`）から `/icons/icon-512.png` と `/icons/icon-192.png` を参照しています（[#88](https://github.com/kzkski/ketolog/issues/88)）。

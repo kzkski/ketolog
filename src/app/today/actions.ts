@@ -11,6 +11,7 @@ import type {
   FavoriteGroupPayload,
   FavoriteEntryPayload,
 } from "@/types/database";
+import { STANDARD_FOOD_SEARCH_PAGE_SIZE } from "@/lib/standard-food-search";
 
 export type SaveItem = {
   menuItemId: string | null;
@@ -365,6 +366,7 @@ export async function searchStandardFoods(input: {
   query: string;
   groupCode: string | null;
   limit?: number;
+  offset?: number;
 }): Promise<{ rows: StandardFoodSearchRow[]; error: string | null }> {
   const supabase = await createClient();
   const {
@@ -380,7 +382,8 @@ export async function searchStandardFoods(input: {
   const { data, error } = await supabase.rpc("search_standard_foods", {
     p_query: q,
     p_group_code: input.groupCode && input.groupCode.length > 0 ? input.groupCode : null,
-    p_limit: input.limit ?? 40,
+    p_limit: input.limit ?? STANDARD_FOOD_SEARCH_PAGE_SIZE,
+    p_offset: input.offset ?? 0,
   });
 
   if (error) return { rows: [], error: error.message };

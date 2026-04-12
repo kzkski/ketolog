@@ -6,14 +6,55 @@ import {
   STANDARD_FOOD_GROUP_OPTIONS,
   STANDARD_FOOD_TAB_TITLE,
 } from "@/lib/standard-food-groups";
-import {
-  searchStandardFoods,
-  type StandardFoodSearchRow,
-} from "./actions";
+import { STANDARD_FOOD_SEARCH_PAGE_SIZE } from "@/lib/standard-food-search";
+import { searchStandardFoods, type StandardFoodSearchRow } from "./actions";
 
 function fmtMacro(n: number | null) {
   if (n === null || n === undefined) return "—";
   return n < 10 ? n.toFixed(1) : String(Math.round(n));
+}
+
+function StandardFoodPaginationBar({
+  page,
+  visibleCount,
+  hasMore,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  visibleCount: number;
+  hasMore: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const start = page * STANDARD_FOOD_SEARCH_PAGE_SIZE + 1;
+  const end = page * STANDARD_FOOD_SEARCH_PAGE_SIZE + visibleCount;
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
+      <span className="tabular-nums">
+        {start}〜{end} 件目
+        {hasMore ? "（続きあり）" : ""}
+      </span>
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          disabled={page === 0}
+          onClick={onPrev}
+          className="px-2.5 py-1 rounded-lg border border-gray-700 bg-gray-800/80 text-gray-200 disabled:opacity-40 disabled:pointer-events-none hover:border-gray-600"
+        >
+          前へ
+        </button>
+        <button
+          type="button"
+          disabled={!hasMore}
+          onClick={onNext}
+          className="px-2.5 py-1 rounded-lg border border-gray-700 bg-gray-800/80 text-gray-200 disabled:opacity-40 disabled:pointer-events-none hover:border-gray-600"
+        >
+          次へ
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function StandardFoodPanel({
@@ -32,6 +73,7 @@ export function StandardFoodPanel({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [groupCode, setGroupCode] = useState<string | null>(null);
   const [rows, setRows] = useState<StandardFoodSearchRow[]>([]);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +91,8 @@ export function StandardFoodPanel({
         const result = await searchStandardFoods({
           query: debouncedQuery,
           groupCode,
-          limit: 45,
+          limit: STANDARD_FOOD_SEARCH_PAGE_SIZE + 1,
+          offset: page * STANDARD_FOOD_SEARCH_PAGE_SIZE,
         });
         if (cancelled) return;
         setLoading(false);
@@ -66,7 +109,10 @@ export function StandardFoodPanel({
       cancelled = true;
       window.clearTimeout(tid);
     };
-  }, [debouncedQuery, groupCode]);
+  }, [debouncedQuery, groupCode, page]);
+
+  const hasMore = rows.length > STANDARD_FOOD_SEARCH_PAGE_SIZE;
+  const visibleRows = hasMore ? rows.slice(0, STANDARD_FOOD_SEARCH_PAGE_SIZE) : rows;
 
   const targetName = useMemo(() => {
     const r = visibleRestaurants.find((x) => x.id === compositionTargetRestaurantId);
@@ -109,15 +155,18 @@ export function StandardFoodPanel({
 
       <div>
         <p className="text-[10px] text-gray-500 mb-1.5">食品群で絞り込み（タップで切替・もう一度で解除）</p>
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-gutter:stable]">
+        <div className="flex flex-wrap gap-x-1.5 gap-y-2">
           {STANDARD_FOOD_GROUP_OPTIONS.map((g) => {
             const active = groupCode === g.code;
             return (
               <button
                 key={g.code}
                 type="button"
-                onClick={() => setGroupCode(active ? null : g.code)}
-                className={`shrink-0 rounded-full px-2.5 py-1.5 text-[11px] font-medium border transition-colors touch-manipulation ${
+                onClick={() => {
+                  setGroupCode(active ? null : g.code);
+                  setPage(0);
+                }}
+                className={`rounded-full px-2.5 py-1.5 text-[11px] font-medium border transition-colors touch-manipulation ${
                   active
                     ? "border-emerald-500 bg-emerald-600/25 text-emerald-100"
                     : "border-gray-700 bg-gray-800/80 text-gray-400 hover:border-gray-600 hover:text-gray-200"
@@ -136,8 +185,11 @@ export function StandardFoodPanel({
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="例: 鶏むね、豆腐"
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(0);
+          }}
+          placeholder="例: ささみ、木綿豆腐"
           autoComplete="off"
           className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
         />
@@ -149,14 +201,24 @@ export function StandardFoodPanel({
       {loading && <p className="text-xs text-gray-500">検索中…</p>}
       {error && <p className="text-sm text-amber-300">{error}</p>}
 
-      {!loading && !error && rows.length === 0 && (
+      {!loading && !error && visibleRows.length === 0 && (
         <p className="text-sm text-gray-500 text-center py-6">
           検索語を入れるか、食品群を選ぶと候補が表示されます。
         </p>
       )}
 
+      {!loading && !error && visibleRows.length > 0 && (
+        <StandardFoodPaginationBar
+          page={page}
+          visibleCount={visibleRows.length}
+          hasMore={hasMore}
+          onPrev={() => setPage((p) => Math.max(0, p - 1))}
+          onNext={() => setPage((p) => p + 1)}
+        />
+      )}
+
       <ul className="space-y-1.5">
-        {rows.map((row) => (
+        {visibleRows.map((row) => (
           <li key={row.food_code}>
             <button
               type="button"
@@ -181,6 +243,16 @@ export function StandardFoodPanel({
           </li>
         ))}
       </ul>
+
+      {!loading && !error && visibleRows.length > 0 && (
+        <StandardFoodPaginationBar
+          page={page}
+          visibleCount={visibleRows.length}
+          hasMore={hasMore}
+          onPrev={() => setPage((p) => Math.max(0, p - 1))}
+          onNext={() => setPage((p) => p + 1)}
+        />
+      )}
 
       <p className="text-[10px] text-gray-600 leading-relaxed border-t border-gray-800/80 pt-3">
         出典: 文部科学省「日本食品標準成分表（八訂）増補2023」第2章（可食部100gあたり）。利用条件は同省の公開ページに従ってください。

@@ -61,6 +61,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 3. マイグレーションをリモートに適用する。
    - `npx supabase db push`
 
+`db push` が「リモートの履歴とローカルファイルが一致しない」と止まる場合は、`npx supabase migration list` で差分を確認し、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) やリポジトリ内の履歴用プレースホルダー SQL を参照すること。文科省表まわりの整理済み手順は [docs/standard-food-composition.md](docs/standard-food-composition.md) の「マイグレーション履歴（開発者向け）」を参照。
+
 **既存のプロジェクトの定義をファイルに取り込み直す**（ベースライン SQL の再生成）には、リンク済みの状態で次を実行する。
 
 ```bash

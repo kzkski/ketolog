@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { Restaurant } from "@/types/database";
 import {
   STANDARD_FOOD_GROUP_OPTIONS,
@@ -114,11 +114,6 @@ export function StandardFoodPanel({
   const hasMore = rows.length > STANDARD_FOOD_SEARCH_PAGE_SIZE;
   const visibleRows = hasMore ? rows.slice(0, STANDARD_FOOD_SEARCH_PAGE_SIZE) : rows;
 
-  const targetName = useMemo(() => {
-    const r = visibleRestaurants.find((x) => x.id === compositionTargetRestaurantId);
-    return r?.name ?? "（お店を選んでください）";
-  }, [visibleRestaurants, compositionTargetRestaurantId]);
-
   return (
     <div className="flex flex-col gap-4 px-4 py-4 pb-28">
       <div>
@@ -131,26 +126,30 @@ export function StandardFoodPanel({
       </div>
 
       <div>
-        <label htmlFor={selectId} className="block text-xs text-gray-400 mb-1">
+        <label htmlFor={selectId} className="sr-only">
           メニューに追加するお店
         </label>
-        <select
-          id={selectId}
-          value={compositionTargetRestaurantId}
-          onChange={(e) => onCompositionTargetChange(e.target.value)}
-          className="w-full max-w-md px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
-        >
-          {visibleRestaurants.length === 0 ? (
-            <option value="">お店がありません</option>
-          ) : (
-            visibleRestaurants.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))
-          )}
-        </select>
-        <p className="text-[11px] text-gray-600 mt-1">登録先: {targetName}</p>
+        <div className="flex w-full max-w-md items-center gap-2">
+          <select
+            id={selectId}
+            value={compositionTargetRestaurantId}
+            onChange={(e) => onCompositionTargetChange(e.target.value)}
+            className="min-w-0 flex-1 px-3 py-2 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
+          >
+            {visibleRestaurants.length === 0 ? (
+              <option value="">お店がありません</option>
+            ) : (
+              visibleRestaurants.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))
+            )}
+          </select>
+          <span className="shrink-0 text-[11px] sm:text-xs text-gray-400 leading-tight">
+            に追加する
+          </span>
+        </div>
       </div>
 
       <div>

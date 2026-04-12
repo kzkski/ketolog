@@ -2518,12 +2518,12 @@ export default function TodayClient({
       <header className="flex-none flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-3 border-b border-gray-800 pt-[max(0.375rem,env(safe-area-inset-top))]">
         <div className="flex items-center gap-2 shrink-0 min-w-0">
           <Image
-            src="/icons/icon-header.png"
+            src="/icons/icon-header-44.png"
             alt=""
-            width={160}
-            height={160}
-            className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-full object-cover"
-            sizes="(max-width: 640px) 40px, 44px"
+            width={44}
+            height={44}
+            className="h-11 w-11 shrink-0 rounded-full object-cover"
+            sizes="44px"
             priority
           />
           <h1 className="text-base font-bold text-white shrink-0">

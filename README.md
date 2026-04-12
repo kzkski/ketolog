@@ -4,7 +4,7 @@
 
 外食・自炊・コンビニのPFC（タンパク質・脂質・糖質）をリアルタイムに記録・管理する。市販の汎用ダイエットアプリでは対応しにくい「外食メニューの登録」「PFC目標の柔軟な設定」「JSONプリセットによるデータ共有」に対応。
 
-**注意**: 現時点では **一般向けには公開していません**（テスト用途のデプロイ）。認証・公開範囲の詳細と今後の予定は [ROADMAP.md](ROADMAP.md) を参照。
+**注意**: 現時点では **一般向けには公開していません**（テスト用途のデプロイ）。認証・公開範囲の詳細と今後の予定は [ROADMAP.md](ROADMAP.md) を参照。ベータ・一般公開に向けた運用チェックリストは [docs/release/README.md](docs/release/README.md)（開発者向け）。
 
 ## 主な機能
 
@@ -102,7 +102,7 @@ npm run dev
    [API ドキュメント](https://openfoodfacts.github.io/openfoodfacts-server/api/)のとおり、リクエストに **`AppName/Version (連絡先メール)`** 形式の User-Agent を付ける（未設定時はコード内のデフォルトが使われる）
 
 3. **API 利用の申告（usage form）**  
-   公式が [API usage form](https://docs.google.com/forms/d/e/1FAIpQLSdIE3D8qvjC_zRJw1W8OmuHhsWJ_NSckiiniAHlfaVwUZCziQ/viewform) で利用実態の把握を依頼している。**本番公開前に提出**し、アプリ名・URL・想定トラフィック・連絡先などを記載する
+   公式が [API usage form](https://docs.google.com/forms/d/e/1FAIpQLSdIE3D8qvjC_zRJw1W8OmuHhsWJ_NSckiiniAHlfaVwUZCziQ/viewform) で利用実態の把握を依頼している。**本プロジェクトでは提出済み**とする。URL・トラフィック・連絡先が大きく変わる場合は更新を検討すること。運用メモは [docs/release/third-party-compliance.md](docs/release/third-party-compliance.md)。
 
 4. **レート制限**  
    商品取得（`GET /api/v*/product`）は **100 req/min** などエンドポイント別に制限がある。アプリ側では `shared_products` キャッシュで再取得を抑える

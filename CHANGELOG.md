@@ -10,6 +10,12 @@
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-04-12
+
+### Added
+
+- **PWA**: Web App Manifest（ホーム画面追加・スタンドアロン表示）、テーマ色・iOS 向けメタ、本番のみ有効な Service Worker（`/_next/static/` と `/icons/` の GET のみキャッシュ。HTML・API はキャッシュしない）。
+
 ## [1.17.1] - 2026-04-12
 
 ### Changed

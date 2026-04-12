@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
+/* Ketolog はダーク UI 固定。html のデフォルト白＋ body の prefers-color-scheme だと、
+   iOS PWA（viewport-fit=cover）下端の隙間に白帯が出ることがある。 */
 html {
   -webkit-text-size-adjust: 100%;
+  background-color: #030712;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
 }
 
 :root {
@@ -24,7 +29,9 @@ html {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  background-color: #030712;
+  color: #f9fafb;
   font-family: Arial, Helvetica, sans-serif;
 }

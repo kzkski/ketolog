@@ -90,7 +90,7 @@ export default async function TodayPage() {
   const initialFavoriteGroups = favoritePayload.error ? [] : favoritePayload.data;
 
   return (
-    <div className="flex flex-col h-svh bg-gray-950 w-full">
+    <div className="flex flex-col min-h-dvh h-dvh bg-gray-950 w-full">
       <TodayClient
         restaurants={restaurants}
         menuItems={menuItems}

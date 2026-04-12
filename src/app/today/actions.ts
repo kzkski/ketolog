@@ -31,6 +31,12 @@ const OFF_USER_AGENT =
   `Ketolog/${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"} (${OFF_DEFAULT_CONTACT})`;
 const SHARED_PRODUCT_TTL_MS = 1000 * 60 * 60 * 24 * 180; // 180日
 
+function isUniqueConstraintViolation(err: { code?: string; message?: string } | null | undefined): boolean {
+  if (!err) return false;
+  if (err.code === "23505") return true;
+  return typeof err.message === "string" && err.message.includes("duplicate key");
+}
+
 function normalizeBarcode(raw: string): string {
   return raw.replace(/[^\d]/g, "").trim();
 }
@@ -827,13 +833,16 @@ export async function getOrCreateSnapshotRestaurant(): Promise<{
   } = await supabase.auth.getUser();
   if (!user) return { data: null, error: "認証が必要です" };
 
-  const { data: existing } = await supabase
+  const { data: existingRows, error: selectError } = await supabase
     .from("restaurants")
     .select("*")
     .eq("user_id", user.id)
     .eq("name", SNAPSHOT_RESTAURANT_NAME)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
+  if (selectError) return { data: null, error: selectError.message };
+  const existing = existingRows?.[0];
   if (existing) return { data: existing as Restaurant, error: null };
 
   const { data: maxRow } = await supabase
@@ -845,7 +854,7 @@ export async function getOrCreateSnapshotRestaurant(): Promise<{
     .maybeSingle();
   const displayOrder = (maxRow?.display_order ?? -1) + 1;
 
-  const first = await supabase
+  const insertPrimary = await supabase
     .from("restaurants")
     .insert({
       user_id: user.id,
@@ -856,8 +865,10 @@ export async function getOrCreateSnapshotRestaurant(): Promise<{
     .select()
     .single();
 
-  if (first.error && first.error.message.includes("display_order")) {
-    const fallback = await supabase
+  let inserted = insertPrimary;
+
+  if (insertPrimary.error && insertPrimary.error.message.includes("display_order")) {
+    inserted = await supabase
       .from("restaurants")
       .insert({
         user_id: user.id,
@@ -866,12 +877,23 @@ export async function getOrCreateSnapshotRestaurant(): Promise<{
       })
       .select()
       .single();
-    if (fallback.error) return { data: null, error: fallback.error.message };
-    return { data: fallback.data as Restaurant, error: null };
   }
 
-  if (first.error) return { data: null, error: first.error.message };
-  return { data: first.data as Restaurant, error: null };
+  if (inserted.error && isUniqueConstraintViolation(inserted.error)) {
+    const { data: afterConflict, error: retryErr } = await supabase
+      .from("restaurants")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("name", SNAPSHOT_RESTAURANT_NAME)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    if (retryErr) return { data: null, error: retryErr.message };
+    const row = afterConflict?.[0];
+    if (row) return { data: row as Restaurant, error: null };
+  }
+
+  if (inserted.error) return { data: null, error: inserted.error.message };
+  return { data: inserted.data as Restaurant, error: null };
 }
 
 export async function deleteRestaurant(

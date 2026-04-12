@@ -1849,7 +1849,7 @@ function SettingsDrawer({
           <div>
             <h3 className="text-sm font-medium text-white mb-1">データエクスポート</h3>
             <p className="text-xs text-gray-400 mb-3">
-              全レストラン（{restaurants.length}店舗・{menuItems.length}アイテム）をまとめてエクスポートします。
+              メニュータブ等の「お店」{restaurants.length} 件とメニュー {menuItems.length} 件をまとめてエクスポートします。
             </p>
             <button
               onClick={() => downloadAllRestaurants(restaurants, menuItems)}

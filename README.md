@@ -13,6 +13,7 @@
 - **レストラン&メニュー管理**: よく行く店・自炊向け「汎用食材」などのメニューを登録し、**お気に入り**で定番を先頭タブから選べる
 - **日付ナビゲーション**: 過去の記録を閲覧・編集・削除
 - **JSON エクスポート/インポート**: レストランとメニューを JSON で持ち出し・取り込み
+- **文科省食品成分表（八訂増補2023）**: 名称検索で PFC を取り込み（[詳細](docs/standard-food-composition.md)）
 - **プリセット**: リポジトリに同梱した JSON がビルドに含まれ、**`/presets/` 経由で静的配信**される。アプリの **＋ → プリセットから選ぶ** でワンタップインポート
 - **認証**: Supabase Auth。将来はメール／パスワードと Google OAuth を想定（現状の制約は [ROADMAP.md](ROADMAP.md) を参照）
 
@@ -59,6 +60,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    - パスワードは **Database** のデータベースパスワードを求められたら入力
 3. マイグレーションをリモートに適用する。
    - `npx supabase db push`
+
+`db push` が「リモートの履歴とローカルファイルが一致しない」と止まる場合は、`npx supabase migration list` で差分を確認し、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) やリポジトリ内の履歴用プレースホルダー SQL を参照すること。文科省表まわりの整理済み手順は [docs/standard-food-composition.md](docs/standard-food-composition.md) の「マイグレーション履歴（開発者向け）」を参照。
 
 **既存のプロジェクトの定義をファイルに取り込み直す**（ベースライン SQL の再生成）には、リンク済みの状態で次を実行する。
 

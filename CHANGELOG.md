@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.28.1] - 2026-04-12
+
+### Fixed
+
+- **ログイン・新規登録**: 画面上部のアイコンが表示されない場合がある問題を修正した。ロゴは `next/image` の最適化を経由せず `public` の PNG をそのまま参照し、認証用 `proxy` をミドルウェア化した際も `/icons/`・PWA 用 `sw.js`・`manifest.webmanifest` が未ログインで `/login` に飛ばされないようにした（[#134](https://github.com/kzkski/ketolog/issues/134)）。
+
 ## [Unreleased]
 
 ### Changed

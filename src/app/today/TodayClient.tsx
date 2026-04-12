@@ -1782,6 +1782,7 @@ function SettingsDrawer({
   onClose: () => void;
   onSaved: (updated: UserSettings) => void;
 }) {
+  const { exportRestaurants, exportMenuItems } = partitionForFullJsonExport(restaurants, menuItems);
   const [protein, setProtein] = useState(settings.protein_target_g.toString());
   const [fat, setFat]         = useState(settings.fat_target_g.toString());
   const [carbs, setCarbs]     = useState(settings.carbs_target_g.toString());
@@ -1849,7 +1850,7 @@ function SettingsDrawer({
           <div>
             <h3 className="text-sm font-medium text-white mb-1">データエクスポート</h3>
             <p className="text-xs text-gray-400 mb-3">
-              全レストラン（{restaurants.length}店舗・{menuItems.length}アイテム）をまとめてエクスポートします。
+              メニュータブ等の「お店」{exportRestaurants.length} 件とメニュー {exportMenuItems.length} 件をまとめてエクスポートします（内部用のスナップショット記録は含みません）。
             </p>
             <button
               onClick={() => downloadAllRestaurants(restaurants, menuItems)}
@@ -1886,14 +1887,23 @@ function SettingsDrawer({
   );
 }
 
+/** 全データ JSON から内部用スナップショット行と、その店に紐づくメニューを除く */
+function partitionForFullJsonExport(restaurants: Restaurant[], menuItems: MenuItem[]) {
+  const exportRestaurants = restaurants.filter((r) => !isSnapshotRestaurant(r));
+  const ids = new Set(exportRestaurants.map((r) => r.id));
+  const exportMenuItems = menuItems.filter((m) => ids.has(m.restaurant_id));
+  return { exportRestaurants, exportMenuItems };
+}
+
 function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]) {
+  const { exportRestaurants, exportMenuItems } = partitionForFullJsonExport(restaurants, menuItems);
   const payload = {
     version: 1,
     exportedAt: new Date().toISOString().split("T")[0],
-    restaurants: restaurants.map((r) => ({
+    restaurants: exportRestaurants.map((r) => ({
       name: r.name,
       category: r.category,
-      menuItems: menuItems
+      menuItems: exportMenuItems
         .filter((m) => m.restaurant_id === r.id)
         .map((m) => ({
           name: m.name,

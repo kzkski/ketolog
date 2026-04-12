@@ -44,6 +44,7 @@ import {
   importRestaurantData,
   importMenuItemsToRestaurant,
   getFoodLogForDate,
+  getFoodLogForExport,
   deleteFoodLogEntry,
   updateFoodLogEntry,
   updateUserSettings,
@@ -51,6 +52,7 @@ import {
   type MenuItemUpdate,
   type ImportRestaurantItem,
   type SaveItem,
+  type FoodLogExportEntry,
 } from "./actions";
 import type { SharedProduct } from "@/types/database";
 import { BrowserMultiFormatReader } from "@zxing/browser";
@@ -1788,6 +1790,8 @@ function SettingsDrawer({
   const [carbs, setCarbs]     = useState(settings.carbs_target_g.toString());
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [exportingAll, setExportingAll] = useState(false);
+  const [exportAllError, setExportAllError] = useState<string | null>(null);
 
   async function handleSave() {
     const p = parseFloat(protein), f = parseFloat(fat), c = parseFloat(carbs);
@@ -1805,6 +1809,22 @@ function SettingsDrawer({
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/login";
+  }
+
+  async function handleDownloadFullData() {
+    setExportAllError(null);
+    setExportingAll(true);
+    try {
+      const { entries, error: logErr } = await getFoodLogForExport();
+      if (logErr) {
+        setExportAllError(logErr);
+        return;
+      }
+      const payload = buildFullDataExportPayload(restaurants, menuItems, entries);
+      downloadJsonDocument(`ketolog-all-${payload.exportedAt}.json`, payload);
+    } finally {
+      setExportingAll(false);
+    }
   }
 
   return (
@@ -1850,12 +1870,16 @@ function SettingsDrawer({
           <div>
             <h3 className="text-sm font-medium text-white mb-1">データエクスポート</h3>
             <p className="text-xs text-gray-400 mb-3">
-              メニュータブ等の「お店」{exportRestaurants.length} 件とメニュー {exportMenuItems.length} 件をまとめてエクスポートします（内部用のスナップショット記録は含みません）。
+              メニュータブ等の「お店」{exportRestaurants.length} 件とメニュー {exportMenuItems.length} 件に加え、
+              これまでの食事ログ（全期間）をまとめてエクスポートします。内部用のスナップショット記録のお店と、その店のメニューは含みません。
             </p>
+            {exportAllError && <p className="text-red-400 text-xs mb-2">{exportAllError}</p>}
             <button
-              onClick={() => downloadAllRestaurants(restaurants, menuItems)}
-              className="w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-xl transition-colors">
-              全データをJSONでダウンロード
+              type="button"
+              onClick={() => void handleDownloadFullData()}
+              disabled={exportingAll}
+              className="w-full py-2.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors">
+              {exportingAll ? "取得中..." : "全データをJSONでダウンロード"}
             </button>
           </div>
 
@@ -1895,10 +1919,14 @@ function partitionForFullJsonExport(restaurants: Restaurant[], menuItems: MenuIt
   return { exportRestaurants, exportMenuItems };
 }
 
-function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]) {
+function buildFullDataExportPayload(
+  restaurants: Restaurant[],
+  menuItems: MenuItem[],
+  foodLog: FoodLogExportEntry[]
+) {
   const { exportRestaurants, exportMenuItems } = partitionForFullJsonExport(restaurants, menuItems);
-  const payload = {
-    version: 1,
+  return {
+    version: 2 as const,
     exportedAt: new Date().toISOString().split("T")[0],
     restaurants: exportRestaurants.map((r) => ({
       name: r.name,
@@ -1918,12 +1946,16 @@ function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]
           group: m.group_name,
         })),
     })),
+    foodLog,
   };
+}
+
+function downloadJsonDocument(filename: string, payload: unknown) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `ketolog-all-${payload.exportedAt}.json`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }

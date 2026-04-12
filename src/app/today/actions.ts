@@ -137,6 +137,76 @@ export async function getFoodLogForDate(date: string): Promise<{
   return { entries, consumed, error: null };
 }
 
+/** 全データ JSON 用。`user_id` は含めない。 */
+export type FoodLogExportEntry = {
+  id: string;
+  date: string;
+  meal_type: string;
+  eaten_at: string;
+  item_name: string;
+  grams: number;
+  protein_g: number | null;
+  fat_g: number | null;
+  carbs_g: number | null;
+  source: string;
+  menu_item_id: string | null;
+  created_at: string;
+};
+
+/** PostgREST の `max_rows` 上限（ローカルは [api].max_rows=1000）。超過分は複数回取得する。 */
+const FOOD_LOG_EXPORT_PAGE_SIZE = 1000;
+
+export async function getFoodLogForExport(): Promise<{
+  entries: FoodLogExportEntry[];
+  error: string | null;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { entries: [], error: "認証が必要です" };
+
+  const entries: FoodLogExportEntry[] = [];
+  let offset = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("food_log")
+      .select(
+        "id, date, meal_type, eaten_at, item_name, grams, protein_g, fat_g, carbs_g, source, menu_item_id, created_at"
+      )
+      .eq("user_id", user.id)
+      .order("date", { ascending: true })
+      .order("created_at", { ascending: true })
+      .range(offset, offset + FOOD_LOG_EXPORT_PAGE_SIZE - 1);
+
+    if (error) return { entries: [], error: error.message };
+
+    const rows = data ?? [];
+    for (const row of rows) {
+      const r = row as Record<string, unknown>;
+      entries.push({
+        id: String(r.id),
+        date: String(r.date),
+        meal_type: String(r.meal_type),
+        eaten_at: String(r.eaten_at),
+        item_name: String(r.item_name),
+        grams: Number(r.grams),
+        protein_g: r.protein_g == null ? null : Number(r.protein_g),
+        fat_g: r.fat_g == null ? null : Number(r.fat_g),
+        carbs_g: r.carbs_g == null ? null : Number(r.carbs_g),
+        source: String(r.source),
+        menu_item_id: r.menu_item_id == null ? null : String(r.menu_item_id),
+        created_at: String(r.created_at),
+      });
+    }
+
+    if (rows.length < FOOD_LOG_EXPORT_PAGE_SIZE) break;
+    offset += FOOD_LOG_EXPORT_PAGE_SIZE;
+  }
+
+  return { entries, error: null };
+}
+
 export async function deleteFoodLogEntry(id: string): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

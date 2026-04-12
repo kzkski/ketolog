@@ -4,6 +4,9 @@
  */
 const STORAGE_KEY = "ketolog.menuGroupExpanded.v1";
 
+/** 同一タブ内の書き込み後に useSyncExternalStore を更新する */
+export const MENU_GROUP_EXPANDED_STORAGE_EVENT = "ketolog:menu-group-expanded-storage";
+
 /** @see FAVORITES_TAB_ID in TodayClient */
 const FAVORITES_TAB_ID = "__ketolog_favorites__";
 /** @see MEXT_COMPOSITION_TAB_ID in TodayClient */
@@ -58,9 +61,24 @@ export function writeMenuGroupExpandedKeys(scope: string, expandedSectionKeys: s
     const data = parseStored(window.localStorage.getItem(STORAGE_KEY));
     data.byScope[scope] = [...expandedSectionKeys];
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    window.dispatchEvent(new Event(MENU_GROUP_EXPANDED_STORAGE_EVENT));
   } catch {
     /* quota / private mode */
   }
+}
+
+/**
+ * SSR / ハイドレーション用: localStorage を読まず、複数グループ時は「すべて閉じる」前提の Set。
+ * （サーバー出力と getServerSnapshot を一致させる）
+ */
+export function collapsedMenuGroupsForSsr(
+  collapsibleSectionKeys: string[],
+  scope: string | null
+): Set<string> {
+  if (!scope || collapsibleSectionKeys.length <= 1) {
+    return new Set();
+  }
+  return new Set(collapsibleSectionKeys);
 }
 
 /**
@@ -82,4 +100,34 @@ export function collapsedMenuGroupsFromStorage(
     if (!expanded.has(k)) collapsed.add(k);
   }
   return collapsed;
+}
+
+/** useSyncExternalStore 用。Object.is で安定比較できる文字列化 */
+export function serializeCollapsedMenuGroupsForSnapshot(s: Set<string>): string {
+  return JSON.stringify([...s].sort());
+}
+
+export function parseCollapsedMenuGroupsSnapshot(serialized: string): Set<string> {
+  try {
+    const arr = JSON.parse(serialized) as unknown;
+    if (!Array.isArray(arr)) return new Set();
+    return new Set(arr.filter((x): x is string => typeof x === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+/** useSyncExternalStore 用。同一タブの書き込みはカスタムイベントで通知（storage イベントは別タブのみ） */
+export function subscribeMenuGroupExpandedStorage(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY || e.key === null) onStoreChange();
+  };
+  const onLocal = () => onStoreChange();
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(MENU_GROUP_EXPANDED_STORAGE_EVENT, onLocal);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(MENU_GROUP_EXPANDED_STORAGE_EVENT, onLocal);
+  };
 }

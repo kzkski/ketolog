@@ -1,10 +1,15 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import {
   menuGroupCollapseStorageScope,
   collapsedMenuGroupsFromStorage,
+  collapsedMenuGroupsForSsr,
   writeMenuGroupExpandedKeys,
+  readMenuGroupExpandedKeys,
+  serializeCollapsedMenuGroupsForSnapshot,
+  parseCollapsedMenuGroupsSnapshot,
+  subscribeMenuGroupExpandedStorage,
 } from "@/lib/menu-group-expanded-storage";
 
 type Props = {
@@ -17,8 +22,8 @@ type Props = {
 };
 
 /**
- * タブ／グループ構成が変わったときに key 付きで再マウントし、
- * localStorage から初期折りたたみ状態を読み直す（親の effect で setState しない）。
+ * localStorage と同期した折りたたみ状態。
+ * useSyncExternalStore + getServerSnapshot で SSR/ハイドレーションとクライアントの storage を一致させる。
  */
 export function MenuGroupCollapseSession({
   selectedRestaurantIdResolved,
@@ -26,22 +31,37 @@ export function MenuGroupCollapseSession({
   children,
 }: Props) {
   const scope = menuGroupCollapseStorageScope(selectedRestaurantIdResolved);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() =>
-    collapsedMenuGroupsFromStorage(collapsibleMenuSectionKeys, scope)
+
+  const collapsedSnapshot = useSyncExternalStore(
+    subscribeMenuGroupExpandedStorage,
+    () =>
+      serializeCollapsedMenuGroupsForSnapshot(
+        collapsedMenuGroupsFromStorage(collapsibleMenuSectionKeys, scope)
+      ),
+    () =>
+      serializeCollapsedMenuGroupsForSnapshot(
+        collapsedMenuGroupsForSsr(collapsibleMenuSectionKeys, scope)
+      )
+  );
+
+  const collapsedGroups = useMemo(
+    () => parseCollapsedMenuGroupsSnapshot(collapsedSnapshot),
+    [collapsedSnapshot]
   );
 
   const toggleMenuGroupCollapsed = useCallback(
     (sectionKey: string) => {
-      setCollapsedGroups((prev) => {
-        const next = new Set(prev);
-        if (next.has(sectionKey)) next.delete(sectionKey);
-        else next.add(sectionKey);
-        if (scope && collapsibleMenuSectionKeys.length >= 2) {
-          const expanded = collapsibleMenuSectionKeys.filter((k) => !next.has(k));
-          writeMenuGroupExpandedKeys(scope, expanded);
-        }
-        return next;
-      });
+      if (!scope || collapsibleMenuSectionKeys.length < 2) return;
+      const expandedList = readMenuGroupExpandedKeys(scope).filter((k) =>
+        collapsibleMenuSectionKeys.includes(k)
+      );
+      const expandedSet = new Set(expandedList);
+      if (expandedSet.has(sectionKey)) {
+        expandedSet.delete(sectionKey);
+      } else {
+        expandedSet.add(sectionKey);
+      }
+      writeMenuGroupExpandedKeys(scope, [...expandedSet]);
     },
     [scope, collapsibleMenuSectionKeys]
   );

@@ -1778,19 +1778,22 @@ function EditEntryDrawer({
 
 const DIET_PHASES: DietPhase[] = [1, 2, 3];
 
-/** 設定ドロワー内: 目標セット選択チップ（右クリック／長押しで名前変更メニュー） */
+/** 設定ドロワー内: 目標セット名（タップで表示中に／右クリック・長押しで名前変更） */
 function GoalSetSlotButton({
   label,
   selected,
   disabled,
   onSelect,
   onOpenMenu,
+  className: classNameProp,
 }: {
   label: string;
   selected: boolean;
   disabled: boolean;
   onSelect: () => void;
   onOpenMenu: (clientX: number, clientY: number) => void;
+  /** 省略時は横並びチップ用の flex-1 */
+  className?: string;
 }) {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchAnchorRef = useRef<{ x: number; y: number } | null>(null);
@@ -1840,12 +1843,12 @@ function GoalSetSlotButton({
         clearLongPress();
         touchAnchorRef.current = null;
       }}
-      title="長押しまたは右クリックで名前を変更"
-      className={`flex-1 min-w-0 py-2 px-1 rounded-lg text-xs font-medium transition-colors border touch-manipulation ${
+      title="タップで上部バー用のセットに。長押しまたは右クリックで名前を変更"
+      className={`py-2 px-1.5 rounded-lg text-xs font-medium transition-colors border touch-manipulation ${
         selected
           ? "bg-emerald-600 border-emerald-500 text-white"
           : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
-      } disabled:opacity-50`}
+      } disabled:opacity-50 ${classNameProp ?? "flex-1 min-w-0"}`}
     >
       <span className="block truncate">{label}</span>
     </button>
@@ -1880,9 +1883,6 @@ function SettingsDrawer({
     null | { phase: DietPhase; x: number; y: number }
   >(null);
   const [renameProfilePhase, setRenameProfilePhase] = useState<DietPhase | null>(null);
-
-  const editKey = String(selectedSlot) as keyof PhaseProfiles;
-  const editing = profiles[editKey];
 
   const openProfileSlotMenu = useCallback((phase: DietPhase, clientX: number, clientY: number) => {
     if (typeof window === "undefined") return;
@@ -2016,50 +2016,74 @@ function SettingsDrawer({
           <div>
             <h3 className="text-sm font-medium text-white mb-1">PFC 目標セット</h3>
             <p className="text-xs text-gray-500 mb-3">
-              選んだセットが上部バーの目標になります。チップを長押しまたは右クリックで名前を変更できます。
+              各行が1セットです。名前をタップするとそのセットが上部バーの目標になります。名前の長押し／右クリックで表示名を変更できます。
             </p>
-            <div className="flex gap-2 mb-4">
-              {DIET_PHASES.map((ph) => (
-                <GoalSetSlotButton
-                  key={ph}
-                  label={profiles[String(ph) as keyof PhaseProfiles].name}
-                  selected={selectedSlot === ph}
-                  disabled={slotSaving}
-                  onSelect={() => void selectSlot(ph)}
-                  onOpenMenu={(cx, cy) => openProfileSlotMenu(ph, cx, cy)}
-                />
-              ))}
+            <div className="mb-1 grid grid-cols-1 sm:grid-cols-[minmax(6rem,7.5rem)_1fr] gap-x-2 gap-y-1 items-end">
+              <span className="hidden sm:block" aria-hidden />
+              <div className="hidden sm:grid grid-cols-3 gap-1.5 text-center">
+                <span className="text-[10px] font-medium text-blue-400">P</span>
+                <span className="text-[10px] font-medium text-yellow-400">F</span>
+                <span className="text-[10px] font-medium text-emerald-400">C</span>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {(
-                [
-                  { key: "protein_target_g" as const, label: "P タンパク質", color: "text-blue-400" },
-                  { key: "fat_target_g" as const, label: "F 脂質", color: "text-yellow-400" },
-                  { key: "carbs_target_g" as const, label: "C 糖質", color: "text-emerald-400" },
-                ] as const
-              ).map(({ key, label, color }) => (
-                <div key={key}>
-                  <p className={`text-xs mb-1 ${color}`}>{label}</p>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={editing[key]}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value);
-                        if (!Number.isFinite(v)) return;
-                        setProfiles((prev) => ({
-                          ...prev,
-                          [editKey]: { ...prev[editKey], [key]: Math.max(1, Math.round(v)) },
-                        }));
-                      }}
-                      className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm text-center focus:outline-none focus:border-emerald-500"
+            <div className="space-y-2 mb-4">
+              {DIET_PHASES.map((ph) => {
+                const pk = String(ph) as keyof PhaseProfiles;
+                const pr = profiles[pk];
+                return (
+                  <div
+                    key={ph}
+                    className={`grid grid-cols-1 sm:grid-cols-[minmax(6rem,7.5rem)_1fr] gap-2 rounded-xl border p-2 ${
+                      selectedSlot === ph
+                        ? "border-emerald-600/70 bg-emerald-950/25"
+                        : "border-gray-700 bg-gray-800/30"
+                    }`}
+                  >
+                    <GoalSetSlotButton
+                      label={pr.name}
+                      selected={selectedSlot === ph}
+                      disabled={slotSaving}
+                      onSelect={() => void selectSlot(ph)}
+                      onOpenMenu={(cx, cy) => openProfileSlotMenu(ph, cx, cy)}
+                      className="w-full min-w-0 sm:min-h-[4.5rem] flex items-center justify-center"
                     />
-                    <span className="text-xs text-gray-500 shrink-0">g</span>
+                    <div className="grid grid-cols-3 gap-1.5 items-end min-w-0">
+                      {(
+                        [
+                          { key: "protein_target_g" as const, short: "P", color: "text-blue-400" },
+                          { key: "fat_target_g" as const, short: "F", color: "text-yellow-400" },
+                          { key: "carbs_target_g" as const, short: "C", color: "text-emerald-400" },
+                        ] as const
+                      ).map(({ key, short, color }) => (
+                        <div key={key} className="min-w-0">
+                          <p className={`sm:hidden text-[10px] mb-0.5 text-center font-medium ${color}`}>
+                            {short}
+                          </p>
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={pr[key]}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value);
+                                if (!Number.isFinite(v)) return;
+                                setProfiles((prev) => ({
+                                  ...prev,
+                                  [pk]: { ...prev[pk], [key]: Math.max(1, Math.round(v)) },
+                                }));
+                              }}
+                              className="w-full min-w-0 px-1.5 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm text-center focus:outline-none focus:border-emerald-500"
+                              aria-label={`${pr.name}の${short === "P" ? "タンパク質" : short === "F" ? "脂質" : "糖質"}目標グラム`}
+                            />
+                            <span className="text-[10px] text-gray-500 shrink-0">g</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
             <button

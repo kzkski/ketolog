@@ -26,6 +26,11 @@ import type {
   TodayConsumed,
   FavoriteGroupPayload,
 } from "@/types/database";
+import {
+  activePhaseProfile,
+  type DietPhase,
+  type PhaseProfiles,
+} from "@/lib/diet-phase";
 import type { MealType } from "@/lib/meal-timezone";
 import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";
@@ -1771,6 +1776,85 @@ function EditEntryDrawer({
 
 // ─── 設定ドロワー ──────────────────────────────────────────────────────────────
 
+const DIET_PHASES: DietPhase[] = [1, 2, 3];
+
+/** 設定ドロワー内: 目標セット名（タップで表示中に／右クリック・長押しで名前変更） */
+function GoalSetSlotButton({
+  label,
+  selected,
+  disabled,
+  onSelect,
+  onOpenMenu,
+  className: classNameProp,
+}: {
+  label: string;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+  onOpenMenu: (clientX: number, clientY: number) => void;
+  /** 省略時は横並びチップ用の flex-1 */
+  className?: string;
+}) {
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchAnchorRef = useRef<{ x: number; y: number } | null>(null);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onSelect}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onOpenMenu(e.clientX, e.clientY);
+      }}
+      onTouchStart={(e) => {
+        const t = e.touches[0];
+        if (!t) return;
+        touchAnchorRef.current = { x: t.clientX, y: t.clientY };
+        clearLongPress();
+        longPressTimerRef.current = setTimeout(() => {
+          longPressTimerRef.current = null;
+          const a = touchAnchorRef.current;
+          touchAnchorRef.current = null;
+          if (a) onOpenMenu(a.x, a.y);
+        }, 550);
+      }}
+      onTouchMove={(e) => {
+        const t = e.touches[0];
+        const a = touchAnchorRef.current;
+        if (!t || !a) return;
+        if (Math.abs(t.clientX - a.x) > 12 || Math.abs(t.clientY - a.y) > 12) {
+          clearLongPress();
+          touchAnchorRef.current = null;
+        }
+      }}
+      onTouchEnd={() => {
+        clearLongPress();
+        touchAnchorRef.current = null;
+      }}
+      onTouchCancel={() => {
+        clearLongPress();
+        touchAnchorRef.current = null;
+      }}
+      title="タップで上部バー用のセットに。長押しまたは右クリックで名前を変更"
+      className={`py-2 px-1.5 rounded-lg text-xs font-medium transition-colors border touch-manipulation ${
+        selected
+          ? "bg-emerald-600 border-emerald-500 text-white"
+          : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
+      } disabled:opacity-50 ${classNameProp ?? "flex-1 min-w-0"}`}
+    >
+      <span className="block truncate">{label}</span>
+    </button>
+  );
+}
+
 function SettingsDrawer({
   settings,
   restaurants,
@@ -1785,23 +1869,111 @@ function SettingsDrawer({
   onSaved: (updated: UserSettings) => void;
 }) {
   const { exportRestaurants, exportMenuItems } = partitionForFullJsonExport(restaurants, menuItems);
-  const [protein, setProtein] = useState(settings.protein_target_g.toString());
-  const [fat, setFat]         = useState(settings.fat_target_g.toString());
-  const [carbs, setCarbs]     = useState(settings.carbs_target_g.toString());
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<PhaseProfiles>(() =>
+    structuredClone(settings.phase_profiles)
+  );
+  /** 選択中＝上部バーに使うセット＝直下で編集するセット（内部では diet_phase 1〜3） */
+  const [selectedSlot, setSelectedSlot] = useState<DietPhase>(settings.diet_phase);
+  const [saving, setSaving] = useState(false);
+  const [slotSaving, setSlotSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
   const [exportAllError, setExportAllError] = useState<string | null>(null);
+  const [profileSlotMenu, setProfileSlotMenu] = useState<
+    null | { phase: DietPhase; x: number; y: number }
+  >(null);
+  const [renameProfilePhase, setRenameProfilePhase] = useState<DietPhase | null>(null);
 
-  async function handleSave() {
-    const p = parseFloat(protein), f = parseFloat(fat), c = parseFloat(carbs);
-    if (isNaN(p) || isNaN(f) || isNaN(c) || p <= 0 || f <= 0 || c <= 0) {
-      setError("正の数値を入力してください"); return;
+  const openProfileSlotMenu = useCallback((phase: DietPhase, clientX: number, clientY: number) => {
+    if (typeof window === "undefined") return;
+    const x = Math.min(
+      window.innerWidth - TAB_CONTEXT_MENU_W - 8,
+      Math.max(8, clientX)
+    );
+    const y = Math.min(
+      window.innerHeight - TAB_CONTEXT_MENU_H - 8,
+      Math.max(8, clientY)
+    );
+    setProfileSlotMenu({ phase, x, y });
+  }, []);
+
+  useEffect(() => {
+    if (!profileSlotMenu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setProfileSlotMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [profileSlotMenu]);
+
+  async function selectSlot(next: DietPhase) {
+    if (next === selectedSlot) return;
+    setSlotSaving(true);
+    setError(null);
+    const result = await updateUserSettings({ diet_phase: next });
+    setSlotSaving(false);
+    if (result.error) {
+      setError(result.error);
+      return;
     }
-    setSaving(true); setError(null);
-    const result = await updateUserSettings({ protein_target_g: p, fat_target_g: f, carbs_target_g: c });
-    if (result.error) { setError(result.error); setSaving(false); return; }
-    onSaved({ ...settings, protein_target_g: p, fat_target_g: f, carbs_target_g: c });
+    setSelectedSlot(next);
+    onSaved({ ...settings, diet_phase: next, phase_profiles: settings.phase_profiles });
+  }
+
+  async function handleSaveProfiles() {
+    for (const ph of DIET_PHASES) {
+      const pk = String(ph) as keyof PhaseProfiles;
+      const pr = profiles[pk];
+      if (
+        !Number.isFinite(pr.protein_target_g) ||
+        !Number.isFinite(pr.fat_target_g) ||
+        !Number.isFinite(pr.carbs_target_g) ||
+        pr.protein_target_g <= 0 ||
+        pr.fat_target_g <= 0 ||
+        pr.carbs_target_g <= 0
+      ) {
+        setError("各セットの PFC は正の数値にしてください");
+        return;
+      }
+      if (!pr.name.trim()) {
+        setError("各セットの名前を入力してください");
+        return;
+      }
+    }
+    const normalized: PhaseProfiles = {
+      "1": {
+        ...profiles["1"],
+        name: profiles["1"].name.trim(),
+        protein_target_g: Math.round(profiles["1"].protein_target_g),
+        fat_target_g: Math.round(profiles["1"].fat_target_g),
+        carbs_target_g: Math.round(profiles["1"].carbs_target_g),
+      },
+      "2": {
+        ...profiles["2"],
+        name: profiles["2"].name.trim(),
+        protein_target_g: Math.round(profiles["2"].protein_target_g),
+        fat_target_g: Math.round(profiles["2"].fat_target_g),
+        carbs_target_g: Math.round(profiles["2"].carbs_target_g),
+      },
+      "3": {
+        ...profiles["3"],
+        name: profiles["3"].name.trim(),
+        protein_target_g: Math.round(profiles["3"].protein_target_g),
+        fat_target_g: Math.round(profiles["3"].fat_target_g),
+        carbs_target_g: Math.round(profiles["3"].carbs_target_g),
+      },
+    };
+    setSaving(true);
+    setError(null);
+    const result = await updateUserSettings({ phase_profiles: normalized });
+    if (result.error) {
+      setError(result.error);
+      setSaving(false);
+      return;
+    }
+    setProfiles(normalized);
+    onSaved({ ...settings, diet_phase: selectedSlot, phase_profiles: normalized });
+    setSaving(false);
     onClose();
   }
 
@@ -1840,29 +2012,87 @@ function SettingsDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* PFC目標値 */}
+          {/* PFC 目標セット（3つ） */}
           <div>
-            <h3 className="text-sm font-medium text-white mb-3">PFC目標値（g/日）</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "P タンパク質", value: protein, set: setProtein, color: "text-blue-400" },
-                { label: "F 脂質",       value: fat,     set: setFat,     color: "text-yellow-400" },
-                { label: "C 糖質",       value: carbs,   set: setCarbs,   color: "text-emerald-400" },
-              ].map(({ label, value, set, color }) => (
-                <div key={label}>
-                  <p className={`text-xs mb-1 ${color}`}>{label}</p>
-                  <div className="flex items-center gap-1">
-                    <input type="number" value={value} onChange={(e) => set(e.target.value)}
-                      className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm text-center focus:outline-none focus:border-emerald-500" />
-                    <span className="text-xs text-gray-500 shrink-0">g</span>
+            <h3 className="text-sm font-medium text-white mb-1">PFC 目標セット</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              各行が1セットです。名前をタップするとそのセットが上部バーの目標になります。名前の長押し／右クリックで表示名を変更できます。
+            </p>
+            <div className="mb-1 grid grid-cols-1 sm:grid-cols-[minmax(6rem,7.5rem)_1fr] gap-x-2 gap-y-1 items-end">
+              <span className="hidden sm:block" aria-hidden />
+              <div className="hidden sm:grid grid-cols-3 gap-1.5 text-center">
+                <span className="text-[10px] font-medium text-blue-400">P</span>
+                <span className="text-[10px] font-medium text-yellow-400">F</span>
+                <span className="text-[10px] font-medium text-emerald-400">C</span>
+              </div>
+            </div>
+            <div className="space-y-2 mb-4">
+              {DIET_PHASES.map((ph) => {
+                const pk = String(ph) as keyof PhaseProfiles;
+                const pr = profiles[pk];
+                return (
+                  <div
+                    key={ph}
+                    className={`grid grid-cols-1 sm:grid-cols-[minmax(6rem,7.5rem)_1fr] gap-2 rounded-xl border p-2 ${
+                      selectedSlot === ph
+                        ? "border-emerald-600/70 bg-emerald-950/25"
+                        : "border-gray-700 bg-gray-800/30"
+                    }`}
+                  >
+                    <GoalSetSlotButton
+                      label={pr.name}
+                      selected={selectedSlot === ph}
+                      disabled={slotSaving}
+                      onSelect={() => void selectSlot(ph)}
+                      onOpenMenu={(cx, cy) => openProfileSlotMenu(ph, cx, cy)}
+                      className="w-full min-w-0 sm:min-h-[4.5rem] flex items-center justify-center"
+                    />
+                    <div className="grid grid-cols-3 gap-1.5 items-end min-w-0">
+                      {(
+                        [
+                          { key: "protein_target_g" as const, short: "P", color: "text-blue-400" },
+                          { key: "fat_target_g" as const, short: "F", color: "text-yellow-400" },
+                          { key: "carbs_target_g" as const, short: "C", color: "text-emerald-400" },
+                        ] as const
+                      ).map(({ key, short, color }) => (
+                        <div key={key} className="min-w-0">
+                          <p className={`sm:hidden text-[10px] mb-0.5 text-center font-medium ${color}`}>
+                            {short}
+                          </p>
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={pr[key]}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value);
+                                if (!Number.isFinite(v)) return;
+                                setProfiles((prev) => ({
+                                  ...prev,
+                                  [pk]: { ...prev[pk], [key]: Math.max(1, Math.round(v)) },
+                                }));
+                              }}
+                              className="w-full min-w-0 px-1.5 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm text-center focus:outline-none focus:border-emerald-500"
+                              aria-label={`${pr.name}の${short === "P" ? "タンパク質" : short === "F" ? "脂質" : "糖質"}目標グラム`}
+                            />
+                            <span className="text-[10px] text-gray-500 shrink-0">g</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-            <button onClick={handleSave} disabled={saving}
-              className="mt-3 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors">
-              {saving ? "保存中..." : "保存する"}
+            <button
+              type="button"
+              onClick={() => void handleSaveProfiles()}
+              disabled={saving}
+              className="mt-3 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              {saving ? "保存中..." : "目標を保存する"}
             </button>
           </div>
 
@@ -1907,6 +2137,61 @@ function SettingsDrawer({
           </div>
         </div>
       </div>
+
+      {profileSlotMenu && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[55] cursor-default bg-transparent"
+            aria-label="メニューを閉じる"
+            onClick={() => setProfileSlotMenu(null)}
+          />
+          <div
+            role="menu"
+            className="fixed z-[56] min-w-[10rem] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
+            style={{
+              left: profileSlotMenu.x,
+              top: profileSlotMenu.y,
+            }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full px-3 py-2 text-left text-sm text-white hover:bg-gray-800"
+              onClick={() => {
+                setRenameProfilePhase(profileSlotMenu.phase);
+                setProfileSlotMenu(null);
+              }}
+            >
+              名前を変更
+            </button>
+          </div>
+        </>
+      )}
+
+      {renameProfilePhase != null && (
+        <RestaurantRenameSheet
+          key={renameProfilePhase}
+          title="セットの名前を変更"
+          initialName={profiles[String(renameProfilePhase) as keyof PhaseProfiles].name}
+          maxLength={48}
+          isSaving={false}
+          inputAriaLabel="セット名"
+          onClose={() => setRenameProfilePhase(null)}
+          onSave={(trimmed) => {
+            if (!trimmed) {
+              alert("名前を入力してください");
+              return;
+            }
+            const pk = String(renameProfilePhase) as keyof PhaseProfiles;
+            setProfiles((prev) => ({
+              ...prev,
+              [pk]: { ...prev[pk], name: trimmed.slice(0, 48) },
+            }));
+            setRenameProfilePhase(null);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -1970,6 +2255,7 @@ function RestaurantRenameSheet({
   isSaving,
   onClose,
   onSave,
+  inputAriaLabel = "新しい店名",
 }: {
   title: string;
   initialName: string;
@@ -1977,6 +2263,8 @@ function RestaurantRenameSheet({
   isSaving: boolean;
   onClose: () => void;
   onSave: (trimmed: string) => void | Promise<void>;
+  /** スクリーンリーダー用（お店以外の名前変更でも流用） */
+  inputAriaLabel?: string;
 }) {
   const [value, setValue] = useState(initialName);
   const titleId = useId();
@@ -2004,7 +2292,7 @@ function RestaurantRenameSheet({
           </h2>
           <div>
             <label htmlFor={inputId} className="sr-only">
-              新しい店名
+              {inputAriaLabel}
             </label>
             <input
               id={inputId}
@@ -2167,6 +2455,25 @@ export default function TodayClient({
   snapshotRestaurantId,
 }: Props) {
   const [currentSettings, setCurrentSettings] = useState<UserSettings>(settings);
+  const activeProfile = useMemo(
+    () => activePhaseProfile(currentSettings),
+    [currentSettings]
+  );
+  const [phaseQuickSaving, setPhaseQuickSaving] = useState(false);
+  const selectQuickPhase = useCallback(
+    async (ph: DietPhase) => {
+      if (ph === currentSettings.diet_phase || phaseQuickSaving) return;
+      setPhaseQuickSaving(true);
+      const r = await updateUserSettings({ diet_phase: ph });
+      setPhaseQuickSaving(false);
+      if (r.error) {
+        alert(r.error);
+        return;
+      }
+      setCurrentSettings((prev) => ({ ...prev, diet_phase: ph }));
+    },
+    [currentSettings.diet_phase, phaseQuickSaving]
+  );
   const [showSettings, setShowSettings]       = useState(false);
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
   const [menuItems, setMenuItems]     = useState<MenuItem[]>(initialMenuItems);
@@ -2431,15 +2738,17 @@ export default function TodayClient({
       slot,
       consumed: { p: totalPFC.p, f: totalPFC.f, c: totalPFC.c },
       targets: {
-        p: currentSettings.protein_target_g,
-        f: currentSettings.fat_target_g,
-        c: currentSettings.carbs_target_g,
+        p: activeProfile.protein_target_g,
+        f: activeProfile.fat_target_g,
+        c: activeProfile.carbs_target_g,
       },
     });
   }, [
     selectedDate,
     today,
-    currentSettings,
+    activeProfile.protein_target_g,
+    activeProfile.fat_target_g,
+    activeProfile.carbs_target_g,
     totalPFC.p,
     totalPFC.f,
     totalPFC.c,
@@ -2840,11 +3149,37 @@ export default function TodayClient({
           </button>
         </div>
 
+        {/* ダイエットフェーズ（表示中の目標） */}
+        <div className="flex-none px-2 sm:px-4 py-1 sm:py-1.5 border-b border-gray-800 bg-gray-900">
+          <div className="flex gap-1 sm:gap-2 justify-stretch">
+            {DIET_PHASES.map((ph) => {
+              const pr = currentSettings.phase_profiles[String(ph) as keyof PhaseProfiles];
+              const on = currentSettings.diet_phase === ph;
+              return (
+                <button
+                  key={ph}
+                  type="button"
+                  disabled={phaseQuickSaving}
+                  onClick={() => void selectQuickPhase(ph)}
+                  title={pr.name}
+                  className={`flex-1 min-w-0 min-h-8 sm:min-h-9 px-1 sm:px-2 rounded-lg text-[10px] sm:text-xs font-medium transition-colors border touch-manipulation ${
+                    on
+                      ? "border-emerald-500 bg-emerald-950/50 text-emerald-100"
+                      : "border-gray-700 bg-gray-800/60 text-gray-400 hover:border-gray-600 hover:text-gray-200"
+                  } disabled:opacity-50`}
+                >
+                  <span className="block truncate">{pr.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* PFCバー */}
         <div className="flex-none px-3 sm:px-4 py-1.5 sm:py-3 bg-gray-900 border-b border-gray-800 space-y-1 sm:space-y-1.5">
-          <PFCBar label="P" current={totalPFC.p} target={currentSettings.protein_target_g} color={MACRO_BAR_BG.p} />
-          <PFCBar label="F" current={totalPFC.f} target={currentSettings.fat_target_g}     color={MACRO_BAR_BG.f} />
-          <PFCBar label="C" current={totalPFC.c} target={currentSettings.carbs_target_g}   color={MACRO_BAR_BG.c} />
+          <PFCBar label="P" current={totalPFC.p} target={activeProfile.protein_target_g} color={MACRO_BAR_BG.p} />
+          <PFCBar label="F" current={totalPFC.f} target={activeProfile.fat_target_g}     color={MACRO_BAR_BG.f} />
+          <PFCBar label="C" current={totalPFC.c} target={activeProfile.carbs_target_g}   color={MACRO_BAR_BG.c} />
         </div>
 
         {/* 記録済みパネル */}
@@ -3055,8 +3390,8 @@ export default function TodayClient({
                   onToggleFavorite={() => void handleToggleFavorite(item)}
                   isFavorited={favoriteMenuItemIds.has(item.id)}
                   pfcTargets={{
-                    protein_target_g: currentSettings.protein_target_g,
-                    fat_target_g: currentSettings.fat_target_g,
+                    protein_target_g: activeProfile.protein_target_g,
+                    fat_target_g: activeProfile.fat_target_g,
                   }}
                 />
               ));
@@ -3090,8 +3425,8 @@ export default function TodayClient({
                     isFavorited={favoriteMenuItemIds.has(item.id)}
                     originCaption={group.originByItemId?.[item.id] ?? null}
                     pfcTargets={{
-                      protein_target_g: currentSettings.protein_target_g,
-                      fat_target_g: currentSettings.fat_target_g,
+                      protein_target_g: activeProfile.protein_target_g,
+                      fat_target_g: activeProfile.fat_target_g,
                     }}
                   />
                 ))}

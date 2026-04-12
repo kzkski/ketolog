@@ -84,6 +84,10 @@
   - PFC目標値（P/F/C）のカスタマイズ
   - 全データをJSONでエクスポート
 
+### 2-7 予定（PWA）
+- **プログレッシブ対応 PWA**: Web App Manifest、共有ロゴ由来の `public/icons/`、Service Worker の段階導入（認証・動的ページはキャッシュを慎重に扱う）
+- 追跡: [#88](https://github.com/kzkski/ketolog/issues/88)
+
 ---
 
 ## Phase 3 後日（優先度低）

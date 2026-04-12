@@ -12,6 +12,7 @@
 
 ### Changed
 
+- **開発者向け**: PWA 化（manifest・アイコン・Service Worker）の方針を [ROADMAP.md](ROADMAP.md) と Issue に整理し、`public/icons/` へのロゴ配置を準備（[#88](https://github.com/kzkski/ketolog/issues/88)）。
 - **開発者向け**: アプリ未使用の `body_composition` / `daily_log` / `daily_summary` をベースラインから削除（[#74](https://github.com/kzkski/ketolog/issues/74)）。ベースラインの内容を変更したため、ローカルでチェックサム不一致になる場合は `supabase db reset` するか、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) を参照。
 
 ## [1.16.7] - 2026-04-12

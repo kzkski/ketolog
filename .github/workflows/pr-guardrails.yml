@@ -60,3 +60,16 @@ jobs:
 
           echo "CHANGELOG.md update is required for $HEAD_REF branches."
           exit 1
+
+  require-changelog-version-heading:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require CHANGELOG release heading when package.json version changes
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/ci/verify-changelog-version-heading.mjs

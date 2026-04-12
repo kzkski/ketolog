@@ -3,7 +3,7 @@
 このプロジェクトの変更履歴です。
 
 基本方針:
-- `feat` / `fix` / `refactor` / `docs` の Pull Request では、原則 `CHANGELOG.md` を更新します（CIでチェック）。
+- `feat` / `fix` / `refactor` / `docs` の Pull Request では、原則 `CHANGELOG.md` を更新します（差分の有無を CI でチェック。`package.json` の `version` を上げた PR では、同じ版の `## [X.Y.Z]` 見出しの有無も CI でチェック）。
 - 詳細な背景や設計意図など長文は [ROADMAP.md](ROADMAP.md) に寄せ、ここにはユーザー視点の要点を短く残します。
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
@@ -21,6 +21,7 @@
 
 ### Changed
 
+- **開発者向け**: Pull Request で `package.json` の `version` を変えたとき、`CHANGELOG.md` に同じ版の見出し（`## [X.Y.Z]`）があることを GitHub Actions で検証するようにした（[#126](https://github.com/kzkski/ketolog/issues/126)）。
 - **プリセット**: ケンタッキー（オリジナルチキン）プリセットの既定グラムを可食部の実測目安に合わせた（キール・サイ・リブ）。ウイング・ドラムはグラム据え置きで注記を実測目安・個体差に沿って整理した（[#124](https://github.com/kzkski/ketolog/issues/124)）。
 - **設定**: 全データエクスポートの件数説明を、メニュータブ等の登録件数であることが分かる文言にした。
 - **設定**: 全データ JSON ダウンロードから内部用の「（スナップショット記録）」お店と、その店に紐づくメニューを除外し、件数表示もエクスポート内容と一致させた。

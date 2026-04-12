@@ -1778,6 +1778,80 @@ function EditEntryDrawer({
 
 const DIET_PHASES: DietPhase[] = [1, 2, 3];
 
+/** 設定ドロワー内: 目標セット選択チップ（右クリック／長押しで名前変更メニュー） */
+function GoalSetSlotButton({
+  label,
+  selected,
+  disabled,
+  onSelect,
+  onOpenMenu,
+}: {
+  label: string;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+  onOpenMenu: (clientX: number, clientY: number) => void;
+}) {
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchAnchorRef = useRef<{ x: number; y: number } | null>(null);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onSelect}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onOpenMenu(e.clientX, e.clientY);
+      }}
+      onTouchStart={(e) => {
+        const t = e.touches[0];
+        if (!t) return;
+        touchAnchorRef.current = { x: t.clientX, y: t.clientY };
+        clearLongPress();
+        longPressTimerRef.current = setTimeout(() => {
+          longPressTimerRef.current = null;
+          const a = touchAnchorRef.current;
+          touchAnchorRef.current = null;
+          if (a) onOpenMenu(a.x, a.y);
+        }, 550);
+      }}
+      onTouchMove={(e) => {
+        const t = e.touches[0];
+        const a = touchAnchorRef.current;
+        if (!t || !a) return;
+        if (Math.abs(t.clientX - a.x) > 12 || Math.abs(t.clientY - a.y) > 12) {
+          clearLongPress();
+          touchAnchorRef.current = null;
+        }
+      }}
+      onTouchEnd={() => {
+        clearLongPress();
+        touchAnchorRef.current = null;
+      }}
+      onTouchCancel={() => {
+        clearLongPress();
+        touchAnchorRef.current = null;
+      }}
+      title="長押しまたは右クリックで名前を変更"
+      className={`flex-1 min-w-0 py-2 px-1 rounded-lg text-xs font-medium transition-colors border touch-manipulation ${
+        selected
+          ? "bg-emerald-600 border-emerald-500 text-white"
+          : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
+      } disabled:opacity-50`}
+    >
+      <span className="block truncate">{label}</span>
+    </button>
+  );
+}
+
 function SettingsDrawer({
   settings,
   restaurants,
@@ -1802,9 +1876,35 @@ function SettingsDrawer({
   const [error, setError] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
   const [exportAllError, setExportAllError] = useState<string | null>(null);
+  const [profileSlotMenu, setProfileSlotMenu] = useState<
+    null | { phase: DietPhase; x: number; y: number }
+  >(null);
+  const [renameProfilePhase, setRenameProfilePhase] = useState<DietPhase | null>(null);
 
   const editKey = String(selectedSlot) as keyof PhaseProfiles;
   const editing = profiles[editKey];
+
+  const openProfileSlotMenu = useCallback((phase: DietPhase, clientX: number, clientY: number) => {
+    if (typeof window === "undefined") return;
+    const x = Math.min(
+      window.innerWidth - TAB_CONTEXT_MENU_W - 8,
+      Math.max(8, clientX)
+    );
+    const y = Math.min(
+      window.innerHeight - TAB_CONTEXT_MENU_H - 8,
+      Math.max(8, clientY)
+    );
+    setProfileSlotMenu({ phase, x, y });
+  }, []);
+
+  useEffect(() => {
+    if (!profileSlotMenu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setProfileSlotMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [profileSlotMenu]);
 
   async function selectSlot(next: DietPhase) {
     if (next === selectedSlot) return;
@@ -1916,43 +2016,21 @@ function SettingsDrawer({
           <div>
             <h3 className="text-sm font-medium text-white mb-1">PFC 目標セット</h3>
             <p className="text-xs text-gray-500 mb-3">
-              選んだセットが上部バーの目標になります。名前と P/F/C は同じくそのセットのものです。
+              選んだセットが上部バーの目標になります。チップを長押しまたは右クリックで名前を変更できます。
             </p>
             <div className="flex gap-2 mb-4">
               {DIET_PHASES.map((ph) => (
-                <button
+                <GoalSetSlotButton
                   key={ph}
-                  type="button"
+                  label={profiles[String(ph) as keyof PhaseProfiles].name}
+                  selected={selectedSlot === ph}
                   disabled={slotSaving}
-                  onClick={() => void selectSlot(ph)}
-                  className={`flex-1 min-w-0 py-2 px-1 rounded-lg text-xs font-medium transition-colors border ${
-                    selectedSlot === ph
-                      ? "bg-emerald-600 border-emerald-500 text-white"
-                      : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
-                  } disabled:opacity-50`}
-                  title={profiles[String(ph) as keyof PhaseProfiles].name}
-                >
-                  <span className="block truncate">{profiles[String(ph) as keyof PhaseProfiles].name}</span>
-                </button>
+                  onSelect={() => void selectSlot(ph)}
+                  onOpenMenu={(cx, cy) => openProfileSlotMenu(ph, cx, cy)}
+                />
               ))}
             </div>
-            <label className="block">
-              <span className="text-xs text-gray-400">このセットの名前</span>
-              <input
-                type="text"
-                value={editing.name}
-                onChange={(e) =>
-                  setProfiles((prev) => ({
-                    ...prev,
-                    [editKey]: { ...prev[editKey], name: e.target.value },
-                  }))
-                }
-                className="mt-1 w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
-                maxLength={48}
-                autoComplete="off"
-              />
-            </label>
-            <div className="grid grid-cols-3 gap-3 mt-3">
+            <div className="grid grid-cols-3 gap-3">
               {(
                 [
                   { key: "protein_target_g" as const, label: "P タンパク質", color: "text-blue-400" },
@@ -2035,6 +2113,61 @@ function SettingsDrawer({
           </div>
         </div>
       </div>
+
+      {profileSlotMenu && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[55] cursor-default bg-transparent"
+            aria-label="メニューを閉じる"
+            onClick={() => setProfileSlotMenu(null)}
+          />
+          <div
+            role="menu"
+            className="fixed z-[56] min-w-[10rem] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
+            style={{
+              left: profileSlotMenu.x,
+              top: profileSlotMenu.y,
+            }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full px-3 py-2 text-left text-sm text-white hover:bg-gray-800"
+              onClick={() => {
+                setRenameProfilePhase(profileSlotMenu.phase);
+                setProfileSlotMenu(null);
+              }}
+            >
+              名前を変更
+            </button>
+          </div>
+        </>
+      )}
+
+      {renameProfilePhase != null && (
+        <RestaurantRenameSheet
+          key={renameProfilePhase}
+          title="セットの名前を変更"
+          initialName={profiles[String(renameProfilePhase) as keyof PhaseProfiles].name}
+          maxLength={48}
+          isSaving={false}
+          inputAriaLabel="セット名"
+          onClose={() => setRenameProfilePhase(null)}
+          onSave={(trimmed) => {
+            if (!trimmed) {
+              alert("名前を入力してください");
+              return;
+            }
+            const pk = String(renameProfilePhase) as keyof PhaseProfiles;
+            setProfiles((prev) => ({
+              ...prev,
+              [pk]: { ...prev[pk], name: trimmed.slice(0, 48) },
+            }));
+            setRenameProfilePhase(null);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -2098,6 +2231,7 @@ function RestaurantRenameSheet({
   isSaving,
   onClose,
   onSave,
+  inputAriaLabel = "新しい店名",
 }: {
   title: string;
   initialName: string;
@@ -2105,6 +2239,8 @@ function RestaurantRenameSheet({
   isSaving: boolean;
   onClose: () => void;
   onSave: (trimmed: string) => void | Promise<void>;
+  /** スクリーンリーダー用（お店以外の名前変更でも流用） */
+  inputAriaLabel?: string;
 }) {
   const [value, setValue] = useState(initialName);
   const titleId = useId();
@@ -2132,7 +2268,7 @@ function RestaurantRenameSheet({
           </h2>
           <div>
             <label htmlFor={inputId} className="sr-only">
-              新しい店名
+              {inputAriaLabel}
             </label>
             <input
               id={inputId}

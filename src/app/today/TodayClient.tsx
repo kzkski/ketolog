@@ -1778,6 +1778,47 @@ function EditEntryDrawer({
 
 const DIET_PHASES: DietPhase[] = [1, 2, 3];
 
+const PFC_MACRO_TARGET_KEYS = [
+  "protein_target_g",
+  "fat_target_g",
+  "carbs_target_g",
+] as const;
+
+type PfcMacroTargetKey = (typeof PFC_MACRO_TARGET_KEYS)[number];
+
+function pfcTargetDraftKey(phase: DietPhase, macro: PfcMacroTargetKey): string {
+  return `${phase}:${macro}`;
+}
+
+/** ドラフト文字列を確定グラム数に。空・非数は fallback（編集前の確定値）を返す */
+function committedPfcGramsFromDraft(raw: string, fallback: number): number {
+  const t = raw.trim();
+  if (t === "") return fallback;
+  const v = parseFloat(t);
+  if (!Number.isFinite(v)) return fallback;
+  return Math.max(1, Math.round(v));
+}
+
+function mergePfcTargetDraftsIntoProfiles(
+  base: PhaseProfiles,
+  drafts: Record<string, string>
+): PhaseProfiles {
+  let result = base;
+  for (const ph of DIET_PHASES) {
+    const pk = String(ph) as keyof PhaseProfiles;
+    for (const macro of PFC_MACRO_TARGET_KEYS) {
+      const dkey = pfcTargetDraftKey(ph, macro);
+      if (!Object.prototype.hasOwnProperty.call(drafts, dkey)) continue;
+      const nextVal = committedPfcGramsFromDraft(drafts[dkey]!, result[pk][macro]);
+      result = {
+        ...result,
+        [pk]: { ...result[pk], [macro]: nextVal },
+      };
+    }
+  }
+  return result;
+}
+
 /** 設定ドロワー内: 目標セット名（タップで表示中に／右クリック・長押しで名前変更） */
 function GoalSetSlotButton({
   label,
@@ -1883,6 +1924,8 @@ function SettingsDrawer({
     null | { phase: DietPhase; x: number; y: number }
   >(null);
   const [renameProfilePhase, setRenameProfilePhase] = useState<DietPhase | null>(null);
+  /** PFC 目標の編集中文字列（キーは `pfcTargetDraftKey`）。確定は blur または保存時 */
+  const [pfcTargetDrafts, setPfcTargetDrafts] = useState<Record<string, string>>({});
 
   const openProfileSlotMenu = useCallback((phase: DietPhase, clientX: number, clientY: number) => {
     if (typeof window === "undefined") return;
@@ -1921,9 +1964,10 @@ function SettingsDrawer({
   }
 
   async function handleSaveProfiles() {
+    const mergedProfiles = mergePfcTargetDraftsIntoProfiles(profiles, pfcTargetDrafts);
     for (const ph of DIET_PHASES) {
       const pk = String(ph) as keyof PhaseProfiles;
-      const pr = profiles[pk];
+      const pr = mergedProfiles[pk];
       if (
         !Number.isFinite(pr.protein_target_g) ||
         !Number.isFinite(pr.fat_target_g) ||
@@ -1942,27 +1986,29 @@ function SettingsDrawer({
     }
     const normalized: PhaseProfiles = {
       "1": {
-        ...profiles["1"],
-        name: profiles["1"].name.trim(),
-        protein_target_g: Math.round(profiles["1"].protein_target_g),
-        fat_target_g: Math.round(profiles["1"].fat_target_g),
-        carbs_target_g: Math.round(profiles["1"].carbs_target_g),
+        ...mergedProfiles["1"],
+        name: mergedProfiles["1"].name.trim(),
+        protein_target_g: Math.round(mergedProfiles["1"].protein_target_g),
+        fat_target_g: Math.round(mergedProfiles["1"].fat_target_g),
+        carbs_target_g: Math.round(mergedProfiles["1"].carbs_target_g),
       },
       "2": {
-        ...profiles["2"],
-        name: profiles["2"].name.trim(),
-        protein_target_g: Math.round(profiles["2"].protein_target_g),
-        fat_target_g: Math.round(profiles["2"].fat_target_g),
-        carbs_target_g: Math.round(profiles["2"].carbs_target_g),
+        ...mergedProfiles["2"],
+        name: mergedProfiles["2"].name.trim(),
+        protein_target_g: Math.round(mergedProfiles["2"].protein_target_g),
+        fat_target_g: Math.round(mergedProfiles["2"].fat_target_g),
+        carbs_target_g: Math.round(mergedProfiles["2"].carbs_target_g),
       },
       "3": {
-        ...profiles["3"],
-        name: profiles["3"].name.trim(),
-        protein_target_g: Math.round(profiles["3"].protein_target_g),
-        fat_target_g: Math.round(profiles["3"].fat_target_g),
-        carbs_target_g: Math.round(profiles["3"].carbs_target_g),
+        ...mergedProfiles["3"],
+        name: mergedProfiles["3"].name.trim(),
+        protein_target_g: Math.round(mergedProfiles["3"].protein_target_g),
+        fat_target_g: Math.round(mergedProfiles["3"].fat_target_g),
+        carbs_target_g: Math.round(mergedProfiles["3"].carbs_target_g),
       },
     };
+    setPfcTargetDrafts({});
+    setProfiles(normalized);
     setSaving(true);
     setError(null);
     const result = await updateUserSettings({ phase_profiles: normalized });
@@ -2054,7 +2100,9 @@ function SettingsDrawer({
                           { key: "fat_target_g" as const, short: "F", color: "text-yellow-400" },
                           { key: "carbs_target_g" as const, short: "C", color: "text-emerald-400" },
                         ] as const
-                      ).map(({ key, short, color }) => (
+                      ).map(({ key, short, color }) => {
+                        const dkey = pfcTargetDraftKey(ph, key);
+                        return (
                         <div key={key} className="min-w-0">
                           <p className={`sm:hidden text-[10px] mb-0.5 text-center font-medium ${color}`}>
                             {short}
@@ -2064,14 +2112,32 @@ function SettingsDrawer({
                               type="number"
                               min={1}
                               step={1}
-                              value={pr[key]}
+                              value={
+                                Object.prototype.hasOwnProperty.call(pfcTargetDrafts, dkey)
+                                  ? pfcTargetDrafts[dkey]
+                                  : String(pr[key])
+                              }
                               onChange={(e) => {
-                                const v = parseFloat(e.target.value);
-                                if (!Number.isFinite(v)) return;
-                                setProfiles((prev) => ({
+                                setPfcTargetDrafts((prev) => ({
                                   ...prev,
-                                  [pk]: { ...prev[pk], [key]: Math.max(1, Math.round(v)) },
+                                  [dkey]: e.target.value,
                                 }));
+                              }}
+                              onBlur={() => {
+                                setPfcTargetDrafts((drafts) => {
+                                  if (!Object.prototype.hasOwnProperty.call(drafts, dkey)) {
+                                    return drafts;
+                                  }
+                                  const raw = drafts[dkey]!;
+                                  setProfiles((prev) => {
+                                    const current = prev[pk][key];
+                                    const nextVal = committedPfcGramsFromDraft(raw, current);
+                                    return { ...prev, [pk]: { ...prev[pk], [key]: nextVal } };
+                                  });
+                                  const rest = { ...drafts };
+                                  delete rest[dkey];
+                                  return rest;
+                                });
                               }}
                               className="w-full min-w-0 px-1.5 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm text-center focus:outline-none focus:border-emerald-500"
                               aria-label={`${pr.name}の${short === "P" ? "タンパク質" : short === "F" ? "脂質" : "糖質"}目標グラム`}
@@ -2079,7 +2145,8 @@ function SettingsDrawer({
                             <span className="text-[10px] text-gray-500 shrink-0">g</span>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );

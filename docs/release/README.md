@@ -21,6 +21,10 @@
 | [quality-and-ci.md](quality-and-ci.md) | CI 現状、lint/build、テストの段階、E2E（Issue #59）、リリース前確認 |
 | [third-party-compliance.md](third-party-compliance.md) | Open Food Facts 等の継続義務・新規 API のテンプレ |
 
+## 関連（戦略・市場）
+
+- [docs/research/README.md](../research/README.md) … 市場調査レポート（参考）。公開ゲート本体ではない。
+
 ## メンテナンス
 
 - **更新頻度が高い**: `beta-checklist.md`（ゲート方式）、`quality-and-ci.md`（CI 変更時）。

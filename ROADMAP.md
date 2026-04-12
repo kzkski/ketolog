@@ -126,6 +126,10 @@
 
 機能ロードマップとは別に、**リリースゲート・法務・インフラコスト・CI/QA・第三者コンプライアンス**のチェックリストは [docs/release/README.md](docs/release/README.md) を正とする。
 
+## 市場調査（参考）
+
+ベータ・一般公開に向けた外部調査の整理版は [docs/research/README.md](docs/research/README.md) を参照（上記リリースチェックリストとは別枠）。
+
 ---
 
 ## 方針メモ

@@ -28,6 +28,7 @@ import type {
 } from "@/types/database";
 import type { MealType } from "@/lib/meal-timezone";
 import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
+import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";
 import { createClient } from "@/lib/supabase/client";
 import {
   saveMealToLog,
@@ -38,6 +39,7 @@ import {
   removeMenuItemFromFavorites,
   addRestaurant,
   deleteRestaurant,
+  updateRestaurantName,
   reorderRestaurants,
   importRestaurantData,
   importMenuItemsToRestaurant,
@@ -1916,18 +1918,113 @@ function downloadAllRestaurants(restaurants: Restaurant[], menuItems: MenuItem[]
   URL.revokeObjectURL(url);
 }
 
+const TAB_CONTEXT_MENU_W = 176;
+const TAB_CONTEXT_MENU_H = 44;
+
+function RestaurantRenameSheet({
+  title,
+  initialName,
+  maxLength,
+  isSaving,
+  onClose,
+  onSave,
+}: {
+  title: string;
+  initialName: string;
+  maxLength: number;
+  isSaving: boolean;
+  onClose: () => void;
+  onSave: (trimmed: string) => void | Promise<void>;
+}) {
+  const [value, setValue] = useState(initialName);
+  const titleId = useId();
+  const inputId = useId();
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 bg-black/60 z-[58]"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="fixed inset-x-0 bottom-0 z-[59] max-w-md mx-auto flex flex-col rounded-t-2xl border-x border-t border-gray-700 bg-gray-900 shadow-lg pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      >
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-600 rounded-full" aria-hidden />
+        </div>
+        <div className="px-4 pt-2 pb-4 space-y-3">
+          <h2 id={titleId} className="text-center text-sm font-semibold text-white">
+            {title}
+          </h2>
+          <div>
+            <label htmlFor={inputId} className="sr-only">
+              新しい店名
+            </label>
+            <input
+              id={inputId}
+              type="text"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              maxLength={maxLength}
+              className="w-full px-3 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:border-emerald-500"
+              autoFocus
+            />
+            <p className="text-[11px] text-gray-500 mt-1 text-right">
+              {value.length}/{maxLength}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSaving}
+              className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={() => void onSave(value.trim())}
+              className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              {isSaving ? "保存中..." : "保存"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function SortableRestaurantTab({
   restaurant,
   selected,
   onSelect,
+  onOpenTabMenu,
 }: {
   restaurant: Restaurant;
   selected: boolean;
   onSelect: () => void;
+  onOpenTabMenu: (r: Restaurant, clientX: number, clientY: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: restaurant.id,
   });
+
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchAnchorRef = useRef<{ x: number; y: number } | null>(null);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1956,6 +2053,40 @@ function SortableRestaurantTab({
       <button
         type="button"
         onClick={onSelect}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onOpenTabMenu(restaurant, e.clientX, e.clientY);
+        }}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          if (!t) return;
+          touchAnchorRef.current = { x: t.clientX, y: t.clientY };
+          clearLongPress();
+          longPressTimerRef.current = setTimeout(() => {
+            longPressTimerRef.current = null;
+            const a = touchAnchorRef.current;
+            touchAnchorRef.current = null;
+            if (a) onOpenTabMenu(restaurant, a.x, a.y);
+          }, 550);
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0];
+          const a = touchAnchorRef.current;
+          if (!t || !a) return;
+          if (Math.abs(t.clientX - a.x) > 12 || Math.abs(t.clientY - a.y) > 12) {
+            clearLongPress();
+            touchAnchorRef.current = null;
+          }
+        }}
+        onTouchEnd={() => {
+          clearLongPress();
+          touchAnchorRef.current = null;
+        }}
+        onTouchCancel={() => {
+          clearLongPress();
+          touchAnchorRef.current = null;
+        }}
+        title="長押しまたは右クリックでメニュー"
         className={`pl-1 pr-3 sm:pl-0.5 sm:pr-2.5 py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap text-left transition-colors touch-manipulation min-w-0 max-w-[12rem] sm:max-w-none truncate ${
           selected ? "text-white" : "text-gray-500 hover:text-gray-300"
         }`}
@@ -2019,6 +2150,58 @@ export default function TodayClient({
   const [deletingRestaurant, setDeletingRestaurant] = useState(false);
   const [confirmDeleteRestaurant, setConfirmDeleteRestaurant] = useState(false);
   const [showImportMenuItems, setShowImportMenuItems] = useState(false);
+  const [restaurantTabMenu, setRestaurantTabMenu] = useState<
+    null | { restaurant: Restaurant; x: number; y: number }
+  >(null);
+  const [renameRestaurantTarget, setRenameRestaurantTarget] = useState<Restaurant | null>(null);
+  const [renameRestaurantSaving, setRenameRestaurantSaving] = useState(false);
+
+  const openRestaurantTabMenu = useCallback((r: Restaurant, cx: number, cy: number) => {
+    if (typeof window === "undefined") return;
+    const x = Math.min(
+      window.innerWidth - TAB_CONTEXT_MENU_W - 8,
+      Math.max(8, cx)
+    );
+    const y = Math.min(
+      window.innerHeight - TAB_CONTEXT_MENU_H - 8,
+      Math.max(8, cy)
+    );
+    setRestaurantTabMenu({ restaurant: r, x, y });
+  }, []);
+
+  useEffect(() => {
+    if (!restaurantTabMenu && !renameRestaurantTarget) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setRestaurantTabMenu(null);
+      setRenameRestaurantTarget(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [restaurantTabMenu, renameRestaurantTarget]);
+
+  const submitRestaurantRename = useCallback(async (trimmed: string) => {
+    if (!renameRestaurantTarget) return;
+    setRenameRestaurantSaving(true);
+    const res = await updateRestaurantName(renameRestaurantTarget.id, trimmed);
+    setRenameRestaurantSaving(false);
+    if (res.error) {
+      alert(res.error);
+      return;
+    }
+    if (!res.data) return;
+    setRestaurants((prev) =>
+      sortRestaurants(prev.map((row) => (row.id === res.data!.id ? res.data! : row)))
+    );
+    if (res.updatedFavoriteGroupId) {
+      setFavoriteGroups((prev) =>
+        prev.map((g) =>
+          g.id === res.updatedFavoriteGroupId ? { ...g, name: res.data!.name } : g
+        )
+      );
+    }
+    setRenameRestaurantTarget(null);
+  }, [renameRestaurantTarget]);
 
   // ── 日付ナビゲーション ────────────────────────────────────────────────────
   const [selectedDate, setSelectedDate]       = useState(today);
@@ -2764,6 +2947,7 @@ export default function TodayClient({
                     setSelectedRestaurantId(r.id);
                     setConfirmDeleteRestaurant(false);
                   }}
+                  onOpenTabMenu={openRestaurantTabMenu}
                 />
               ))}
             </SortableContext>
@@ -3198,6 +3382,56 @@ export default function TodayClient({
             </div>
           </div>
         </>
+      )}
+
+      {/* お店タブ: コンテキストメニュー */}
+      {restaurantTabMenu && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[55] cursor-default bg-transparent"
+            aria-label="メニューを閉じる"
+            onClick={() => setRestaurantTabMenu(null)}
+          />
+          <div
+            role="menu"
+            className="fixed z-[56] min-w-[10rem] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
+            style={{
+              left: restaurantTabMenu.x,
+              top: restaurantTabMenu.y,
+            }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full px-3 py-2 text-left text-sm text-white hover:bg-gray-800"
+              onClick={() => {
+                setRenameRestaurantTarget(restaurantTabMenu.restaurant);
+                setRestaurantTabMenu(null);
+              }}
+            >
+              名前を変更
+            </button>
+          </div>
+        </>
+      )}
+
+      {renameRestaurantTarget && (
+        <RestaurantRenameSheet
+          key={renameRestaurantTarget.id}
+          title="お店の名前を変更"
+          initialName={renameRestaurantTarget.name}
+          maxLength={RESTAURANT_NAME_MAX_LENGTH}
+          isSaving={renameRestaurantSaving}
+          onClose={() => setRenameRestaurantTarget(null)}
+          onSave={async (trimmed) => {
+            if (!trimmed) {
+              alert("店名を入力してください");
+              return;
+            }
+            await submitRestaurantRename(trimmed);
+          }}
+        />
       )}
 
       {/* 設定ドロワー */}

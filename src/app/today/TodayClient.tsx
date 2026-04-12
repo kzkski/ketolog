@@ -380,13 +380,13 @@ function PFCBar({ label, current, target, color }: {
   const pct = Math.min((current / target) * 100, 100);
   const over = current > target;
   return (
-    <div className="flex items-center gap-2 sm:gap-2">
-      <span className="text-sm sm:text-xs text-gray-400 w-5 sm:w-4 shrink-0">{label}</span>
-      <div className="flex-1 h-2.5 sm:h-2 bg-gray-800 rounded-full overflow-hidden">
+    <div className="flex items-center gap-1 sm:gap-2">
+      <span className="text-xs text-gray-400 w-4 shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 sm:h-2 bg-gray-800 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all duration-300 ${over ? "bg-red-500" : color}`}
           style={{ width: `${pct}%` }} />
       </div>
-      <span className={`text-sm sm:text-xs tabular-nums w-[5.25rem] sm:w-[4.5rem] text-right ${over ? "text-red-400" : "text-gray-300"}`}>
+      <span className={`text-xs tabular-nums w-[4.75rem] sm:w-[4.5rem] text-right ${over ? "text-red-400" : "text-gray-300"}`}>
         {fmt(current)} / {target}g
       </span>
     </div>
@@ -1937,7 +1937,7 @@ function SortableRestaurantTab({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex shrink-0 items-stretch border-b-2 min-h-12 sm:min-h-0 ${
+      className={`flex shrink-0 items-stretch border-b-2 min-h-9 sm:min-h-0 ${
         selected ? "border-emerald-500" : "border-transparent"
       }`}
     >
@@ -1954,7 +1954,7 @@ function SortableRestaurantTab({
       <button
         type="button"
         onClick={onSelect}
-        className={`pl-1 pr-3 sm:pl-0.5 sm:pr-2.5 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap text-left transition-colors touch-manipulation min-w-0 max-w-[12rem] sm:max-w-none truncate ${
+        className={`pl-1 pr-3 sm:pl-0.5 sm:pr-2.5 py-1.5 sm:py-2.5 text-sm font-medium whitespace-nowrap text-left transition-colors touch-manipulation min-w-0 max-w-[12rem] sm:max-w-none truncate ${
           selected ? "text-white" : "text-gray-500 hover:text-gray-300"
         }`}
       >
@@ -2514,8 +2514,8 @@ export default function TodayClient({
   return (
     <>
       {/* ヘッダー */}
-      <header className="flex-none flex items-center gap-2 px-4 py-3.5 sm:py-3 border-b border-gray-800 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <h1 className="text-lg sm:text-base font-bold text-white shrink-0">
+      <header className="flex-none flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-3 border-b border-gray-800 pt-[max(0.375rem,env(safe-area-inset-top))]">
+        <h1 className="text-base font-bold text-white shrink-0">
           Ketolog
           {changelogUrl ? (
             <a
@@ -2523,18 +2523,18 @@ export default function TodayClient({
               target="_blank"
               rel="noopener noreferrer"
               aria-label="変更履歴（Changelog）を開く"
-              className="text-sm sm:text-xs font-normal text-gray-500 ml-1.5 hover:text-gray-300 hover:underline underline-offset-2"
+              className="text-xs font-normal text-gray-500 ml-1.5 hover:text-gray-300 hover:underline underline-offset-2"
             >
               v{process.env.NEXT_PUBLIC_APP_VERSION}
             </a>
           ) : (
-            <span className="text-sm sm:text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+            <span className="text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
           )}
         </h1>
         <div className="flex-1 min-w-0 flex justify-center items-center px-1">
           {headerHint ? (
             <p
-              className="text-center text-xs sm:text-[11px] text-gray-400 leading-snug truncate max-w-full"
+              className="text-center text-[11px] text-gray-400 leading-snug truncate max-w-full"
               title={headerHint}
             >
               {headerHint}
@@ -2543,7 +2543,7 @@ export default function TodayClient({
         </div>
         <button onClick={() => setShowSettings(true)}
           type="button"
-          className="shrink-0 text-gray-400 hover:text-white transition-colors text-xl sm:text-lg leading-none min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg sm:rounded-none active:bg-gray-800/60 sm:active:bg-transparent">
+          className="shrink-0 text-gray-400 hover:text-white transition-colors text-base sm:text-lg leading-none min-h-9 min-w-9 sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg sm:rounded-none active:bg-gray-800/60 sm:active:bg-transparent">
           ⚙
         </button>
       </header>
@@ -2576,7 +2576,7 @@ export default function TodayClient({
         </div>
 
         {/* PFCバー */}
-        <div className="flex-none px-4 py-3.5 sm:py-3 bg-gray-900 border-b border-gray-800 space-y-2 sm:space-y-1.5">
+        <div className="flex-none px-3 sm:px-4 py-1.5 sm:py-3 bg-gray-900 border-b border-gray-800 space-y-1 sm:space-y-1.5">
           <PFCBar label="P" current={totalPFC.p} target={currentSettings.protein_target_g} color={MACRO_BAR_BG.p} />
           <PFCBar label="F" current={totalPFC.f} target={currentSettings.fat_target_g}     color={MACRO_BAR_BG.f} />
           <PFCBar label="C" current={totalPFC.c} target={currentSettings.carbs_target_g}   color={MACRO_BAR_BG.c} />
@@ -2589,7 +2589,7 @@ export default function TodayClient({
               type="button"
               aria-expanded={showLogEntries}
               onClick={() => setShowLogEntries((v) => !v)}
-              className="w-full flex items-center justify-end gap-2 px-4 py-3 sm:py-2 text-sm sm:text-xs text-gray-400 hover:text-white transition-colors min-h-11 sm:min-h-0"
+              className="w-full flex items-center justify-end gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs text-gray-400 hover:text-white transition-colors min-h-9 sm:min-h-0"
             >
               <span className="font-medium text-gray-300 text-right">
                 この日の記録（{logEntries.length}件）
@@ -2605,7 +2605,7 @@ export default function TodayClient({
                   if (!items.length) return null;
                   return (
                     <div key={mt}>
-                      <p className="px-4 py-1.5 sm:py-1 text-sm sm:text-xs text-gray-500 bg-gray-900/50">{MEAL_LABELS[mt]}</p>
+                      <p className="px-3 sm:px-4 py-1 sm:py-1 text-xs sm:text-xs text-gray-500 bg-gray-900/50">{MEAL_LABELS[mt]}</p>
                       {items.map((entry) => (
                         <LogEntryRow
                           key={entry.id}
@@ -2633,7 +2633,7 @@ export default function TodayClient({
                   key={type}
                   type="button"
                   onClick={() => setMealType(type)}
-                  className={`flex-1 min-w-0 min-h-12 sm:min-h-0 py-3.5 sm:py-2.5 text-sm sm:text-xs font-medium border-b-2 transition-colors text-center touch-manipulation ${
+                  className={`flex-1 min-w-0 min-h-9 sm:min-h-0 py-1.5 sm:py-2.5 text-xs font-medium border-b-2 transition-colors text-center touch-manipulation ${
                     active
                       ? `${a.row} ${a.label}`
                       : "border-transparent text-gray-500 hover:text-gray-300"
@@ -2671,7 +2671,7 @@ export default function TodayClient({
               setSelectedRestaurantId(FAVORITES_TAB_ID);
               setConfirmDeleteRestaurant(false);
             }}
-            className={`px-4 py-3.5 sm:py-2.5 text-base sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-12 sm:min-h-0 touch-manipulation ${
+            className={`px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
               selectedRestaurantIdResolved === FAVORITES_TAB_ID
                 ? "border-amber-500 text-amber-100"
                 : "border-transparent text-gray-500 hover:text-gray-300"
@@ -2698,7 +2698,7 @@ export default function TodayClient({
               setConfirmDeleteRestaurant(false);
               setSelectedRestaurantId(MEXT_COMPOSITION_TAB_ID);
             }}
-            className={`px-3 py-3.5 sm:py-2.5 text-sm sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-12 sm:min-h-0 touch-manipulation max-w-[9.5rem] sm:max-w-none ${
+            className={`px-2 sm:px-3 py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation max-w-[9.5rem] sm:max-w-none ${
               selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID
                 ? "border-sky-500 text-sky-100"
                 : "border-transparent text-gray-500 hover:text-gray-300"
@@ -2729,7 +2729,7 @@ export default function TodayClient({
             </SortableContext>
           </DndContext>
           <button type="button" onClick={() => setRestaurantAddSheet("choice")}
-            className="px-3 py-3.5 sm:py-2.5 min-w-11 text-gray-500 hover:text-white shrink-0 transition-colors text-xl sm:text-lg leading-none flex items-center justify-center self-center">
+            className="px-2.5 py-1.5 sm:py-2.5 min-w-9 sm:min-w-11 text-gray-500 hover:text-white shrink-0 transition-colors text-lg sm:text-lg leading-none flex items-center justify-center self-center">
             ＋
           </button>
         </div>
@@ -2800,7 +2800,7 @@ export default function TodayClient({
                     return next;
                   })}
                   type="button"
-                  className="w-full flex items-center justify-between px-4 py-3 sm:py-2 text-gray-400 text-sm sm:text-xs bg-gray-900/50 border-b border-gray-800/60 hover:text-gray-200 transition-colors min-h-11 sm:min-h-0">
+                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2 text-gray-400 text-xs sm:text-xs bg-gray-900/50 border-b border-gray-800/60 hover:text-gray-200 transition-colors min-h-9 sm:min-h-0">
                   <span className="flex items-center gap-1.5">
                     <span>{isCollapsed ? "▶" : "▼"}</span>
                     <span>{group.groupName}（{group.items.length}品）</span>

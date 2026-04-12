@@ -41,8 +41,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className={`${geist.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-gray-950 text-white touch-manipulation">
+    <html lang="ja" className={`${geist.variable} min-h-dvh antialiased`}>
+      <body className="min-h-dvh flex flex-col bg-gray-950 text-white touch-manipulation">
         <ServiceWorkerRegister />
         {children}
       </body>

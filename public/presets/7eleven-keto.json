@@ -16,7 +16,7 @@
     { "name": "炭火焼鳥4種盛り",                            "protein_per_100g": 23.0, "fat_per_100g": 11.9, "carbs_per_100g": 0.9, "default_grams":  70, "rank": 1, "notes": "70g・PFC確認済・7premium／SEJ・2026-04（袋表示→100g換算）" },
     { "name": "スモークチーズ",                             "protein_per_100g": 20.8, "fat_per_100g": 28.6, "carbs_per_100g": 2.1, "default_grams": 100, "rank": 1, "notes": "100g・PFC確認済・SEJ・2026-04（100gあたり表示）" },
     { "name": "７プレミアム まろやか６Ｐチーズ",             "protein_per_100g": 19.4, "fat_per_100g": 22.2, "carbs_per_100g": 2.2, "default_grams":  18, "rank": 1, "notes": "18g／個・PFC確認済・SEJ・2026-04（個表示→100g換算）" },
-    { "name": "4種の素焼きミックスナッツ",                  "protein_per_100g": 11.9, "fat_per_100g": 36.6, "carbs_per_100g": 11.3,"default_grams":  25, "rank": 3, "notes": "160g入・PFC確認済・SEJ・2026-04（袋表示→100g換算・糖質約6.9g/100g）" },
+    { "name": "4種の素焼きミックスナッツ",                  "protein_per_100g": 11.9, "fat_per_100g": 36.6, "carbs_per_100g": 11.3,"default_grams":  25, "rank": 2, "notes": "160g入・PFC確認済・SEJ・2026-04（袋表示→100g換算・糖質約6.9g/100g・ランクは糖質目安3〜10g帯）" },
     { "name": "素焼きくるみ",                               "protein_per_100g": 13.6, "fat_per_100g": 71.6, "carbs_per_100g": 10.9, "default_grams":  25, "rank": 2, "notes": "77g入・PFC確認済・SEJ・2026-04（袋表示→100g換算・糖質約5.8g/100g）" },
     { "name": "７プレミアム スティックサラミ",               "protein_per_100g": 27.6, "fat_per_100g": 43.5, "carbs_per_100g": 2.4, "default_grams":  17, "rank": 1, "notes": "17g・PFC確認済・7premium／SEJ・2026-04（本表示→100g換算）" },
     { "name": "乾燥させた生ハム",                           "protein_per_100g": 28.0, "fat_per_100g":  4.0, "carbs_per_100g": 8.5, "default_grams":  20, "rank": 2, "notes": "20g・PFC確認済・SEJ・2026-04（袋表示→100g換算・糖質約4.5g/100g）" }

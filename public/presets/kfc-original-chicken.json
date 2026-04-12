@@ -9,9 +9,9 @@
       "fat_per_100g": 15.8,
       "carbs_per_100g": 8.3,
       "shared_barcode": null,
-      "default_grams": 133,
+      "default_grams": 90,
       "rank": 2,
-      "notes": "可食部133g推計。P最大だがF密度は低め。P補填日向き。米国KFC公式ベース",
+      "notes": "可食部は実測目安90g（個体差・店舗差あり）。PFCは100gあたり米国KFC公式。Pは多め・F密度は低め",
       "group": "オリジナルチキン"
     },
     {
@@ -20,9 +20,9 @@
       "fat_per_100g": 24.1,
       "carbs_per_100g": 10.1,
       "shared_barcode": null,
-      "default_grams": 79,
+      "default_grams": 120,
       "rank": 1,
-      "notes": "可食部79g推計。可食部あたりF密度が全部位トップ（24.1g/100g）。ケト最強部位。米国KFC公式ベース",
+      "notes": "可食部は実測目安120g（個体差あり）。PFCは100gあたり米国KFC公式。可食部あたりF密度が高い部位",
       "group": "オリジナルチキン"
     },
     {
@@ -33,7 +33,7 @@
       "shared_barcode": null,
       "default_grams": 55,
       "rank": 3,
-      "notes": "可食部55g推計（USDA総重量75gから骨20g差引）。F密度が低くケトコスパは最も低い。米国KFC公式+USDA",
+      "notes": "可食部は実測目安55g（個体差あり）。PFCは100gあたり米国KFC公式。F密度は部位内では低め",
       "group": "オリジナルチキン"
     },
     {
@@ -44,7 +44,7 @@
       "shared_barcode": null,
       "default_grams": 70,
       "rank": 1,
-      "notes": "可食部70g推計。小ぶりだがF密度高くC最小。皮面積比が高い。米国KFC公式ベース",
+      "notes": "可食部は実測目安70g（同部位でもサイズにばらつき。やや大きめのピースの可能性あり）。PFCは100gあたり米国KFC公式",
       "group": "オリジナルチキン"
     },
     {
@@ -53,9 +53,9 @@
       "fat_per_100g": 22.9,
       "carbs_per_100g": 12.1,
       "shared_barcode": null,
-      "default_grams": 70,
+      "default_grams": 90,
       "rank": 1,
-      "notes": "可食部70g推計（骨多め）。P・Fともに高水準でバランス最良。英国KFC公式ベース（米国に部位なし）",
+      "notes": "可食部は実測目安90g（骨まわりで変動しやすい）。PFCは100gあたり英国KFC公式（米国に部位なし）",
       "group": "オリジナルチキン"
     }
   ]

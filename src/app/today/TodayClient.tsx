@@ -1792,31 +1792,31 @@ function SettingsDrawer({
   onSaved: (updated: UserSettings) => void;
 }) {
   const { exportRestaurants, exportMenuItems } = partitionForFullJsonExport(restaurants, menuItems);
-  const [displayPhase, setDisplayPhase] = useState<DietPhase>(settings.diet_phase);
   const [profiles, setProfiles] = useState<PhaseProfiles>(() =>
     structuredClone(settings.phase_profiles)
   );
-  const [editPhase, setEditPhase] = useState<DietPhase>(settings.diet_phase);
+  /** 選択中＝上部バーに使うセット＝直下で編集するセット（内部では diet_phase 1〜3） */
+  const [selectedSlot, setSelectedSlot] = useState<DietPhase>(settings.diet_phase);
   const [saving, setSaving] = useState(false);
-  const [phaseSaving, setPhaseSaving] = useState(false);
+  const [slotSaving, setSlotSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
   const [exportAllError, setExportAllError] = useState<string | null>(null);
 
-  const editKey = String(editPhase) as keyof PhaseProfiles;
+  const editKey = String(selectedSlot) as keyof PhaseProfiles;
   const editing = profiles[editKey];
 
-  async function handleDisplayPhaseChange(next: DietPhase) {
-    if (next === displayPhase) return;
-    setPhaseSaving(true);
+  async function selectSlot(next: DietPhase) {
+    if (next === selectedSlot) return;
+    setSlotSaving(true);
     setError(null);
     const result = await updateUserSettings({ diet_phase: next });
-    setPhaseSaving(false);
+    setSlotSaving(false);
     if (result.error) {
       setError(result.error);
       return;
     }
-    setDisplayPhase(next);
+    setSelectedSlot(next);
     onSaved({ ...settings, diet_phase: next, phase_profiles: settings.phase_profiles });
   }
 
@@ -1832,11 +1832,11 @@ function SettingsDrawer({
         pr.fat_target_g <= 0 ||
         pr.carbs_target_g <= 0
       ) {
-        setError("各フェーズの PFC は正の数値にしてください");
+        setError("各セットの PFC は正の数値にしてください");
         return;
       }
       if (!pr.name.trim()) {
-        setError("各フェーズの名称を入力してください");
+        setError("各セットの名前を入力してください");
         return;
       }
     }
@@ -1872,7 +1872,7 @@ function SettingsDrawer({
       return;
     }
     setProfiles(normalized);
-    onSaved({ ...settings, diet_phase: displayPhase, phase_profiles: normalized });
+    onSaved({ ...settings, diet_phase: selectedSlot, phase_profiles: normalized });
     setSaving(false);
     onClose();
   }
@@ -1912,19 +1912,21 @@ function SettingsDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* ダイエットフェーズ・PFC目標 */}
+          {/* PFC 目標セット（3つ） */}
           <div>
-            <h3 className="text-sm font-medium text-white mb-2">表示中のフェーズ（上部バー）</h3>
-            <p className="text-xs text-gray-500 mb-2">PFC バーとヒントはこのフェーズの目標と比較されます。</p>
-            <div className="flex gap-2">
+            <h3 className="text-sm font-medium text-white mb-1">PFC 目標セット</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              選んだセットが上部バーの目標になります。名前と P/F/C は同じくそのセットのものです。
+            </p>
+            <div className="flex gap-2 mb-4">
               {DIET_PHASES.map((ph) => (
                 <button
                   key={ph}
                   type="button"
-                  disabled={phaseSaving}
-                  onClick={() => void handleDisplayPhaseChange(ph)}
+                  disabled={slotSaving}
+                  onClick={() => void selectSlot(ph)}
                   className={`flex-1 min-w-0 py-2 px-1 rounded-lg text-xs font-medium transition-colors border ${
-                    displayPhase === ph
+                    selectedSlot === ph
                       ? "bg-emerald-600 border-emerald-500 text-white"
                       : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
                   } disabled:opacity-50`}
@@ -1934,28 +1936,8 @@ function SettingsDrawer({
                 </button>
               ))}
             </div>
-            <h3 className="text-sm font-medium text-white mt-5 mb-2">フェーズ別の目標を編集</h3>
-            <div className="flex gap-2 mb-3">
-              {DIET_PHASES.map((ph) => (
-                <button
-                  key={ph}
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setEditPhase(ph);
-                  }}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    editPhase === ph
-                      ? "border-emerald-500 text-emerald-300 bg-emerald-950/40"
-                      : "border-gray-700 text-gray-400 hover:border-gray-600"
-                  }`}
-                >
-                  フェーズ {ph}
-                </button>
-              ))}
-            </div>
             <label className="block">
-              <span className="text-xs text-gray-400">名称</span>
+              <span className="text-xs text-gray-400">このセットの名前</span>
               <input
                 type="text"
                 value={editing.name}

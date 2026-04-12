@@ -10,6 +10,12 @@
 
 ## [Unreleased]
 
+## [1.17.2] - 2026-04-12
+
+### Changed
+
+- **今日ページヘッダー**: ロゴを 44×44 の専用 PNG（`icon-header-44.png`）に切り替え、1:1 で表示（[#93](https://github.com/kzkski/ketolog/issues/93)）。
+
 ## [1.17.1] - 2026-04-12
 
 ### Changed

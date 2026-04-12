@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **プリセット**: コンビニ統合プリセットのファイル名を `convenience-keto.json`、店名を `convenience` に変更した（旧 `conbini-keto.json`／`conbini`）。
+
 ## [1.22.0] - 2026-04-12
 
 ### Changed

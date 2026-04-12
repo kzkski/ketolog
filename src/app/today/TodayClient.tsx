@@ -62,6 +62,7 @@ import {
 import { computeHeaderHintText, getActiveHintSlot } from "@/lib/header-hint";
 import { STANDARD_FOOD_TAB_TITLE } from "@/lib/standard-food-groups";
 import { StandardFoodPanel } from "./StandardFoodPanel";
+import { MenuGroupCollapseSession } from "./MenuGroupCollapseSession";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -2002,9 +2003,6 @@ export default function TodayClient({
   );
   const [cart, setCart]             = useState<Map<string, CartEntry>>(new Map());
   const [mealType, setMealType]     = useState<MealType>(initialMealType);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
-    new Set(["g:控えめ", "g:避ける"])
-  );
   const [saving, setSaving]         = useState(false);
   const [cartExpanded, setCartExpanded] = useState(false);
   useEffect(() => {
@@ -2333,6 +2331,13 @@ export default function TodayClient({
         return a.groupOrder - b.groupOrder;
       });
   }, [menuItems, selectedRestaurantIdResolved, favoriteGroups, restaurantNameById]);
+
+  const collapsibleMenuSectionKeys = useMemo(
+    () => menuGroups.filter((g) => g.groupName !== null).map((g) => g.sectionKey),
+    [menuGroups]
+  );
+
+  const menuGroupCollapseSessionKey = `${selectedRestaurantIdResolved}\0${collapsibleMenuSectionKeys.join("\0")}`;
 
   // ── カート操作 ──────────────────────────────────────────────────────────────
   function addItem(item: MenuItem, grams: number) {
@@ -2803,6 +2808,13 @@ export default function TodayClient({
             />
           ) : (
             <>
+          <MenuGroupCollapseSession
+            key={menuGroupCollapseSessionKey}
+            selectedRestaurantIdResolved={selectedRestaurantIdResolved}
+            collapsibleMenuSectionKeys={collapsibleMenuSectionKeys}
+          >
+            {({ collapsedGroups, toggleMenuGroupCollapsed }) => (
+              <>
           {menuGroups.map((group) => {
             if (group.groupName === null) {
               return group.items.map((item) => (
@@ -2828,12 +2840,7 @@ export default function TodayClient({
             return (
               <div key={group.sectionKey}>
                 <button
-                  onClick={() => setCollapsedGroups((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(group.sectionKey)) next.delete(group.sectionKey);
-                    else next.add(group.sectionKey);
-                    return next;
-                  })}
+                  onClick={() => toggleMenuGroupCollapsed(group.sectionKey)}
                   type="button"
                   className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2 text-gray-400 text-xs sm:text-xs bg-gray-900/50 border-b border-gray-800/60 hover:text-gray-200 transition-colors min-h-9 sm:min-h-0">
                   <span className="flex items-center gap-1.5">
@@ -2865,6 +2872,9 @@ export default function TodayClient({
               </div>
             );
           })}
+              </>
+            )}
+          </MenuGroupCollapseSession>
 
           {/* メニュー追加 & お店削除 */}
           {selectedRestaurantIdResolved &&

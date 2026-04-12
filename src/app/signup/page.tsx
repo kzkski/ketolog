@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -52,7 +53,17 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950">
       <div className="w-full max-w-sm px-6">
-        <h1 className="text-2xl font-bold text-white mb-2 text-center">Ketolog</h1>
+        <div className="flex flex-col items-center">
+          <Image
+            src="/icons/icon-192.png"
+            alt=""
+            width={72}
+            height={72}
+            className="h-[72px] w-[72px] rounded-full object-cover mb-4"
+            priority
+          />
+          <h1 className="text-2xl font-bold text-white mb-2 text-center">Ketolog</h1>
+        </div>
         <p className="text-gray-400 text-sm text-center mb-8">アカウント作成</p>
 
         <button

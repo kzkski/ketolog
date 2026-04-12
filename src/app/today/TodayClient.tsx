@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useMemo, useRef, useId, useEffect, useCallback } from "react";
 import {
   DndContext,
@@ -2515,8 +2516,17 @@ export default function TodayClient({
     <>
       {/* ヘッダー */}
       <header className="flex-none flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-3 border-b border-gray-800 pt-[max(0.375rem,env(safe-area-inset-top))]">
-        <h1 className="text-base font-bold text-white shrink-0">
-          Ketolog
+        <div className="flex items-center gap-2 shrink-0 min-w-0">
+          <Image
+            src="/icons/icon-192.png"
+            alt=""
+            width={32}
+            height={32}
+            className="h-7 w-7 sm:h-8 sm:w-8 shrink-0 rounded-full object-cover"
+            priority
+          />
+          <h1 className="text-base font-bold text-white shrink-0">
+            Ketolog
           {changelogUrl ? (
             <a
               href={changelogUrl}
@@ -2530,7 +2540,8 @@ export default function TodayClient({
           ) : (
             <span className="text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
           )}
-        </h1>
+          </h1>
+        </div>
         <div className="flex-1 min-w-0 flex justify-center items-center px-1">
           {headerHint ? (
             <p

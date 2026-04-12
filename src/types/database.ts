@@ -1,8 +1,8 @@
+import type { DietPhase, PhaseProfiles } from "@/lib/diet-phase";
+
 export type UserSettings = {
-  diet_phase: number;
-  protein_target_g: number;
-  fat_target_g: number;
-  carbs_target_g: number;
+  diet_phase: DietPhase;
+  phase_profiles: PhaseProfiles;
 };
 
 export type Restaurant = {

@@ -26,6 +26,11 @@ import type {
   TodayConsumed,
   FavoriteGroupPayload,
 } from "@/types/database";
+import {
+  activePhaseProfile,
+  type DietPhase,
+  type PhaseProfiles,
+} from "@/lib/diet-phase";
 import type { MealType } from "@/lib/meal-timezone";
 import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";
@@ -1771,6 +1776,8 @@ function EditEntryDrawer({
 
 // ─── 設定ドロワー ──────────────────────────────────────────────────────────────
 
+const DIET_PHASES: DietPhase[] = [1, 2, 3];
+
 function SettingsDrawer({
   settings,
   restaurants,
@@ -1785,23 +1792,88 @@ function SettingsDrawer({
   onSaved: (updated: UserSettings) => void;
 }) {
   const { exportRestaurants, exportMenuItems } = partitionForFullJsonExport(restaurants, menuItems);
-  const [protein, setProtein] = useState(settings.protein_target_g.toString());
-  const [fat, setFat]         = useState(settings.fat_target_g.toString());
-  const [carbs, setCarbs]     = useState(settings.carbs_target_g.toString());
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [displayPhase, setDisplayPhase] = useState<DietPhase>(settings.diet_phase);
+  const [profiles, setProfiles] = useState<PhaseProfiles>(() =>
+    structuredClone(settings.phase_profiles)
+  );
+  const [editPhase, setEditPhase] = useState<DietPhase>(settings.diet_phase);
+  const [saving, setSaving] = useState(false);
+  const [phaseSaving, setPhaseSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
   const [exportAllError, setExportAllError] = useState<string | null>(null);
 
-  async function handleSave() {
-    const p = parseFloat(protein), f = parseFloat(fat), c = parseFloat(carbs);
-    if (isNaN(p) || isNaN(f) || isNaN(c) || p <= 0 || f <= 0 || c <= 0) {
-      setError("正の数値を入力してください"); return;
+  const editKey = String(editPhase) as keyof PhaseProfiles;
+  const editing = profiles[editKey];
+
+  async function handleDisplayPhaseChange(next: DietPhase) {
+    if (next === displayPhase) return;
+    setPhaseSaving(true);
+    setError(null);
+    const result = await updateUserSettings({ diet_phase: next });
+    setPhaseSaving(false);
+    if (result.error) {
+      setError(result.error);
+      return;
     }
-    setSaving(true); setError(null);
-    const result = await updateUserSettings({ protein_target_g: p, fat_target_g: f, carbs_target_g: c });
-    if (result.error) { setError(result.error); setSaving(false); return; }
-    onSaved({ ...settings, protein_target_g: p, fat_target_g: f, carbs_target_g: c });
+    setDisplayPhase(next);
+    onSaved({ ...settings, diet_phase: next, phase_profiles: settings.phase_profiles });
+  }
+
+  async function handleSaveProfiles() {
+    for (const ph of DIET_PHASES) {
+      const pk = String(ph) as keyof PhaseProfiles;
+      const pr = profiles[pk];
+      if (
+        !Number.isFinite(pr.protein_target_g) ||
+        !Number.isFinite(pr.fat_target_g) ||
+        !Number.isFinite(pr.carbs_target_g) ||
+        pr.protein_target_g <= 0 ||
+        pr.fat_target_g <= 0 ||
+        pr.carbs_target_g <= 0
+      ) {
+        setError("各フェーズの PFC は正の数値にしてください");
+        return;
+      }
+      if (!pr.name.trim()) {
+        setError("各フェーズの名称を入力してください");
+        return;
+      }
+    }
+    const normalized: PhaseProfiles = {
+      "1": {
+        ...profiles["1"],
+        name: profiles["1"].name.trim(),
+        protein_target_g: Math.round(profiles["1"].protein_target_g),
+        fat_target_g: Math.round(profiles["1"].fat_target_g),
+        carbs_target_g: Math.round(profiles["1"].carbs_target_g),
+      },
+      "2": {
+        ...profiles["2"],
+        name: profiles["2"].name.trim(),
+        protein_target_g: Math.round(profiles["2"].protein_target_g),
+        fat_target_g: Math.round(profiles["2"].fat_target_g),
+        carbs_target_g: Math.round(profiles["2"].carbs_target_g),
+      },
+      "3": {
+        ...profiles["3"],
+        name: profiles["3"].name.trim(),
+        protein_target_g: Math.round(profiles["3"].protein_target_g),
+        fat_target_g: Math.round(profiles["3"].fat_target_g),
+        carbs_target_g: Math.round(profiles["3"].carbs_target_g),
+      },
+    };
+    setSaving(true);
+    setError(null);
+    const result = await updateUserSettings({ phase_profiles: normalized });
+    if (result.error) {
+      setError(result.error);
+      setSaving(false);
+      return;
+    }
+    setProfiles(normalized);
+    onSaved({ ...settings, diet_phase: displayPhase, phase_profiles: normalized });
+    setSaving(false);
     onClose();
   }
 
@@ -1840,29 +1912,103 @@ function SettingsDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* PFC目標値 */}
+          {/* ダイエットフェーズ・PFC目標 */}
           <div>
-            <h3 className="text-sm font-medium text-white mb-3">PFC目標値（g/日）</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "P タンパク質", value: protein, set: setProtein, color: "text-blue-400" },
-                { label: "F 脂質",       value: fat,     set: setFat,     color: "text-yellow-400" },
-                { label: "C 糖質",       value: carbs,   set: setCarbs,   color: "text-emerald-400" },
-              ].map(({ label, value, set, color }) => (
-                <div key={label}>
+            <h3 className="text-sm font-medium text-white mb-2">表示中のフェーズ（上部バー）</h3>
+            <p className="text-xs text-gray-500 mb-2">PFC バーとヒントはこのフェーズの目標と比較されます。</p>
+            <div className="flex gap-2">
+              {DIET_PHASES.map((ph) => (
+                <button
+                  key={ph}
+                  type="button"
+                  disabled={phaseSaving}
+                  onClick={() => void handleDisplayPhaseChange(ph)}
+                  className={`flex-1 min-w-0 py-2 px-1 rounded-lg text-xs font-medium transition-colors border ${
+                    displayPhase === ph
+                      ? "bg-emerald-600 border-emerald-500 text-white"
+                      : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
+                  } disabled:opacity-50`}
+                  title={profiles[String(ph) as keyof PhaseProfiles].name}
+                >
+                  <span className="block truncate">{profiles[String(ph) as keyof PhaseProfiles].name}</span>
+                </button>
+              ))}
+            </div>
+            <h3 className="text-sm font-medium text-white mt-5 mb-2">フェーズ別の目標を編集</h3>
+            <div className="flex gap-2 mb-3">
+              {DIET_PHASES.map((ph) => (
+                <button
+                  key={ph}
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setEditPhase(ph);
+                  }}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    editPhase === ph
+                      ? "border-emerald-500 text-emerald-300 bg-emerald-950/40"
+                      : "border-gray-700 text-gray-400 hover:border-gray-600"
+                  }`}
+                >
+                  フェーズ {ph}
+                </button>
+              ))}
+            </div>
+            <label className="block">
+              <span className="text-xs text-gray-400">名称</span>
+              <input
+                type="text"
+                value={editing.name}
+                onChange={(e) =>
+                  setProfiles((prev) => ({
+                    ...prev,
+                    [editKey]: { ...prev[editKey], name: e.target.value },
+                  }))
+                }
+                className="mt-1 w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
+                maxLength={48}
+                autoComplete="off"
+              />
+            </label>
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              {(
+                [
+                  { key: "protein_target_g" as const, label: "P タンパク質", color: "text-blue-400" },
+                  { key: "fat_target_g" as const, label: "F 脂質", color: "text-yellow-400" },
+                  { key: "carbs_target_g" as const, label: "C 糖質", color: "text-emerald-400" },
+                ] as const
+              ).map(({ key, label, color }) => (
+                <div key={key}>
                   <p className={`text-xs mb-1 ${color}`}>{label}</p>
                   <div className="flex items-center gap-1">
-                    <input type="number" value={value} onChange={(e) => set(e.target.value)}
-                      className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm text-center focus:outline-none focus:border-emerald-500" />
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={editing[key]}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value);
+                        if (!Number.isFinite(v)) return;
+                        setProfiles((prev) => ({
+                          ...prev,
+                          [editKey]: { ...prev[editKey], [key]: Math.max(1, Math.round(v)) },
+                        }));
+                      }}
+                      className="w-full px-2 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm text-center focus:outline-none focus:border-emerald-500"
+                    />
                     <span className="text-xs text-gray-500 shrink-0">g</span>
                   </div>
                 </div>
               ))}
             </div>
             {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-            <button onClick={handleSave} disabled={saving}
-              className="mt-3 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors">
-              {saving ? "保存中..." : "保存する"}
+            <button
+              type="button"
+              onClick={() => void handleSaveProfiles()}
+              disabled={saving}
+              className="mt-3 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              {saving ? "保存中..." : "目標を保存する"}
             </button>
           </div>
 
@@ -2167,6 +2313,25 @@ export default function TodayClient({
   snapshotRestaurantId,
 }: Props) {
   const [currentSettings, setCurrentSettings] = useState<UserSettings>(settings);
+  const activeProfile = useMemo(
+    () => activePhaseProfile(currentSettings),
+    [currentSettings]
+  );
+  const [phaseQuickSaving, setPhaseQuickSaving] = useState(false);
+  const selectQuickPhase = useCallback(
+    async (ph: DietPhase) => {
+      if (ph === currentSettings.diet_phase || phaseQuickSaving) return;
+      setPhaseQuickSaving(true);
+      const r = await updateUserSettings({ diet_phase: ph });
+      setPhaseQuickSaving(false);
+      if (r.error) {
+        alert(r.error);
+        return;
+      }
+      setCurrentSettings((prev) => ({ ...prev, diet_phase: ph }));
+    },
+    [currentSettings.diet_phase, phaseQuickSaving]
+  );
   const [showSettings, setShowSettings]       = useState(false);
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
   const [menuItems, setMenuItems]     = useState<MenuItem[]>(initialMenuItems);
@@ -2431,15 +2596,17 @@ export default function TodayClient({
       slot,
       consumed: { p: totalPFC.p, f: totalPFC.f, c: totalPFC.c },
       targets: {
-        p: currentSettings.protein_target_g,
-        f: currentSettings.fat_target_g,
-        c: currentSettings.carbs_target_g,
+        p: activeProfile.protein_target_g,
+        f: activeProfile.fat_target_g,
+        c: activeProfile.carbs_target_g,
       },
     });
   }, [
     selectedDate,
     today,
-    currentSettings,
+    activeProfile.protein_target_g,
+    activeProfile.fat_target_g,
+    activeProfile.carbs_target_g,
     totalPFC.p,
     totalPFC.f,
     totalPFC.c,
@@ -2840,11 +3007,37 @@ export default function TodayClient({
           </button>
         </div>
 
+        {/* ダイエットフェーズ（表示中の目標） */}
+        <div className="flex-none px-2 sm:px-4 py-1 sm:py-1.5 border-b border-gray-800 bg-gray-900">
+          <div className="flex gap-1 sm:gap-2 justify-stretch">
+            {DIET_PHASES.map((ph) => {
+              const pr = currentSettings.phase_profiles[String(ph) as keyof PhaseProfiles];
+              const on = currentSettings.diet_phase === ph;
+              return (
+                <button
+                  key={ph}
+                  type="button"
+                  disabled={phaseQuickSaving}
+                  onClick={() => void selectQuickPhase(ph)}
+                  title={pr.name}
+                  className={`flex-1 min-w-0 min-h-8 sm:min-h-9 px-1 sm:px-2 rounded-lg text-[10px] sm:text-xs font-medium transition-colors border touch-manipulation ${
+                    on
+                      ? "border-emerald-500 bg-emerald-950/50 text-emerald-100"
+                      : "border-gray-700 bg-gray-800/60 text-gray-400 hover:border-gray-600 hover:text-gray-200"
+                  } disabled:opacity-50`}
+                >
+                  <span className="block truncate">{pr.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* PFCバー */}
         <div className="flex-none px-3 sm:px-4 py-1.5 sm:py-3 bg-gray-900 border-b border-gray-800 space-y-1 sm:space-y-1.5">
-          <PFCBar label="P" current={totalPFC.p} target={currentSettings.protein_target_g} color={MACRO_BAR_BG.p} />
-          <PFCBar label="F" current={totalPFC.f} target={currentSettings.fat_target_g}     color={MACRO_BAR_BG.f} />
-          <PFCBar label="C" current={totalPFC.c} target={currentSettings.carbs_target_g}   color={MACRO_BAR_BG.c} />
+          <PFCBar label="P" current={totalPFC.p} target={activeProfile.protein_target_g} color={MACRO_BAR_BG.p} />
+          <PFCBar label="F" current={totalPFC.f} target={activeProfile.fat_target_g}     color={MACRO_BAR_BG.f} />
+          <PFCBar label="C" current={totalPFC.c} target={activeProfile.carbs_target_g}   color={MACRO_BAR_BG.c} />
         </div>
 
         {/* 記録済みパネル */}
@@ -3055,8 +3248,8 @@ export default function TodayClient({
                   onToggleFavorite={() => void handleToggleFavorite(item)}
                   isFavorited={favoriteMenuItemIds.has(item.id)}
                   pfcTargets={{
-                    protein_target_g: currentSettings.protein_target_g,
-                    fat_target_g: currentSettings.fat_target_g,
+                    protein_target_g: activeProfile.protein_target_g,
+                    fat_target_g: activeProfile.fat_target_g,
                   }}
                 />
               ));
@@ -3090,8 +3283,8 @@ export default function TodayClient({
                     isFavorited={favoriteMenuItemIds.has(item.id)}
                     originCaption={group.originByItemId?.[item.id] ?? null}
                     pfcTargets={{
-                      protein_target_g: currentSettings.protein_target_g,
-                      fat_target_g: currentSettings.fat_target_g,
+                      protein_target_g: activeProfile.protein_target_g,
+                      fat_target_g: activeProfile.fat_target_g,
                     }}
                   />
                 ))}

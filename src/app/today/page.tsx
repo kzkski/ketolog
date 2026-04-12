@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
 import { getOrCreateSnapshotRestaurant, fetchFavoriteGroupsPayload } from "./actions";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
+import { normalizeUserSettings } from "@/lib/diet-phase";
 import fs from "fs";
 import path from "path";
 
@@ -48,12 +49,9 @@ export default async function TodayPage() {
     fetchFavoriteGroupsPayload(),
   ]);
 
-  const settings: UserSettings = settingsRes.data ?? {
-    diet_phase: 1,
-    protein_target_g: 100,
-    fat_target_g: 120,
-    carbs_target_g: 40,
-  };
+  const settings: UserSettings = settingsRes.data
+    ? normalizeUserSettings(settingsRes.data)
+    : normalizeUserSettings(null);
 
   const rawRestaurants: Restaurant[] = restaurantsRes.data ?? [];
   const snapshotRestaurant = await getOrCreateSnapshotRestaurant();

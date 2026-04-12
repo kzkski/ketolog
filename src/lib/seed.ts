@@ -1,4 +1,5 @@
 import homemadePreset from "../../public/presets/homemade-keto.json";
+import { DEFAULT_PHASE_PROFILES } from "@/lib/diet-phase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabaseClient = { from: (table: string) => any; auth?: unknown };
@@ -8,9 +9,7 @@ export async function seedUserData(supabase: AnySupabaseClient, userId: string) 
   await supabase.from("user_settings").upsert({
     user_id: userId,
     diet_phase: 1,
-    protein_target_g: 100,
-    fat_target_g: 120,
-    carbs_target_g: 40,
+    phase_profiles: DEFAULT_PHASE_PROFILES,
   });
 
   // 汎用食材プリセットを通常レストランとして登録（重複はスキップ）

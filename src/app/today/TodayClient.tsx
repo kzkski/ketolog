@@ -58,13 +58,7 @@ import {
   menuRowMacroHighlights,
   type MacroHighlightTargets,
 } from "@/lib/macroHighlights";
-import {
-  computeHeaderHintText,
-  getActiveHintSlot,
-  getCachedHeaderHint,
-  setCachedHeaderHint,
-  targetsFingerprint,
-} from "@/lib/header-hint";
+import { computeHeaderHintText, getActiveHintSlot } from "@/lib/header-hint";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -150,6 +144,8 @@ type NutrientMode = "per100g" | "perServing";
 type ItemDrawerState =
   | { kind: "edit"; item: MenuItem }
   | { kind: "add"; restaurantId: string; logMealType?: MealType };
+
+const HEADER_HINT_DEBOUNCE_MS = 300;
 
 // ─── ユーティリティ ────────────────────────────────────────────────────────────
 
@@ -2104,14 +2100,11 @@ export default function TodayClient({
     return () => clearInterval(id);
   }, []);
 
-  const headerHint = useMemo(() => {
+  const headerHintRaw = useMemo(() => {
     void headerHintTimeTick;
     if (selectedDate !== today) return null;
     const slot = getActiveHintSlot(new Date());
     if (!slot) return null;
-    const fp = targetsFingerprint(currentSettings);
-    const cached = getCachedHeaderHint(selectedDate, slot, fp);
-    if (cached !== null) return cached;
     return computeHeaderHintText({
       slot,
       consumed: { p: totalPFC.p, f: totalPFC.f, c: totalPFC.c },
@@ -2131,32 +2124,31 @@ export default function TodayClient({
     headerHintTimeTick,
   ]);
 
+  const [headerHint, setHeaderHint] = useState<string | null>(null);
+  const headerHintDisplayedRef = useRef<string | null>(null);
+
   useEffect(() => {
-    void headerHintTimeTick;
-    if (selectedDate !== today) return;
-    const slot = getActiveHintSlot(new Date());
-    if (!slot) return;
-    const fp = targetsFingerprint(currentSettings);
-    if (getCachedHeaderHint(selectedDate, slot, fp) !== null) return;
-    const text = computeHeaderHintText({
-      slot,
-      consumed: { p: totalPFC.p, f: totalPFC.f, c: totalPFC.c },
-      targets: {
-        p: currentSettings.protein_target_g,
-        f: currentSettings.fat_target_g,
-        c: currentSettings.carbs_target_g,
-      },
-    });
-    setCachedHeaderHint(selectedDate, slot, fp, text);
-  }, [
-    selectedDate,
-    today,
-    currentSettings,
-    totalPFC.p,
-    totalPFC.f,
-    totalPFC.c,
-    headerHintTimeTick,
-  ]);
+    if (headerHintRaw === null) {
+      headerHintDisplayedRef.current = null;
+      const clearId = window.setTimeout(() => {
+        setHeaderHint(null);
+      }, 0);
+      return () => clearTimeout(clearId);
+    }
+    if (headerHintDisplayedRef.current === null) {
+      const showId = window.setTimeout(() => {
+        headerHintDisplayedRef.current = headerHintRaw;
+        setHeaderHint(headerHintRaw);
+      }, 0);
+      return () => clearTimeout(showId);
+    }
+    if (headerHintDisplayedRef.current === headerHintRaw) return;
+    const id = window.setTimeout(() => {
+      headerHintDisplayedRef.current = headerHintRaw;
+      setHeaderHint(headerHintRaw);
+    }, HEADER_HINT_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [headerHintRaw]);
 
   const cartEntries = useMemo(() => Array.from(cart.values()).filter((e) => e.count > 0), [cart]);
   const hasCart = cartEntries.length > 0;

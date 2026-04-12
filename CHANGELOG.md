@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **今日ページヘッダー**: ヒントが PFC バー（確定摂取＋カート）と同期するよう改善。スロット内の `localStorage` 固定をやめ、文面は約 300ms デバウンスで更新（[#79](https://github.com/kzkski/ketolog/issues/79)）。
+
 ### Changed
 
 - **開発者向け**: アプリ未使用の `body_composition` / `daily_log` / `daily_summary` をベースラインから削除（[#74](https://github.com/kzkski/ketolog/issues/74)）。ベースラインの内容を変更したため、ローカルでチェックサム不一致になる場合は `supabase db reset` するか、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) を参照。

@@ -1,6 +1,7 @@
 /**
- * 今日ページヘッダー用の時間帯ベース日次ヒント（純粋ロジック + localStorage）。
+ * 今日ページヘッダー用の時間帯ベース日次ヒント（純粋ロジック）。
  * Issue #70: Asia/Tokyo・3スロット・糖質優先分岐・PFC不足割合による主マクロ。
+ * 表示文面は TodayClient 側で PFC バーと同じ摂取（確定＋カート）に追従させる（#79）。
  */
 
 export const TOKYO_TZ = "Asia/Tokyo";
@@ -22,17 +23,6 @@ const SLOT_BED_END = 24 * 60;
 export const NEAR_CARB_RATIO = 0.15;
 export const NEAR_CARB_ABS_G = 5;
 export const SHORTFALL_ATTENTION_RATIO = 0.3;
-
-export const HEADER_HINT_STORAGE_KEY = "ketolog.headerHint.v1";
-
-type StorageShape = {
-  v: 1;
-  entries: Record<string, { text: string; fp: string }>;
-};
-
-function fmtMacro(n: number): string {
-  return n < 10 ? n.toFixed(1) : String(Math.round(n));
-}
 
 export function getTokyoMinutesSinceMidnight(date: Date): number {
   const dtf = new Intl.DateTimeFormat("en-US", {
@@ -57,14 +47,6 @@ export function getActiveHintSlot(now: Date): HeaderHintSlot | null {
   if (t >= SLOT_DINNER_START && t < SLOT_DINNER_END) return "before_dinner";
   if (t >= SLOT_BED_START && t < SLOT_BED_END) return "before_bed";
   return null;
-}
-
-export function targetsFingerprint(targets: {
-  protein_target_g: number;
-  fat_target_g: number;
-  carbs_target_g: number;
-}): string {
-  return `${targets.protein_target_g},${targets.fat_target_g},${targets.carbs_target_g}`;
 }
 
 type CarbHeadline =
@@ -189,6 +171,10 @@ function copyCoaching(
   }
 }
 
+function fmtMacro(n: number): string {
+  return n < 10 ? n.toFixed(1) : String(Math.round(n));
+}
+
 export function computeHeaderHintText(input: {
   slot: HeaderHintSlot;
   consumed: { p: number; f: number; c: number };
@@ -213,66 +199,4 @@ export function computeHeaderHintText(input: {
   const primary = pickPrimaryMacro(rem, targets);
   if (primary === null) return copyAllMet(slot);
   return copyCoaching(slot, urgent, primary, rem);
-}
-
-function readStorage(): StorageShape {
-  if (typeof window === "undefined") return { v: 1, entries: {} };
-  try {
-    const raw = window.localStorage.getItem(HEADER_HINT_STORAGE_KEY);
-    if (!raw) return { v: 1, entries: {} };
-    const parsed = JSON.parse(raw) as StorageShape;
-    if (parsed?.v !== 1 || typeof parsed.entries !== "object" || !parsed.entries) {
-      return { v: 1, entries: {} };
-    }
-    return parsed;
-  } catch {
-    return { v: 1, entries: {} };
-  }
-}
-
-function writeStorage(data: StorageShape): void {
-  if (typeof window === "undefined") return;
-  try {
-    let { entries } = data;
-    const keys = Object.keys(entries);
-    if (keys.length > 40) {
-      const sorted = [...keys].sort();
-      const toRemove = sorted.slice(0, keys.length - 30);
-      const next = { ...entries };
-      for (const k of toRemove) delete next[k];
-      entries = next;
-    }
-    window.localStorage.setItem(
-      HEADER_HINT_STORAGE_KEY,
-      JSON.stringify({ v: 1, entries })
-    );
-  } catch {
-    /* ignore quota */
-  }
-}
-
-function cacheKey(date: string, slot: HeaderHintSlot): string {
-  return `${date}_${slot}`;
-}
-
-export function getCachedHeaderHint(
-  date: string,
-  slot: HeaderHintSlot,
-  fp: string
-): string | null {
-  const data = readStorage();
-  const row = data.entries[cacheKey(date, slot)];
-  if (!row || row.fp !== fp) return null;
-  return row.text;
-}
-
-export function setCachedHeaderHint(
-  date: string,
-  slot: HeaderHintSlot,
-  fp: string,
-  text: string
-): void {
-  const data = readStorage();
-  data.entries[cacheKey(date, slot)] = { text, fp };
-  writeStorage(data);
 }

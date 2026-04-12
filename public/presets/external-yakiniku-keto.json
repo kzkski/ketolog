@@ -245,14 +245,14 @@
     },
     {
       "name": "鶏もも（皮なし・1切れ）",
-      "protein_per_100g": 20.0,
-      "fat_per_100g": 6.0,
+      "protein_per_100g": 20.3,
+      "fat_per_100g": 9.7,
       "carbs_per_100g": 0,
       "shared_barcode": null,
       "standard_food_code": null,
       "default_grams": 35,
       "rank": 2,
-      "notes": "1切れ35g目安・八訂増補2023「鶏肉（もも）（皮なし）」に近似",
+      "notes": "1切れ35g目安・八訂増補2023「鶏肉（もも）（皮なし）」可食部100g値に準拠",
       "group": "鶏肉"
     },
     {

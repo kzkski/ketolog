@@ -4,51 +4,51 @@
   "category": "external",
   "menuItems": [
     {
-      "name": "ねぎま（鶏もも・肉のみ）",
-      "protein_per_100g": 23,
-      "fat_per_100g": 11,
+      "name": "ねぎま（鶏もも・肉のみ・塩）",
+      "protein_per_100g": 20.3,
+      "fat_per_100g": 9.7,
       "carbs_per_100g": 0.2,
       "shared_barcode": null,
       "standard_food_code": null,
       "default_grams": 32,
       "rank": 1,
-      "notes": "1本あたり鶏もも可食部のみ想定。ネギは別途記録。塩焼き前提（タレ・照り焼き串は含めない）",
+      "notes": "1本あたり鶏もも可食部のみ想定（八訂「鶏肉（もも）（皮なし）」に準拠）。ネギは別途記録。塩焼き前提（タレ・照り焼き串は含めない）",
       "group": "鶏（塩）"
     },
     {
       "name": "もも（塩）",
-      "protein_per_100g": 22.5,
-      "fat_per_100g": 13,
+      "protein_per_100g": 17.3,
+      "fat_per_100g": 14.2,
       "carbs_per_100g": 0.3,
       "shared_barcode": null,
       "standard_food_code": null,
       "default_grams": 35,
       "rank": 1,
-      "notes": "1本・可食部約35g想定。塩焼き前提",
+      "notes": "1本・可食部約35g想定。八訂増補「鶏肉（もも）（皮つき）」可食部100g値に準拠。塩焼き前提",
       "group": "鶏（塩）"
     },
     {
       "name": "むね（塩）",
-      "protein_per_100g": 28,
-      "fat_per_100g": 3.5,
+      "protein_per_100g": 23.3,
+      "fat_per_100g": 1.9,
       "carbs_per_100g": 0,
       "shared_barcode": null,
       "standard_food_code": null,
       "default_grams": 35,
       "rank": 1,
-      "notes": "1本・可食部約35g想定。塩焼き前提",
+      "notes": "1本・可食部約35g想定。八訂増補「鶏肉（むね）（皮なし）」可食部100g値に準拠。塩焼き前提",
       "group": "鶏（塩）"
     },
     {
       "name": "ささみ（塩）",
-      "protein_per_100g": 30,
-      "fat_per_100g": 2,
+      "protein_per_100g": 23.3,
+      "fat_per_100g": 1,
       "carbs_per_100g": 0,
       "shared_barcode": null,
       "standard_food_code": null,
       "default_grams": 32,
       "rank": 1,
-      "notes": "1本・可食部約32g想定。塩焼き前提",
+      "notes": "1本・可食部約32g想定。八訂増補「鶏肉（ささみ）」可食部100g値に準拠。塩焼き前提",
       "group": "鶏（塩）"
     },
     {
@@ -268,7 +268,7 @@
       "group": "豚（焼きとん・塩）"
     },
     {
-      "name": "豚心管（塩）",
+      "name": "豚の心管（大動脈・塩）",
       "protein_per_100g": 15,
       "fat_per_100g": 11,
       "carbs_per_100g": 0,
@@ -276,7 +276,7 @@
       "standard_food_code": null,
       "default_grams": 30,
       "rank": 1,
-      "notes": "1本・可食部約30g想定。塩焼き前提",
+      "notes": "1本・可食部約30g想定。焼きとんの「心管」＝豚の大動脈（血管）串の目安。塩焼き前提",
       "group": "豚（焼きとん・塩）"
     },
     {

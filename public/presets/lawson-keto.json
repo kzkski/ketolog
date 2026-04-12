@@ -16,7 +16,7 @@
     { "name": "パストラミビーフ", "protein_per_100g": 19.2, "fat_per_100g": 2.8, "carbs_per_100g": 1.5, "default_grams": 47, "rank": 1, "notes": "47g・PFC確認済・出典:lawson.co.jp/recommend/original/detail/1389751_1996.html" },
     { "name": "厚切り深燻し生ハム", "protein_per_100g": 25.8, "fat_per_100g": 4.5, "carbs_per_100g": 6.5, "default_grams": 55, "rank": 2, "notes": "55g・糖質3.6g/袋・PFC確認済・出典:lawson.co.jp/recommend/original/detail/1389737_1996.html" },
     { "name": "スモークタン", "protein_per_100g": 17.9, "fat_per_100g": 12.9, "carbs_per_100g": 2.1, "default_grams": 34, "rank": 1, "notes": "34g・PFC確認済・出典:lawson.co.jp/recommend/original/detail/1461826_1996.html" },
-    { "name": "素焼きミックスナッツ", "protein_per_100g": 18.0, "fat_per_100g": 58.6, "carbs_per_100g": 11.4, "default_grams": 25, "rank": 1, "notes": "35g入・1食25g目安・糖質約2.9g・PFC確認済・出典:lawson.co.jp/recommend/original/detail/1425189_1996.html" },
-    { "name": "NL たんぱく質が摂れるブランパン 4個入", "protein_per_100g": 24.4, "fat_per_100g": 11.2, "carbs_per_100g": 8.0, "default_grams": 25, "rank": 1, "notes": "1個25g換算（1個あたり栄養÷25g×100）・PFC確認済・出典:lawson.co.jp/recommend/original/detail/1520671_1996.html" }
+    { "name": "素焼きミックスナッツ", "protein_per_100g": 18.0, "fat_per_100g": 58.6, "carbs_per_100g": 11.4, "default_grams": 25, "rank": 3, "notes": "35g入・1食25g目安・糖質2.9g/25g→約11.6g/100g目安でランク3・PFC確認済・出典:lawson.co.jp/recommend/original/detail/1425189_1996.html" },
+    { "name": "NL たんぱく質が摂れるブランパン 4個入", "protein_per_100g": 24.4, "fat_per_100g": 11.2, "carbs_per_100g": 8.0, "default_grams": 25, "rank": 2, "notes": "1個25g換算（1個あたり栄養÷25g×100）・炭水化物8g/100gを糖質目安にランク2・PFC確認済・出典:lawson.co.jp/recommend/original/detail/1520671_1996.html" }
   ]
 }

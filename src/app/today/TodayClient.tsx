@@ -2224,6 +2224,7 @@ export default function TodayClient({
   ]);
 
   const [headerHint, setHeaderHint] = useState<string | null>(null);
+  const [headerHintFullOpen, setHeaderHintFullOpen] = useState(false);
   const headerHintDisplayedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -2248,6 +2249,23 @@ export default function TodayClient({
     }, HEADER_HINT_DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [headerHintRaw]);
+
+  useEffect(() => {
+    if (headerHint !== null) return;
+    const id = window.setTimeout(() => {
+      setHeaderHintFullOpen(false);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [headerHint]);
+
+  useEffect(() => {
+    if (!headerHintFullOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setHeaderHintFullOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [headerHintFullOpen]);
 
   const cartEntries = useMemo(() => Array.from(cart.values()).filter((e) => e.count > 0), [cart]);
   const hasCart = cartEntries.length > 0;
@@ -2545,12 +2563,17 @@ export default function TodayClient({
         </div>
         <div className="flex-1 min-w-0 flex justify-center items-center px-1">
           {headerHint ? (
-            <p
-              className="text-center text-[11px] text-gray-400 leading-snug truncate max-w-full"
+            <button
+              type="button"
+              onClick={() => setHeaderHintFullOpen(true)}
+              className="text-center text-[11px] text-gray-400 leading-snug truncate max-w-full min-w-0 w-full rounded-md py-1 touch-manipulation active:bg-gray-800/50 sm:hover:bg-gray-800/40 transition-colors"
               title={headerHint}
+              aria-label="ヘッダーメッセージの全文を表示"
+              aria-haspopup="dialog"
+              aria-expanded={headerHintFullOpen}
             >
               {headerHint}
-            </p>
+            </button>
           ) : null}
         </div>
         <button onClick={() => setShowSettings(true)}
@@ -3129,6 +3152,42 @@ export default function TodayClient({
           onClose={() => setEditingEntry(null)}
           onSaved={() => refreshLogForDate(selectedDate)}
         />
+      )}
+
+      {/* ヘッダーヒント全文 */}
+      {headerHint && headerHintFullOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 z-40"
+            onClick={() => setHeaderHintFullOpen(false)}
+            aria-hidden
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="header-hint-dialog-title"
+            className="fixed inset-x-0 bottom-0 z-50 max-w-md mx-auto flex flex-col rounded-t-2xl border-x border-t border-gray-700 bg-gray-900 shadow-lg pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-gray-600 rounded-full" />
+            </div>
+            <div className="px-4 pt-2 pb-3 space-y-3">
+              <h2 id="header-hint-dialog-title" className="text-center text-sm font-semibold text-white">
+                ヒント
+              </h2>
+              <p className="text-sm text-gray-300 whitespace-pre-wrap break-words max-h-[55svh] overflow-y-auto leading-relaxed">
+                {headerHint}
+              </p>
+              <button
+                type="button"
+                onClick={() => setHeaderHintFullOpen(false)}
+                className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* 設定ドロワー */}

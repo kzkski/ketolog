@@ -2612,7 +2612,7 @@ export default function TodayClient({
             if (group.groupName === null) {
               return group.items.map((item) => (
                 <MenuItemRow
-                  key={item.id}
+                  key={`${item.id}-${item.default_grams}`}
                   item={item}
                   entry={cart.get(item.id)}
                   onAdd={(g) => addItem(item, g)}
@@ -2651,7 +2651,7 @@ export default function TodayClient({
                 </button>
                 {!isCollapsed && group.items.map((item) => (
                   <MenuItemRow
-                    key={item.id}
+                    key={`${item.id}-${item.default_grams}`}
                     item={item}
                     entry={cart.get(item.id)}
                     onAdd={(g) => addItem(item, g)}

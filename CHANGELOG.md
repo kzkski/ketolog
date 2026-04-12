@@ -14,6 +14,10 @@
 
 - **開発者向け**: アプリ未使用の `body_composition` / `daily_log` / `daily_summary` をベースラインから削除（[#74](https://github.com/kzkski/ketolog/issues/74)）。ベースラインの内容を変更したため、ローカルでチェックサム不一致になる場合は `supabase db reset` するか、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) を参照。
 
+### Fixed
+
+- **メニュー一覧**: 詳細で保存した 1 食あたりの重量（g）が、一覧右端の表示にすぐ反映されるよう修正（[#78](https://github.com/kzkski/ketolog/issues/78)）。
+
 ## [1.15.1] - 2026-04-12
 
 ### Fixed

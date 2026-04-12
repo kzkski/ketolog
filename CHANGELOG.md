@@ -14,6 +14,12 @@
 
 - **開発者向け**: アプリ未使用の `body_composition` / `daily_log` / `daily_summary` をベースラインから削除（[#74](https://github.com/kzkski/ketolog/issues/74)）。ベースラインの内容を変更したため、ローカルでチェックサム不一致になる場合は `supabase db reset` するか、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) を参照。
 
+## [1.16.4] - 2026-04-12
+
+### Changed
+
+- **今日ページ・メニュー一覧**: レストラン（およびお気に入り）のメニュー行で、`sm` 未満の品名を `text-xs`、副行・g 表示を一段小さくし、行の余白も抑えた（`sm` 以上は従来に近いサイズ）。
+
 ## [1.16.3] - 2026-04-12
 
 ### Changed

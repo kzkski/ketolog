@@ -1670,14 +1670,14 @@ function LogEntryRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 px-4 py-3 sm:py-2 border-b border-gray-800/40">
-      <span className="flex-1 text-base sm:text-sm text-white truncate">{entry.item_name}</span>
-      <span className="text-sm sm:text-xs text-gray-400 shrink-0">{entry.grams}g</span>
-      <span className="text-sm sm:text-xs text-gray-500 shrink-0 tabular-nums w-[7.25rem] sm:w-28 text-right">
+    <div className="flex items-center gap-1 sm:gap-2 px-2.5 py-0.5 sm:px-4 sm:py-2 border-b border-gray-800/40">
+      <span className="flex-1 min-w-0 text-xs sm:text-sm text-white truncate leading-tight">{entry.item_name}</span>
+      <span className="text-[11px] sm:text-xs text-gray-400 shrink-0 tabular-nums leading-tight">{entry.grams}g</span>
+      <span className="text-[11px] sm:text-xs text-gray-500 shrink-0 tabular-nums w-[6.5rem] sm:w-28 text-right leading-tight">
         P{fmt(entry.protein_g)} F{fmt(entry.fat_g)} C{fmt(entry.carbs_g)}
       </span>
-      <button type="button" onClick={onEdit} className="text-gray-400 hover:text-white text-base sm:text-xs min-h-9 min-w-9 sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0 rounded-md sm:rounded-none">✎</button>
-      <button type="button" onClick={onDelete} className="text-red-400 hover:text-red-300 text-base sm:text-xs min-h-9 min-w-9 sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0 rounded-md sm:rounded-none">✕</button>
+      <button type="button" onClick={onEdit} className="text-gray-400 hover:text-white text-xs sm:text-xs min-h-7 min-w-7 sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0 rounded-md sm:rounded-none active:bg-gray-800/70 leading-none">✎</button>
+      <button type="button" onClick={onDelete} className="text-red-400 hover:text-red-300 text-xs sm:text-xs min-h-7 min-w-7 sm:min-h-0 sm:min-w-0 flex items-center justify-center shrink-0 rounded-md sm:rounded-none active:bg-gray-800/70 leading-none">✕</button>
     </div>
   );
 }
@@ -2601,7 +2601,7 @@ export default function TodayClient({
               type="button"
               aria-expanded={showLogEntries}
               onClick={() => setShowLogEntries((v) => !v)}
-              className="w-full flex items-center justify-end gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs text-gray-400 hover:text-white transition-colors min-h-9 sm:min-h-0"
+              className="w-full flex items-center justify-end gap-2 px-3 sm:px-4 py-1 sm:py-2 text-[11px] sm:text-xs text-gray-400 hover:text-white transition-colors min-h-7 sm:min-h-0 leading-none"
             >
               <span className="font-medium text-gray-300 text-right">
                 この日の記録（{logEntries.length}件）
@@ -2611,13 +2611,13 @@ export default function TodayClient({
               </span>
             </button>
             {showLogEntries && (
-              <div className="max-h-52 overflow-y-auto">
+              <div className="max-h-60 overflow-y-auto">
                 {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map((mt) => {
                   const items = logEntries.filter((e) => e.meal_type === mt);
                   if (!items.length) return null;
                   return (
                     <div key={mt}>
-                      <p className="px-3 sm:px-4 py-1 sm:py-1 text-xs sm:text-xs text-gray-500 bg-gray-900/50">{MEAL_LABELS[mt]}</p>
+                      <p className="px-3 sm:px-4 py-px sm:py-0.5 text-[11px] sm:text-xs text-gray-500 bg-gray-900/50 leading-none">{MEAL_LABELS[mt]}</p>
                       {items.map((entry) => (
                         <LogEntryRow
                           key={entry.id}

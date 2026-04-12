@@ -14,6 +14,12 @@
 
 - **開発者向け**: アプリ未使用の `body_composition` / `daily_log` / `daily_summary` をベースラインから削除（[#74](https://github.com/kzkski/ketolog/issues/74)）。ベースラインの内容を変更したため、ローカルでチェックサム不一致になる場合は `supabase db reset` するか、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) を参照。
 
+## [1.16.1] - 2026-04-12
+
+### Changed
+
+- **今日ページ（モバイル）**: タイトルバー・日付ナビ・PFC・食事／店タブ・一覧グループ見出しなどの余白とタッチ行の高さをさらに抑え、狭い画面で一覧が多く見えるようにした。過去日は「今日に戻る」を日付と同行表示（`sm` 以上は従来どおり縦並び）。
+
 ## [1.16.0] - 2026-04-12
 
 ### Added

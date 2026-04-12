@@ -14,6 +14,12 @@
 
 - **開発者向け**: アプリ未使用の `body_composition` / `daily_log` / `daily_summary` をベースラインから削除（[#74](https://github.com/kzkski/ketolog/issues/74)）。ベースラインの内容を変更したため、ローカルでチェックサム不一致になる場合は `supabase db reset` するか、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) を参照。
 
+## [1.16.1] - 2026-04-12
+
+### Changed
+
+- **今日ページ（モバイル）**: 日付ナビの縦余白・左右矢印サイズをさらに縮小。過去日の「今日に戻る」は日付と同一行に配置（`sm` 以上は従来どおり縦並び）。
+
 ## [1.16.0] - 2026-04-12
 
 ### Added

@@ -2550,27 +2550,27 @@ export default function TodayClient({
 
       <div className="flex-1 flex flex-col min-h-0">
         {/* 日付ナビゲーション */}
-        <div className="flex-none flex items-center justify-between px-4 py-2.5 sm:py-2 border-b border-gray-800 bg-gray-900 gap-2">
+        <div className="flex-none flex items-center justify-between px-1.5 sm:px-4 py-0.5 sm:py-2 border-b border-gray-800 bg-gray-900 gap-0.5 sm:gap-2">
           <button type="button" onClick={() => navigateDate(-1)} disabled={loadingDate}
-            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-xl sm:text-lg rounded-lg sm:rounded-none active:bg-gray-800/50 shrink-0">
+            className="min-h-8 min-w-8 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-base sm:text-lg rounded-md sm:rounded-none active:bg-gray-800/50 shrink-0">
             ‹
           </button>
-          <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
-            <span className="text-base sm:text-sm font-medium text-white text-center">
+          <div className="flex flex-row sm:flex-col flex-wrap items-center justify-center gap-x-1.5 gap-y-0 sm:gap-1 min-w-0 flex-1 px-0.5 leading-none">
+            <span className="text-[13px] sm:text-sm font-medium text-white text-center leading-tight">
               {loadingDate ? "読込中..." : formatNavDate(selectedDate, today)}
             </span>
             {selectedDate !== today && !loadingDate && (
               <button
                 type="button"
                 onClick={() => void goToToday()}
-                className="text-xs sm:text-[11px] text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline py-0.5"
+                className="text-[10px] sm:text-[11px] text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline shrink-0 py-0 sm:py-0.5"
               >
                 今日に戻る
               </button>
             )}
           </div>
           <button type="button" onClick={() => navigateDate(1)} disabled={selectedDate >= today || loadingDate}
-            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-xl sm:text-lg rounded-lg sm:rounded-none active:bg-gray-800/50 shrink-0">
+            className="min-h-8 min-w-8 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-base sm:text-lg rounded-md sm:rounded-none active:bg-gray-800/50 shrink-0">
             ›
           </button>
         </div>

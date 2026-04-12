@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "name": "ケンタッキーフライドチキン",
+  "category": "external",
+  "menuItems": [
+    {
+      "name": "キール（胸）",
+      "protein_per_100g": 29.3,
+      "fat_per_100g": 15.8,
+      "carbs_per_100g": 8.3,
+      "shared_barcode": null,
+      "default_grams": 133,
+      "rank": 2,
+      "notes": "可食部133g推計。P最大だがF密度は低め。P補填日向き。米国KFC公式ベース",
+      "group": "オリジナルチキン"
+    },
+    {
+      "name": "サイ（もも）",
+      "protein_per_100g": 24.1,
+      "fat_per_100g": 24.1,
+      "carbs_per_100g": 10.1,
+      "shared_barcode": null,
+      "default_grams": 79,
+      "rank": 1,
+      "notes": "可食部79g推計。可食部あたりF密度が全部位トップ（24.1g/100g）。ケト最強部位。米国KFC公式ベース",
+      "group": "オリジナルチキン"
+    },
+    {
+      "name": "ドラム（drumstick）",
+      "protein_per_100g": 21.8,
+      "fat_per_100g": 14.5,
+      "carbs_per_100g": 7.3,
+      "shared_barcode": null,
+      "default_grams": 55,
+      "rank": 3,
+      "notes": "可食部55g推計（USDA総重量75gから骨20g差引）。F密度が低くケトコスパは最も低い。米国KFC公式+USDA",
+      "group": "オリジナルチキン"
+    },
+    {
+      "name": "ウイング",
+      "protein_per_100g": 28.6,
+      "fat_per_100g": 22.9,
+      "carbs_per_100g": 8.6,
+      "shared_barcode": null,
+      "default_grams": 70,
+      "rank": 1,
+      "notes": "可食部70g推計。小ぶりだがF密度高くC最小。皮面積比が高い。米国KFC公式ベース",
+      "group": "オリジナルチキン"
+    },
+    {
+      "name": "リブ（あばら）",
+      "protein_per_100g": 34.3,
+      "fat_per_100g": 22.9,
+      "carbs_per_100g": 12.1,
+      "shared_barcode": null,
+      "default_grams": 70,
+      "rank": 1,
+      "notes": "可食部70g推計（骨多め）。P・Fともに高水準でバランス最良。英国KFC公式ベース（米国に部位なし）",
+      "group": "オリジナルチキン"
+    }
+  ]
+}

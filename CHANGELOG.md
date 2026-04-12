@@ -14,6 +14,12 @@
 
 - **開発者向け**: アプリ未使用の `body_composition` / `daily_log` / `daily_summary` をベースラインから削除（[#74](https://github.com/kzkski/ketolog/issues/74)）。ベースラインの内容を変更したため、ローカルでチェックサム不一致になる場合は `supabase db reset` するか、[migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair) を参照。
 
+## [1.16.6] - 2026-04-12
+
+### Changed
+
+- **今日ページ・成分表**: 食品群（18群）のチップボタンを行間・余白ともに圧縮した。
+
 ## [1.16.5] - 2026-04-12
 
 ### Changed

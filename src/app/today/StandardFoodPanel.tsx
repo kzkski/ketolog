@@ -154,8 +154,8 @@ export function StandardFoodPanel({
       </div>
 
       <div>
-        <p className="text-[10px] text-gray-500 mb-1.5">食品群で絞り込み（タップで切替・もう一度で解除）</p>
-        <div className="flex flex-wrap gap-x-1.5 gap-y-2">
+        <p className="text-[10px] text-gray-500 mb-1 leading-tight">食品群で絞り込み（タップで切替・もう一度で解除）</p>
+        <div className="flex flex-wrap gap-x-1 gap-y-1">
           {STANDARD_FOOD_GROUP_OPTIONS.map((g) => {
             const active = groupCode === g.code;
             return (
@@ -166,7 +166,7 @@ export function StandardFoodPanel({
                   setGroupCode(active ? null : g.code);
                   setPage(0);
                 }}
-                className={`rounded-full px-2.5 py-1.5 text-[11px] font-medium border transition-colors touch-manipulation ${
+                className={`rounded-md px-1.5 py-0.5 text-[10px] leading-tight font-medium border transition-colors touch-manipulation ${
                   active
                     ? "border-emerald-500 bg-emerald-600/25 text-emerald-100"
                     : "border-gray-700 bg-gray-800/80 text-gray-400 hover:border-gray-600 hover:text-gray-200"

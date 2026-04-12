@@ -61,6 +61,7 @@ export default function SignupPage() {
             height={72}
             className="h-[72px] w-[72px] rounded-full object-cover mb-4"
             priority
+            unoptimized
           />
           <h1 className="text-2xl font-bold text-white mb-2 text-center">Ketolog</h1>
         </div>

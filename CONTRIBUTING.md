@@ -128,4 +128,8 @@ chore: バージョンを X.Y.Z に更新
 - **`feat/` / `fix/` の PR で `package.json` のバージョンを上げる場合**（`chore: バージョンを X.Y.Z に更新` を含める場合）、**その PR がリリースするユーザー向け変更を `## [Unreleased]` から `## [X.Y.Z] - YYYY-MM-DD` に移す**。`[Unreleased]` には未リリースの予定分だけを残す（リリース済みの箇条書きを置いたままにしない）。
 - `chore/` のみの変更は必須ではない（必要に応じて更新は可）
 - `ROADMAP.md` は背景・計画・補足を扱い、リリース要点は `CHANGELOG.md` を正とする
-- CI で上記必須条件をチェックする（差分に `CHANGELOG.md` が無い対象PRは失敗）
+- **CI で自動検証しているのは次のとおり**（`.github/workflows/pr-guardrails.yml`）:
+  - **`require-changelog`**: `feat/`・`fix/`・`refactor/`・`docs/` の PR について、ベースブランチとの差分に **`CHANGELOG.md` が含まれること**（含まれないと CI が失敗する）
+  - **`require-changelog-version-heading`**: ベースと比べて **`package.json` の `version` が変わった PR** では、**`CHANGELOG.md` に同じ版の見出し**（`## [X.Y.Z]` で始まる行、例: `## [X.Y.Z] - YYYY-MM-DD`）**があること**。ブランチ種別に関わらず、版を上げた PR では適用される（`scripts/ci/verify-changelog-version-heading.mjs`）
+- **次の項目は現状 CI では検証していない**。PR テンプレのチェックとレビューで確認する:
+  - `## [Unreleased]` にリリース済みの箇条書きが残っていないこと（版見出しの存在は検証するが、Unreleased の中身までは見ない）

@@ -15,8 +15,8 @@
     { "name": "カマンベール入りなめらか6Pチーズ", "protein_per_100g": 18.0, "fat_per_100g": 24.0, "carbs_per_100g": 1.5, "default_grams": 18, "rank": 1, "notes": "1ピース18g推定・PFC推定(公式ページ栄養数値なし)・出典:family.co.jp/goods/chilleddaily/2522760.html" },
     { "name": "燻製薫るスモークチーズ", "protein_per_100g": 20.8, "fat_per_100g": 28.6, "carbs_per_100g": 2.0, "default_grams": 100, "rank": 1, "notes": "100g・PFC推定(公式ページ栄養数値なし・従来値)・出典:family.co.jp/goods/chilleddaily/2521862.html" },
     { "name": "北海道6Pチーズ", "protein_per_100g": 18.0, "fat_per_100g": 24.0, "carbs_per_100g": 1.5, "default_grams": 18, "rank": 1, "notes": "1ピース18g推定・PFC推定(公式ページ栄養数値なし)・出典:family.co.jp/goods/chilleddaily/2521657.html" },
-    { "name": "塩と油を使っていない4種の素焼きミックスナッツ", "protein_per_100g": 15.0, "fat_per_100g": 57.0, "carbs_per_100g": 11.5, "default_grams": 25, "rank": 1, "notes": "1食25g目安推定・PFC推定(公式ページ栄養数値なし・従来値)・出典:family.co.jp/goods/snack/5021581.html" },
-    { "name": "塩と油を使っていないカリフォルニア産素焼きアーモンド", "protein_per_100g": 19.0, "fat_per_100g": 52.0, "carbs_per_100g": 9.4, "default_grams": 25, "rank": 1, "notes": "1食25g目安推定・PFC推定(公式ページ栄養数値なし・従来値)・出典:family.co.jp/goods/snack/5022106.html" },
+    { "name": "塩と油を使っていない4種の素焼きミックスナッツ", "protein_per_100g": 15.0, "fat_per_100g": 57.0, "carbs_per_100g": 11.5, "default_grams": 25, "rank": 3, "notes": "1食25g目安推定・PFC推定(公式ページ栄養数値なし・従来値)・炭水化物11.5g/100gを糖質目安にランク3・出典:family.co.jp/goods/snack/5021581.html" },
+    { "name": "塩と油を使っていないカリフォルニア産素焼きアーモンド", "protein_per_100g": 19.0, "fat_per_100g": 52.0, "carbs_per_100g": 9.4, "default_grams": 25, "rank": 2, "notes": "1食25g目安推定・PFC推定(公式ページ栄養数値なし・従来値)・炭水化物9.4g/100gを糖質目安にランク2・出典:family.co.jp/goods/snack/5022106.html" },
     { "name": "ロースハム", "protein_per_100g": 18.0, "fat_per_100g": 11.0, "carbs_per_100g": 1.2, "default_grams": 45, "rank": 1, "notes": "45g推定・PFC推定(公式ページ栄養数値なし)・出典:family.co.jp/goods/chilleddaily/2410326.html" },
     { "name": "肉の旨みとコクパンチェッタ", "protein_per_100g": 15.0, "fat_per_100g": 24.0, "carbs_per_100g": 0.5, "default_grams": 45, "rank": 1, "notes": "45g推定・PFC推定(公式ページ栄養数値なし)・出典:family.co.jp/goods/chilleddaily/2410142.html" }
   ]

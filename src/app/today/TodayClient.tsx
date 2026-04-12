@@ -1954,7 +1954,7 @@ function SortableRestaurantTab({
       <button
         type="button"
         onClick={onSelect}
-        className={`pl-1 pr-3 sm:pl-0.5 sm:pr-2.5 py-1.5 sm:py-2.5 text-sm font-medium whitespace-nowrap text-left transition-colors touch-manipulation min-w-0 max-w-[12rem] sm:max-w-none truncate ${
+        className={`pl-1 pr-3 sm:pl-0.5 sm:pr-2.5 py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap text-left transition-colors touch-manipulation min-w-0 max-w-[12rem] sm:max-w-none truncate ${
           selected ? "text-white" : "text-gray-500 hover:text-gray-300"
         }`}
       >
@@ -2671,7 +2671,7 @@ export default function TodayClient({
               setSelectedRestaurantId(FAVORITES_TAB_ID);
               setConfirmDeleteRestaurant(false);
             }}
-            className={`px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
+            className={`px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
               selectedRestaurantIdResolved === FAVORITES_TAB_ID
                 ? "border-amber-500 text-amber-100"
                 : "border-transparent text-gray-500 hover:text-gray-300"
@@ -2698,7 +2698,7 @@ export default function TodayClient({
               setConfirmDeleteRestaurant(false);
               setSelectedRestaurantId(MEXT_COMPOSITION_TAB_ID);
             }}
-            className={`px-2 sm:px-3 py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation max-w-[9.5rem] sm:max-w-none ${
+            className={`px-2 sm:px-3 py-1.5 sm:py-2.5 text-[11px] sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation max-w-[9.5rem] sm:max-w-none ${
               selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID
                 ? "border-sky-500 text-sky-100"
                 : "border-transparent text-gray-500 hover:text-gray-300"

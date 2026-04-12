@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
-import { BootSplashOverlay } from "@/components/BootSplashOverlay";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
@@ -42,16 +41,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ja"
-      className={`${geist.variable} min-h-dvh antialiased`}
-      style={{ backgroundColor: "#030712" }}
-    >
-      <body
-        className="min-h-dvh flex flex-col bg-gray-950 text-white touch-manipulation"
-        style={{ backgroundColor: "#030712" }}
-      >
-        <BootSplashOverlay />
+    <html lang="ja" className={`${geist.variable} min-h-dvh antialiased`}>
+      <body className="min-h-dvh flex flex-col bg-gray-950 text-white touch-manipulation">
         <ServiceWorkerRegister />
         {children}
       </body>

@@ -439,7 +439,12 @@ export async function addSharedProductMenuItem(input: {
       carbs_per_100g: lookup.product.carbs_per_100g,
       default_grams: input.defaultGrams > 0 ? input.defaultGrams : 100,
       rank: input.rank ?? 2,
-      notes: lookup.product.brand ? `OFF: ${lookup.product.brand}` : "OFF連携",
+      notes:
+        lookup.product.source === SHARED_PRODUCT_SOURCE_MANUAL_ENTRY
+          ? MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES
+          : lookup.product.brand
+            ? `OFF: ${lookup.product.brand}`
+            : "OFF連携",
       group_name: null,
       group_order: 0,
       shared_barcode: barcode,

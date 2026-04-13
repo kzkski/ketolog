@@ -48,6 +48,10 @@ import {
   type FoodLogExportEntry,
 } from "./actions";
 import type { SharedProduct } from "@/types/database";
+import {
+  MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
+  SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
+} from "@/lib/shared-product-source";
 import type { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import {
   MACRO_BAR_BG,
@@ -590,7 +594,11 @@ function MenuItemDrawer({
       setServingHint(null);
     }
     if (!notes.trim()) {
-      setNotes(res.product.brand ? `OFF: ${res.product.brand}` : "OFF連携");
+      if (res.product.source === SHARED_PRODUCT_SOURCE_MANUAL_ENTRY) {
+        setNotes(MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES);
+      } else {
+        setNotes(res.product.brand ? `OFF: ${res.product.brand}` : "OFF連携");
+      }
     }
   }, [lastLookup, notes]);
 

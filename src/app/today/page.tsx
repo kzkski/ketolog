@@ -1,60 +1,45 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import { getMealTypeForTimeZone } from "@/lib/meal-timezone";
 import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
 import { getOrCreateSnapshotRestaurant, fetchFavoriteGroupsPayload } from "./actions";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 import { normalizeUserSettings } from "@/lib/diet-phase";
-import fs from "fs";
-import path from "path";
+import { loadPresets } from "@/lib/presets-server";
 
-export type PresetMeta = { name: string; file: string; itemCount: number };
-
-function loadPresets(): PresetMeta[] {
-  const dir = path.join(process.cwd(), "public", "presets");
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith(".json"))
-    .map((file) => {
-      const json = JSON.parse(fs.readFileSync(path.join(dir, file), "utf-8"));
-      return { name: json.name as string, file, itemCount: (json.menuItems as unknown[]).length };
-    })
-    .sort((a, b) => a.file.localeCompare(b.file));
-}
+export type { PresetMeta } from "@/lib/presets-server";
 
 export default async function TodayPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) redirect("/login");
 
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
 
-  const [settingsRes, restaurantsRes, menuItemsRes, foodLogRes, favoritePayload] = await Promise.all([
-    supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase.from("restaurants").select("*").eq("user_id", user.id),
-    supabase
-      .from("menu_items")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("rank")
-      .order("order_count", { ascending: false }),
-    supabase
-      .from("food_log")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("date", today)
-      .order("created_at", { ascending: true }),
-    fetchFavoriteGroupsPayload(),
-  ]);
+  const [settingsRes, restaurantsRes, menuItemsRes, foodLogRes, favoritePayload, snapshotRestaurant] =
+    await Promise.all([
+      supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
+      supabase.from("restaurants").select("*").eq("user_id", user.id),
+      supabase
+        .from("menu_items")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("rank")
+        .order("order_count", { ascending: false }),
+      supabase
+        .from("food_log")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("date", today)
+        .order("created_at", { ascending: true }),
+      fetchFavoriteGroupsPayload(),
+      getOrCreateSnapshotRestaurant(),
+    ]);
 
   const settings: UserSettings = settingsRes.data
     ? normalizeUserSettings(settingsRes.data)
     : normalizeUserSettings(null);
 
   const rawRestaurants: Restaurant[] = restaurantsRes.data ?? [];
-  const snapshotRestaurant = await getOrCreateSnapshotRestaurant();
   const rawWithSnapshot =
     snapshotRestaurant.data &&
     !rawRestaurants.some((r) => r.id === snapshotRestaurant.data!.id)

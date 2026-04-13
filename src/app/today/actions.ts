@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";
 import { SNAPSHOT_RESTAURANT_NAME } from "@/lib/snapshot-restaurant";
 import type {
@@ -69,8 +70,7 @@ export async function saveMealToLog(
   mealType: string,
   date: string
 ): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { error: "認証が必要です" };
 
   const { error } = await supabase.from("food_log").insert(
@@ -100,10 +100,7 @@ export type UserSettingsPatch = {
 };
 
 export async function updateUserSettings(data: UserSettingsPatch): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { error: "認証が必要です" };
 
   if (data.diet_phase === undefined && data.phase_profiles === undefined) {
@@ -138,8 +135,7 @@ export async function getFoodLogForDate(date: string): Promise<{
   consumed: TodayConsumed;
   error: string | null;
 }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { entries: [], consumed: { protein: 0, fat: 0, carbs: 0 }, error: "認証が必要です" };
 
   const { data, error } = await supabase
@@ -186,10 +182,7 @@ export async function getFoodLogForExport(): Promise<{
   entries: FoodLogExportEntry[];
   error: string | null;
 }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { entries: [], error: "認証が必要です" };
 
   const entries: FoodLogExportEntry[] = [];
@@ -234,8 +227,7 @@ export async function getFoodLogForExport(): Promise<{
 }
 
 export async function deleteFoodLogEntry(id: string): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { error: "認証が必要です" };
 
   const { error } = await supabase
@@ -253,8 +245,7 @@ export async function updateFoodLogEntry(
   newGrams: number,
   newMealType: string
 ): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { error: "認証が必要です" };
 
   const { data: entry, error: fetchError } = await supabase
@@ -363,8 +354,7 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
   const barcode = normalizeBarcode(rawBarcode);
   if (!barcode) return { status: "error", product: null, error: "バーコードが不正です" };
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { status: "error", product: null, error: "認証が必要です" };
 
   const { data: cached } = await supabase
@@ -405,8 +395,7 @@ export async function addSharedProductMenuItem(input: {
   defaultGrams: number;
   rank?: number;
 }): Promise<{ data: MenuItem | null; error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { data: null, error: "認証が必要です" };
 
   const barcode = normalizeBarcode(input.barcode);
@@ -471,10 +460,7 @@ export async function searchStandardFoods(input: {
   limit?: number;
   offset?: number;
 }): Promise<{ rows: StandardFoodSearchRow[]; error: string | null }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { rows: [], error: "認証が必要です" };
 
   const q = input.query
@@ -546,8 +532,7 @@ export async function updateMenuItem(
   id: string,
   data: MenuItemUpdate
 ): Promise<{ data: MenuItem | null; error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { data: null, error: "認証が必要です" };
 
   const { data: current, error: fetchErr } = await supabase
@@ -638,10 +623,7 @@ export async function fetchFavoriteGroupsPayload(): Promise<{
   data: FavoriteGroupPayload[];
   error: string | null;
 }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { data: [], error: "認証が必要です" };
   return fetchFavoriteGroupsPayloadInternal(supabase, user.id);
 }
@@ -723,10 +705,7 @@ async function ensureFavoriteEntryForMenuItem(
 export async function addMenuItemToFavorites(
   menuItemId: string
 ): Promise<{ data: FavoriteGroupPayload[] | null; error: string | null }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { data: null, error: "認証が必要です" };
 
   const { data: mi, error: miErr } = await supabase
@@ -764,10 +743,7 @@ export async function addMenuItemToFavorites(
 export async function removeMenuItemFromFavorites(
   menuItemId: string
 ): Promise<{ data: FavoriteGroupPayload[] | null; error: string | null }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { data: null, error: "認証が必要です" };
 
   const { error } = await supabase.from("favorite_entries").delete().eq("menu_item_id", menuItemId);
@@ -781,8 +757,7 @@ export async function addMenuItem(
   restaurantId: string,
   data: MenuItemUpdate
 ): Promise<{ data: MenuItem | null; error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { data: null, error: "認証が必要です" };
 
   const groupName = data.group_name?.trim() || null;
@@ -812,8 +787,7 @@ export async function addMenuItem(
 export async function deleteMenuItem(
   id: string
 ): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { error: "認証が必要です" };
 
   const { error } = await supabase
@@ -846,8 +820,7 @@ export async function addRestaurant(
   name: string,
   category: string
 ): Promise<{ data: Restaurant | null; error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { data: null, error: "認証が必要です" };
 
   const displayOrder = await nextRestaurantDisplayOrder(supabase, user.id);
@@ -874,8 +847,7 @@ export async function addRestaurant(
 export async function reorderRestaurants(
   orderedRestaurantIds: string[]
 ): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { error: "認証が必要です" };
   if (orderedRestaurantIds.length === 0) return { error: null };
 
@@ -923,10 +895,7 @@ export async function getOrCreateSnapshotRestaurant(): Promise<{
   data: Restaurant | null;
   error: string | null;
 }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { data: null, error: "認証が必要です" };
 
   const { data: existingRows, error: selectError } = await supabase
@@ -995,8 +964,7 @@ export async function getOrCreateSnapshotRestaurant(): Promise<{
 export async function deleteRestaurant(
   id: string
 ): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { error: "認証が必要です" };
 
   const { data: target } = await supabase
@@ -1027,10 +995,7 @@ export async function updateRestaurantName(
   updatedFavoriteGroupId: string | null;
   error: string | null;
 }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) {
     return { data: null, updatedFavoriteGroupId: null, error: "認証が必要です" };
   }
@@ -1233,8 +1198,7 @@ export async function importRestaurantData(data: ImportData): Promise<{
   newMenuItems: MenuItem[];
   error: string | null;
 }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { added: 0, skipped: [], newRestaurants: [], newMenuItems: [], error: "認証が必要です" };
 
   const { data: existing } = await supabase
@@ -1320,8 +1284,7 @@ export async function importMenuItemsToRestaurant(
   restaurantId: string,
   items: ImportRestaurantItem[]
 ): Promise<{ newMenuItems: MenuItem[]; error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { newMenuItems: [], error: "認証が必要です" };
 
   const groupOrderMap = new Map<string, number>();

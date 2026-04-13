@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.29.1] - 2026-04-13
+
+### Fixed
+
+- **今日（/today）**: サーバー側の初回表示を速くするため、同一リクエスト内の `getUser` を `react` の `cache` で 1 回にまとめ、初回データ取得とスナップショット用レストラン取得を並列化し、`public/presets` の一覧読み込みをプロセス内キャッシュした（[#145](https://github.com/kzkski/ketolog/issues/145) Phase 1）。
+
 ## [1.29.0] - 2026-04-13
 
 ### Added

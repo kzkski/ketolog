@@ -27,6 +27,14 @@ function getTimestamp() {
   return new Date().toISOString();
 }
 
+function nonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const t = value.trim();
+  return t.length > 0 ? t : undefined;
+}
+
 function pickHttpDiagnostic(error: unknown): {
   code?: string;
   message: string;
@@ -73,28 +81,69 @@ function pickHttpDiagnostic(error: unknown): {
 
   if (typeof error === "object") {
     const o = error as Record<string, unknown>;
-    const code = typeof o.code === "string" ? o.code : undefined;
-    const details = typeof o.details === "string" ? o.details : undefined;
-    const hint = typeof o.hint === "string" ? o.hint : undefined;
+    const code = nonEmptyString(o.code);
+    const details = nonEmptyString(o.details);
+    const hint = nonEmptyString(o.hint);
+    const statusPart =
+      typeof o.status === "number"
+        ? `status=${o.status}`
+        : typeof o.statusCode === "number"
+          ? `statusCode=${o.statusCode}`
+          : typeof o.statusCode === "string" && o.statusCode.trim()
+            ? `statusCode=${o.statusCode.trim()}`
+            : undefined;
+
     const msg =
-      (typeof o.message === "string" && o.message) ||
-      (typeof o.error_description === "string" && o.error_description) ||
-      (typeof o.msg === "string" && o.msg);
-    if (msg) {
-      return { code, details, hint, message: msg.slice(0, 800) };
+      nonEmptyString(o.message) ||
+      nonEmptyString(o.error_description) ||
+      nonEmptyString(o.msg) ||
+      nonEmptyString(typeof o.error === "string" ? o.error : undefined);
+
+    if (msg || code || details || hint || statusPart) {
+      const parts = [statusPart, code && `code=${code}`, details, hint, msg].filter(
+        Boolean
+      ) as string[];
+      return {
+        code,
+        details,
+        hint,
+        message: parts.join(" | ").slice(0, 800) || "structured_error_without_text",
+      };
     }
+
+    // 別レルム等で Error っぽいが instanceof 失敗したオブジェクト
+    const name = nonEmptyString(o.name);
+    const stack = nonEmptyString(typeof o.stack === "string" ? o.stack : undefined);
+    if (name || stack) {
+      return {
+        message: [name, stack?.split("\n")[0]].filter(Boolean).join(" | ").slice(0, 800),
+      };
+    }
+
     try {
-      const keys = Object.keys(o).slice(0, 12);
+      const keys = Object.keys(o).slice(0, 16);
       const brief = keys
         .map((k) => {
           const v = o[k];
           if (v == null) return `${k}=null`;
-          if (typeof v === "string") return `${k}=${v.slice(0, 160)}`;
+          if (typeof v === "string") {
+            const s = v.trim();
+            if (!s) return null;
+            return `${k}=${s.slice(0, 160)}`;
+          }
           if (typeof v === "number" || typeof v === "boolean") return `${k}=${v}`;
           return `${k}=${typeof v}`;
         })
+        .filter((x): x is string => x != null)
         .join("; ");
-      return { message: brief || "empty_object" };
+      if (brief) {
+        return { message: brief };
+      }
+      const json = JSON.stringify(o);
+      return {
+        message:
+          json.length > 600 ? `${json.slice(0, 600)}…(truncated)` : json || "empty_object",
+      };
     } catch {
       return { message: Object.prototype.toString.call(error) };
     }

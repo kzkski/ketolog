@@ -514,6 +514,7 @@ function MenuItemDrawer({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const groupNameInputRef = useRef<HTMLInputElement>(null);
   const groupSuggestionWrapRef = useRef<HTMLDivElement>(null);
+  const groupSuggestionTriggerRef = useRef<"pointer" | "keyboard" | "unknown">("unknown");
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isGroupSuggestionsOpen, setIsGroupSuggestionsOpen] = useState(false);
   const cameraSupported =
@@ -741,8 +742,8 @@ function MenuItemDrawer({
 
   const groupSuggestions = existingGroupNames;
 
-  function openGroupSuggestions() {
-    groupNameInputRef.current?.focus();
+  function openGroupSuggestions(shouldFocusInput = false) {
+    if (shouldFocusInput) groupNameInputRef.current?.focus();
     setIsGroupSuggestionsOpen((v) => !v);
   }
 
@@ -1022,7 +1023,18 @@ function MenuItemDrawer({
               {existingGroupNames.length > 0 && (
                 <button
                   type="button"
-                  onClick={openGroupSuggestions}
+                  onPointerDown={() => {
+                    groupSuggestionTriggerRef.current = "pointer";
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      groupSuggestionTriggerRef.current = "keyboard";
+                    }
+                  }}
+                  onClick={() => {
+                    openGroupSuggestions(groupSuggestionTriggerRef.current === "keyboard");
+                    groupSuggestionTriggerRef.current = "unknown";
+                  }}
                   className="shrink-0 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-xs text-gray-200 transition-colors hover:border-gray-600 hover:text-white"
                 >
                   候補

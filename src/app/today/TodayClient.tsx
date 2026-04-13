@@ -3333,6 +3333,7 @@ export default function TodayClient({
             <StandardFoodPanel
               visibleRestaurants={tabRestaurants}
               compositionTargetRestaurantId={resolvedCompositionTargetId}
+              canPickFood={Boolean(resolvedCompositionTargetId || snapshotRestaurantId)}
               onCompositionTargetChange={setCompositionTargetRestaurantId}
               onPickFood={(row) => {
                 const rid = resolvedCompositionTargetId || snapshotRestaurantId;

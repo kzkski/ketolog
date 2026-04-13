@@ -1,0 +1,71 @@
+name: Prod DB Migration (manual + backup)
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this migration is needed"
+        required: true
+        type: string
+
+jobs:
+  migrate:
+    name: Backup and apply production migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Pre-migration backup
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          set -eu
+          ts="$(date -u +%Y%m%dT%H%M%SZ)"
+          pg_dump "$DATABASE_URL" --format=custom --file="pre-${ts}.dump"
+
+      - name: Upload pre-migration backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-migration-backup
+          path: pre-*.dump
+          retention-days: 14
+
+      - name: Link production project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Apply migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push
+
+      - name: Post-migration backup
+        if: success()
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          set -eu
+          ts="$(date -u +%Y%m%dT%H%M%SZ)"
+          pg_dump "$DATABASE_URL" --format=custom --file="post-${ts}.dump"
+
+      - name: Upload post-migration backup
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-migration-backup
+          path: post-*.dump
+          retention-days: 14

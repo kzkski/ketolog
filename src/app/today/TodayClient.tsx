@@ -2,22 +2,8 @@
 
 import Image from "next/image";
 import { useState, useMemo, useRef, useId, useEffect, useLayoutEffect, useCallback } from "react";
-import {
-  DndContext,
-  PointerSensor,
-  TouchSensor,
-  closestCenter,
-  type DragEndEvent,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  horizontalListSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 import type {
   FoodLogEntry,
   MenuItem,
@@ -71,6 +57,7 @@ import { computeHeaderHintText, getActiveHintSlot } from "@/lib/header-hint";
 import { STANDARD_FOOD_TAB_TITLE } from "@/lib/standard-food-groups";
 import { StandardFoodPanel } from "./StandardFoodPanel";
 import { MenuGroupCollapseSession } from "./MenuGroupCollapseSession";
+import { RestaurantTabsLazy } from "./RestaurantTabsLazy";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -2422,102 +2409,6 @@ function RestaurantRenameSheet({
   );
 }
 
-function SortableRestaurantTab({
-  restaurant,
-  selected,
-  onSelect,
-  onOpenTabMenu,
-}: {
-  restaurant: Restaurant;
-  selected: boolean;
-  onSelect: () => void;
-  onOpenTabMenu: (r: Restaurant, clientX: number, clientY: number) => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: restaurant.id,
-  });
-
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchAnchorRef = useRef<{ x: number; y: number } | null>(null);
-
-  const clearLongPress = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  }, []);
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 20 : undefined,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex shrink-0 items-stretch border-b-2 min-h-9 sm:min-h-0 ${
-        selected ? "border-emerald-500" : "border-transparent"
-      }`}
-    >
-      <button
-        type="button"
-        className="pl-2 pr-1 sm:pl-1.5 sm:pr-0.5 flex items-center text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing touch-manipulation"
-        aria-label={`${restaurant.name}の表示順を変更`}
-        suppressHydrationWarning
-        {...attributes}
-        {...listeners}
-      >
-        ⣿
-      </button>
-      <button
-        type="button"
-        onClick={onSelect}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onOpenTabMenu(restaurant, e.clientX, e.clientY);
-        }}
-        onTouchStart={(e) => {
-          const t = e.touches[0];
-          if (!t) return;
-          touchAnchorRef.current = { x: t.clientX, y: t.clientY };
-          clearLongPress();
-          longPressTimerRef.current = setTimeout(() => {
-            longPressTimerRef.current = null;
-            const a = touchAnchorRef.current;
-            touchAnchorRef.current = null;
-            if (a) onOpenTabMenu(restaurant, a.x, a.y);
-          }, 550);
-        }}
-        onTouchMove={(e) => {
-          const t = e.touches[0];
-          const a = touchAnchorRef.current;
-          if (!t || !a) return;
-          if (Math.abs(t.clientX - a.x) > 12 || Math.abs(t.clientY - a.y) > 12) {
-            clearLongPress();
-            touchAnchorRef.current = null;
-          }
-        }}
-        onTouchEnd={() => {
-          clearLongPress();
-          touchAnchorRef.current = null;
-        }}
-        onTouchCancel={() => {
-          clearLongPress();
-          touchAnchorRef.current = null;
-        }}
-        title="長押しまたは右クリックでメニュー"
-        className={`pl-1 pr-3 sm:pl-0.5 sm:pr-2.5 py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap text-left transition-colors touch-manipulation min-w-0 max-w-[12rem] sm:max-w-none truncate ${
-          selected ? "text-white" : "text-gray-500 hover:text-gray-300"
-        }`}
-      >
-        {restaurant.name}
-      </button>
-    </div>
-  );
-}
-
 // ─── メインコンポーネント ───────────────────────────────────────────────────────
 
 interface Props {
@@ -2751,11 +2642,6 @@ export default function TodayClient({
     }
     return s;
   }, [favoriteGroups]);
-  const restaurantSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } })
-  );
-
   async function handleRestaurantDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -3412,26 +3298,17 @@ export default function TodayClient({
               文科省表2023
             </span>
           </button>
-          <DndContext
-            sensors={restaurantSensors}
-            collisionDetection={closestCenter}
+          <RestaurantTabsLazy
+            tabRestaurants={tabRestaurants}
+            tabRestaurantIds={tabRestaurantIds}
+            selectedRestaurantIdResolved={selectedRestaurantIdResolved}
+            onSelectRestaurant={(id) => {
+              setSelectedRestaurantId(id);
+              setConfirmDeleteRestaurant(false);
+            }}
+            onOpenTabMenu={openRestaurantTabMenu}
             onDragEnd={(e) => void handleRestaurantDragEnd(e)}
-          >
-            <SortableContext items={tabRestaurantIds} strategy={horizontalListSortingStrategy}>
-              {tabRestaurants.map((r) => (
-                <SortableRestaurantTab
-                  key={r.id}
-                  restaurant={r}
-                  selected={selectedRestaurantIdResolved === r.id}
-                  onSelect={() => {
-                    setSelectedRestaurantId(r.id);
-                    setConfirmDeleteRestaurant(false);
-                  }}
-                  onOpenTabMenu={openRestaurantTabMenu}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
+          />
           <button type="button" onClick={() => setRestaurantAddSheet("choice")}
             className="px-2.5 py-1.5 sm:py-2.5 min-w-9 sm:min-w-11 text-gray-500 hover:text-white shrink-0 transition-colors text-lg sm:text-lg leading-none flex items-center justify-center self-center">
             ＋

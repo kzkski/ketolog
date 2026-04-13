@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.29.4] - 2026-04-13
+
+### Fixed
+
+- **今日（/today）**: お店タブの並べ替え（`@dnd-kit`）を `SortableRestaurantTabs.tsx` に切り出し、チャンクを遅延読み込みするまでドラッグ不可の通常タブ（`RestaurantTabsStatic`）を表示するようにした。初回バンドルから dnd-kit の大半を外す（[#145](https://github.com/kzkski/ketolog/issues/145) Phase 4）。
+
 ## [1.29.3] - 2026-04-13
 
 ### Fixed

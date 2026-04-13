@@ -8,7 +8,7 @@
 - **認証 UI**: メール／パスワードと Google OAuth は既に [`signup`](../../src/app/signup/page.tsx) / [`login`](../../src/app/login/page.tsx) にある。実際に誰が入れるかは **Supabase 側のプロバイダ設定** と **アプリ側の追加チェック** の組み合わせ。
 - **データ削除**: `auth.users` 削除時にユーザー行は `ON DELETE CASCADE`（[`supabase/migrations/20260211120000_baseline.sql`](../../supabase/migrations/20260211120000_baseline.sql)）。**アプリから Auth ユーザーを削除するフローは別途 GA 向けに [general-availability-checklist.md](general-availability-checklist.md) を参照**。
 - **エクスポート**: 設定から全データ JSON ダウンロードあり（[`TodayClient.tsx`](../../src/app/today/TodayClient.tsx) 設定ドロワー）。持ち出しは可能だが「アカウント削除」とは別。
-- **共有キャッシュ**: `shared_products` の RLS は認証ユーザーがキャッシュ書き込み可能。利用者増に伴う論点は [general-availability-checklist.md](general-availability-checklist.md) と [Issue #2](https://github.com/kzkski/ketolog/issues/2)。
+- **共有キャッシュ**: `shared_products` の RLS は認証ユーザーがキャッシュ書き込み可能。OFF 未ヒット時の手動登録（[#191](https://github.com/kzkski/ketolog/issues/191)）を除き、**書き込みポリシー本格の見直しは [Issue #190](https://github.com/kzkski/ketolog/issues/190)**。利用者増に伴う論点は [general-availability-checklist.md](general-availability-checklist.md) と [Issue #2](https://github.com/kzkski/ketolog/issues/2)。
 
 ```mermaid
 flowchart LR

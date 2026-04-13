@@ -26,6 +26,7 @@ import {
   saveMealToLog,
   updateMenuItem,
   addMenuItem,
+  addMenuItemWithManualSharedProduct,
   deleteMenuItem,
   addMenuItemToFavorites,
   removeMenuItemFromFavorites,
@@ -509,6 +510,8 @@ function MenuItemDrawer({
   const [scanLoading, setScanLoading] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraResult, setCameraResult] = useState<SharedProduct | null>(null);
+  /** OFF 未ヒット後に保存すると RPC で shared_products へ載せる（Issue #191） */
+  const [manualSharedProductPending, setManualSharedProductPending] = useState(false);
   const [lastLookup, setLastLookup] = useState<{ barcode: string; at: number } | null>(null);
   const [servingHint, setServingHint] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -553,10 +556,24 @@ function MenuItemDrawer({
     setLastLookup({ barcode: normalized, at: Date.now() });
     const res = await lookupSharedProductByBarcode(normalized);
     setScanLoading(false);
-    if (res.status === "error" || !res.product) {
-      setScanError(res.error ?? "OFFで商品が見つかりませんでした");
+    if (res.status === "error") {
+      setManualSharedProductPending(false);
+      setScanError(res.error ?? "バーコードの照会に失敗しました");
       return;
     }
+    if (res.status === "not_found" || !res.product) {
+      setCameraResult(null);
+      setServingHint(null);
+      setSharedBarcode(normalized);
+      setStandardFoodCode(null);
+      setManualSharedProductPending(true);
+      setScanError(
+        "Open Food Facts にこのバーコードはありませんでした。商品名と栄養を入力して保存すると、アプリ内で共有されます（写真は不要です）。"
+      );
+      return;
+    }
+    setManualSharedProductPending(false);
+    setScanError(null);
     setCameraResult(res.product);
     setSharedBarcode(res.product.barcode);
     setStandardFoodCode(null);
@@ -807,7 +824,10 @@ function MenuItemDrawer({
         return;
       }
       const restaurantId = state.kind === "add" ? state.restaurantId : "";
-      const result = await addMenuItem(restaurantId, data);
+      const result =
+        manualSharedProductPending && sharedBarcode
+          ? await addMenuItemWithManualSharedProduct(restaurantId, sharedBarcode, data)
+          : await addMenuItem(restaurantId, data);
       if (result.error || !result.data) { setError(result.error ?? "追加に失敗しました"); setSaving(false); return; }
       onSaved(result.data);
     }
@@ -942,6 +962,11 @@ function MenuItemDrawer({
                 </p>
               )}
               {scanError && <p className="text-xs text-amber-300">{scanError}</p>}
+              {manualSharedProductPending && sharedBarcode && (
+                <p className="text-xs text-emerald-300/90">
+                  共有に使うバーコード: <span className="font-mono">{sharedBarcode}</span>
+                </p>
+              )}
               {servingHint && <p className="text-xs text-amber-300">{servingHint}</p>}
               <p className="text-[11px] text-gray-500">
                 Data source: Open Food Facts (ODbL)

@@ -20,6 +20,11 @@ import {
   type PhaseProfiles,
 } from "@/lib/diet-phase";
 import { STANDARD_FOOD_SEARCH_PAGE_SIZE } from "@/lib/standard-food-search";
+import {
+  MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
+  SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
+  SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS,
+} from "@/lib/shared-product-source";
 
 export type SaveItem = {
   menuItemId: string | null;
@@ -341,6 +346,7 @@ async function upsertSharedProduct(
       carbs_per_100g: product.carbs_per_100g,
       serving_size: product.serving_size,
       serving_size_grams: product.serving_size_grams,
+      source: SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS,
       last_checked_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       raw_json: product,
@@ -359,13 +365,19 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
 
   const { data: cached } = await supabase
     .from("shared_products")
-    .select("barcode, product_name, brand, protein_per_100g, fat_per_100g, carbs_per_100g, serving_size, serving_size_grams, last_checked_at")
+    .select(
+      "barcode, product_name, brand, protein_per_100g, fat_per_100g, carbs_per_100g, serving_size, serving_size_grams, last_checked_at, source"
+    )
     .eq("barcode", barcode)
     .maybeSingle();
 
   if (cached) {
+    const source =
+      cached.source === SHARED_PRODUCT_SOURCE_MANUAL_ENTRY
+        ? SHARED_PRODUCT_SOURCE_MANUAL_ENTRY
+        : SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS;
     const stale = Date.now() - new Date(cached.last_checked_at).getTime() > SHARED_PRODUCT_TTL_MS;
-    if (stale) {
+    if (stale && source === SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS) {
       void (async () => {
         const refreshed = await fetchOffProduct(barcode);
         if (refreshed) {
@@ -373,7 +385,7 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
         }
       })();
     }
-    return { status: "ok", product: cached as SharedProduct, error: null };
+    return { status: "ok", product: { ...cached, source } as SharedProduct, error: null };
   }
 
   try {
@@ -438,6 +450,93 @@ export async function addSharedProductMenuItem(input: {
 
   if (insert.error) return { data: null, error: insert.error.message };
   return { data: insert.data as MenuItem, error: null };
+}
+
+/**
+ * OFF 未ヒットのバーコードを手入力で登録するとき、`shared_products` と `menu_items` を
+ * DB トランザクション（RPC）でまとめて追加する（Issue #191）。
+ */
+export async function addMenuItemWithManualSharedProduct(
+  restaurantId: string,
+  barcodeRaw: string,
+  data: MenuItemUpdate
+): Promise<{ data: MenuItem | null; error: string | null }> {
+  const { supabase, user } = await getSupabaseAuthForRequest();
+  if (!user) return { data: null, error: "認証が必要です" };
+
+  const barcode = normalizeBarcode(barcodeRaw);
+  if (!barcode) return { data: null, error: "バーコードが不正です" };
+
+  const trimmedName = data.name.trim();
+  if (!trimmedName) return { data: null, error: "名前を入力してください" };
+
+  if (data.standard_food_code) {
+    return { data: null, error: "標準成分表とバーコードの同時指定はできません" };
+  }
+
+  const rank = data.rank;
+  if (!Number.isFinite(rank) || rank < 1 || rank > 4) {
+    return { data: null, error: "ランクの値が不正です" };
+  }
+
+  const groupName = data.group_name?.trim() || null;
+  const groupOrder = await resolveMenuItemGroupOrder(
+    supabase,
+    user.id,
+    restaurantId,
+    groupName
+  );
+
+  const notes = data.notes?.trim() || MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES;
+
+  const { data: menuId, error: rpcError } = await supabase.rpc(
+    "add_menu_item_with_manual_shared_product",
+    {
+      p_restaurant_id: restaurantId,
+      p_barcode: barcode,
+      p_shared_product_name: trimmedName,
+      p_shared_brand: null,
+      p_shared_protein: data.protein_per_100g,
+      p_shared_fat: data.fat_per_100g,
+      p_shared_carbs: data.carbs_per_100g,
+      p_shared_serving_size: null,
+      p_shared_serving_size_grams: null,
+      p_menu_name: trimmedName,
+      p_menu_protein: data.protein_per_100g,
+      p_menu_fat: data.fat_per_100g,
+      p_menu_carbs: data.carbs_per_100g,
+      p_default_grams: data.default_grams,
+      p_rank: rank,
+      p_notes: notes,
+      p_group_name: groupName,
+      p_group_order: groupOrder,
+    }
+  );
+
+  if (rpcError) {
+    const msg = rpcError.message ?? "";
+    if (msg.includes("menu_item_barcode_exists")) {
+      return { data: null, error: "このお店に同じバーコードのメニューがあります" };
+    }
+    if (msg.includes("restaurant not found")) {
+      return { data: null, error: "お店が見つかりません" };
+    }
+    return { data: null, error: msg };
+  }
+
+  if (!menuId) return { data: null, error: "メニューの追加に失敗しました" };
+
+  const { data: row, error: fetchErr } = await supabase
+    .from("menu_items")
+    .select("*")
+    .eq("id", menuId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (fetchErr || !row) {
+    return { data: null, error: fetchErr?.message ?? "メニューの取得に失敗しました" };
+  }
+  return { data: row as MenuItem, error: null };
 }
 
 // ─── 文科省標準成分表（standard_food_items）────────────────────────────────────

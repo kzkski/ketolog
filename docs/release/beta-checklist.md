@@ -43,7 +43,7 @@ flowchart LR
 ## 4. 運用・観測
 
 - **エラー・パフォーマンス**: Vercel のログ、必要なら Sentry 等（任意）。
-- **ヘルスチェック**: `GET /api/health` でアプリ生存 + Supabase 疎通（`shared_products` への **`GET` で `id` を 1 件だけ取得する軽量クエリ**。PostgREST の `HEAD` は環境によって失敗しうるため使わない）を返せるようにする。`200` は `{ ok: true, checks: { app: \"ok\", supabase: \"ok\" }, db_latency_ms, timestamp }`、失敗時は `503` と `error`（`supabase_unavailable` / `healthcheck_misconfigured`）を返し、Sentry へ送信する。`supabase_unavailable` のときは切り分け用に `diagnostic`（PostgREST の `code` / `message` 相当）を付ける場合がある。Vercel サーバーレスでは Sentry 送信後に `flush` する。
+- **ヘルスチェック**: `GET /api/health` でアプリ生存 + Supabase 疎通（`shared_products` への **`GET` で主キー `barcode` を 1 件だけ取得する軽量クエリ**。同テーブルに `id` 列はない。PostgREST の `HEAD` は環境によって失敗しうるため使わない）を返せるようにする。`200` は `{ ok: true, checks: { app: \"ok\", supabase: \"ok\" }, db_latency_ms, timestamp }`、失敗時は `503` と `error`（`supabase_unavailable` / `healthcheck_misconfigured`）を返し、Sentry へ送信する。`supabase_unavailable` のときは切り分け用に `diagnostic`（PostgREST の `code` / `message` 相当）を付ける場合がある。Vercel サーバーレスでは Sentry 送信後に `flush` する。
 - **問い合わせ先**: フッターや設定に **連絡メールまたはフォーム URL**。
 - **バージョン・変更履歴**: `NEXT_PUBLIC_CHANGELOG_URL`（[README.md](../../README.md)）。ベータ向けに「既知の制限」を短く書くと期待値調整に有効。
 

@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.30.6] - 2026-04-13
+
+### Fixed
+
+- **監視**: `/api/health` が存在しない `shared_products.id` を参照して 503 になっていたのを、主キー列 `barcode` を参照するように修正した。
+
 ## [1.30.5] - 2026-04-13
 
 ### Fixed

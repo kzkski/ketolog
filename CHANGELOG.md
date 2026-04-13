@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.30.0] - 2026-04-13
+
+### Added
+
+- **監視**: `GET /api/health` を追加し、アプリ生存と Supabase 疎通（`shared_products` への軽量クエリ）を返すようにした。異常時は `503` を返し、Sentry にエラー送信する（[#170](https://github.com/kzkski/ketolog/issues/170)）。
+
 ## [1.29.7] - 2026-04-13
 
 ### Fixed

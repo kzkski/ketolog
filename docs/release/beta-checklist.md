@@ -44,11 +44,11 @@ flowchart LR
 
 - **エラー・パフォーマンス**: Vercel のログ、必要なら Sentry 等（任意）。
 - **ヘルスチェック**: `GET /api/health` でアプリ生存 + Supabase 疎通（`shared_products` への **`GET` で主キー `barcode` を 1 件だけ取得する軽量クエリ**。同テーブルに `id` 列はない。PostgREST の `HEAD` は環境によって失敗しうるため使わない）を返せるようにする。`200` は `{ ok: true, checks: { app: \"ok\", supabase: \"ok\" }, db_latency_ms, timestamp }`、失敗時は `503` と `error`（`supabase_unavailable` / `healthcheck_misconfigured`）を返し、Sentry へ送信する。`supabase_unavailable` のときは切り分け用に `diagnostic`（PostgREST の `code` / `message` 相当）を付ける場合がある。Vercel サーバーレスでは Sentry 送信後に `flush` する。
-- **Vercel Cron（本番の定期ヘルス）**: リポジトリ直下の [`vercel.json`](../../vercel.json) で **`/api/health` を 5 分間隔（cron: `*/5 * * * *`、時刻は UTC）** で叩く。プレビュー環境では Cron は作成されない（Vercel の仕様）。**Hobby プランでは日次より短い間隔の Cron がデプロイ不可**のため、5 分間隔を使う本番は **Pro 相当以上** を前提とする（[Cron Jobs – Usage & Pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing) を都度確認）。
+- **Vercel Cron（本番の定期ヘルス）**: リポジトリ直下の [`vercel.json`](../../vercel.json) で **`/api/health` を 1 日 1 回（cron: `0 0 * * *`＝毎日 00:00 UTC）** で叩く。これは **Vercel Hobby でも許容される最短クラスの定期実行**としており、プラン制限でデプロイが落ちないことを優先している（[Cron Jobs – Usage & Pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing) を都度確認）。プレビュー環境では Cron は作成されない（Vercel の仕様）。**より短い間隔（例: 5 分ごとの `*/5 * * * *`）が必要な場合**は、チームの Vercel プランがそれを許すことを確認したうえで **`vercel.json` の `schedule` を自前で変更**し、本チェックリストの記述と揃えること（リポジトリ既定に勝手に短間隔を入れない）。
 - **監視間隔・失敗判定（運用方針）**:
-  - **間隔**: 上記どおり **5 分**を初期値とする（負荷と検知速度のバランス）。変更する場合は `vercel.json` の `schedule` と本項を合わせて更新する。
+  - **間隔**: 上記どおり **日次（UTC 0:00）** をリポジトリの初期値とする。検知を速くしたい場合はプランと `schedule` の見直し、または Uptime 系・手動確認など **別経路と併用**する。
   - **単発失敗**: 一時的なネットワーク揺らぎ等で `503` が出うるため、**単回の失敗だけでは即インシデントとみなさない**。
-  - **連続失敗**: **2 回連続**（約 10 分間隔で 2 度 `503` / Sentry の同一系統エラーが続く等）を **障害疑いの目安**とする。通知チャネル（Slack 等）は別 Issue で接続する想定で、Sentry 側は **期間内件数・連続性に基づくアラートルール**の設定を推奨する。
+  - **連続失敗**: **2 回連続**（日次 Cron なら **約 2 日連続**で `503` / 同一系統の Sentry イベントが続く等）を **障害疑いの目安**とする。通知チャネル（Slack 等）は別 Issue で接続する想定で、Sentry 側は **期間内件数・連続性に基づくアラートルール**の設定を推奨する。
 - **Cron 失敗と Sentry の確認手順（開発・検証）**: プレビューでは Cron が動かないため、**ローカルまたは一時環境**で `SUPABASE_SERVICE_ROLE_KEY` を外す・誤った値にする等、意図的に `503` となる状態で `GET /api/health` を実行し、Sentry に `route: /api/health` 付きのイベントが積まれることを確認する。本番ではデプロイ後に Vercel ダッシュボードの **Cron Jobs / 実行履歴**で定期実行を確認する。
 - **問い合わせ先**: フッターや設定に **連絡メールまたはフォーム URL**。
 - **バージョン・変更履歴**: `NEXT_PUBLIC_CHANGELOG_URL`（[README.md](../../README.md)）。ベータ向けに「既知の制限」を短く書くと期待値調整に有効。

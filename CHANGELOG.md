@@ -15,6 +15,12 @@
 - **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 - **開発運用**: 通常マージ失敗時の待機手順（停止→ブロッカー確認→60〜120秒待機→再確認→通常マージ再試行）を追加し、待機前に `--admin` へ進まない運用を明文化した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 
+## [1.32.1] - 2026-04-14
+
+### Fixed
+
+- **Today / バーコード**: 手動共有（`manual_entry`）の商品を後からバーコードで読んだときも、メモ欄の初期文言を「OFF連携」ではなく手動共有の説明文に統一した（[#194](https://github.com/kzkski/ketolog/issues/194)）。
+
 ## [1.32.0] - 2026-04-13
 
 ### Added

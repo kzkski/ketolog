@@ -44,6 +44,13 @@ flowchart LR
 
 - **エラー・パフォーマンス**: Vercel のログ、必要なら Sentry 等（任意）。
 - **ヘルスチェック**: `GET /api/health` でアプリ生存 + Supabase 疎通（`shared_products` への **`GET` で主キー `barcode` を 1 件だけ取得する軽量クエリ**。同テーブルに `id` 列はない。PostgREST の `HEAD` は環境によって失敗しうるため使わない）を返せるようにする。`200` は `{ ok: true, checks: { app: \"ok\", supabase: \"ok\" }, db_latency_ms, timestamp }`、失敗時は `503` と `error`（`supabase_unavailable` / `healthcheck_misconfigured`）を返し、Sentry へ送信する。`supabase_unavailable` のときは切り分け用に `diagnostic`（PostgREST の `code` / `message` 相当）を付ける場合がある。Vercel サーバーレスでは Sentry 送信後に `flush` する。
+- **定期ヘルス（無料プランでの実効性）**: **Vercel Hobby は短間隔の Cron がデプロイできない**（日次までに落とすと監視としてほぼ意味がない）ため、本番 URL への定期 GET は **[`.github/workflows/production-health-check.yml`](../../.github/workflows/production-health-check.yml)** の **GitHub Actions（5 分間隔・UTC の `*/5 * * * *`）** で行う。リポジトリは **公開**のため、標準ランナーは [GitHub の無料枠](https://docs.github.com/en/billing/concepts/product-billing/github-actions#about-billing-for-github-actions)で実用上問題になりにくい。**非公開に変えた場合**は Actions の分消費に注意し、必要ならワークフロー内の `cron` を緩める。運用開始時に **GitHub → Settings → Secrets and variables → Actions** で `HEALTHCHECK_URL` に **`https://<本番ホスト>/api/health` の完全 URL** を設定する（未設定の実行はジョブ成功でスキップされ、本番は監視されない）。
+- **Vercel Cron を併用する場合（任意）**: Pro 以上で短間隔 Cron が使えるなら、Vercel 側に `vercel.json` を追加して二重化してもよいが、**無料プラン前提の既定は GitHub Actions のみ**とする。
+- **監視間隔・失敗判定（運用方針）**:
+  - **間隔**: 上記どおり **5 分**をリポジトリの初期値とする（ワークフローの `cron` と本項を揃える）。
+  - **単発失敗**: 一時的なネットワーク揺らぎ等で `503` が出うるため、**単回の失敗だけでは即インシデントとみなさない**。
+  - **連続失敗**: **2 回連続**（約 **10 分**以内に 2 度 `503` / 同一系統の Sentry イベントが続く等）を **障害疑いの目安**とする。通知チャネル（Slack 等）は別 Issue で接続する想定で、Sentry 側は **期間内件数・連続性に基づくアラートルール**の設定を推奨する。
+- **定期実行と Sentry の確認手順（開発・検証）**: **ローカルまたは一時環境**で `SUPABASE_SERVICE_ROLE_KEY` を外す・誤った値にする等、意図的に `503` となる状態で `GET /api/health` を実行し、Sentry に `route: /api/health` 付きのイベントが積まれることを確認する。本番では `HEALTHCHECK_URL` 設定後に GitHub の **Actions** タブでワークフロー実行履歴を確認する（手動は **Run workflow** でも可）。
 - **問い合わせ先**: フッターや設定に **連絡メールまたはフォーム URL**。
 - **バージョン・変更履歴**: `NEXT_PUBLIC_CHANGELOG_URL`（[README.md](../../README.md)）。ベータ向けに「既知の制限」を短く書くと期待値調整に有効。
 

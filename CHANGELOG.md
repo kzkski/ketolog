@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.30.3] - 2026-04-13
+
+### Fixed
+
+- **監視**: `/api/health` の `diagnostic` が `unknown_error` になるケースを減らすため、`Error` サブクラス（`PostgrestError` 等）を優先して `message` / `code` / `details` / `hint` / `cause` を抽出するようにした。
+
 ## [1.30.2] - 2026-04-13
 
 ### Fixed

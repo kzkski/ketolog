@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.30.1] - 2026-04-13
+
+### Fixed
+
+- **監視**: 認証用 `proxy` ミドルウェアが `/api/health` を `/login` へリダイレクトしていたため、外形監視で 307 になる問題を修正した。`/api/health` は未ログインでも Route Handler まで到達する。
+
 ## [1.30.0] - 2026-04-13
 
 ### Added

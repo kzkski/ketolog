@@ -60,11 +60,13 @@ function StandardFoodPaginationBar({
 export function StandardFoodPanel({
   visibleRestaurants,
   compositionTargetRestaurantId,
+  canPickFood,
   onCompositionTargetChange,
   onPickFood,
 }: {
   visibleRestaurants: Restaurant[];
   compositionTargetRestaurantId: string;
+  canPickFood: boolean;
   onCompositionTargetChange: (restaurantId: string) => void;
   onPickFood: (row: StandardFoodSearchRow) => void;
 }) {
@@ -150,6 +152,11 @@ export function StandardFoodPanel({
             に追加する
           </span>
         </div>
+        {visibleRestaurants.length === 0 && (
+          <p className="mt-1 text-[11px] text-amber-300 leading-relaxed">
+            追加先のお店がないため、メニュー登録はできません。カート追加・直接記録は利用できます。上の「＋」からお店を登録するとメニュー登録も使えます。
+          </p>
+        )}
       </div>
 
       <div>
@@ -222,7 +229,7 @@ export function StandardFoodPanel({
             <button
               type="button"
               onClick={() => onPickFood(row)}
-              disabled={!compositionTargetRestaurantId}
+              disabled={!canPickFood}
               className="w-full text-left rounded-xl border border-gray-800 bg-gray-900/60 px-3 py-2.5 hover:border-gray-600 hover:bg-gray-800/50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
             >
               <div className="flex items-start justify-between gap-2">

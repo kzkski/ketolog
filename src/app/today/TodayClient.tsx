@@ -422,7 +422,12 @@ function MenuItemDrawer({
   snapshotRestaurantId,
   onAfterSnapshotLog,
   onSnapshotCart,
+  registerTargets,
+  registerTargetRestaurantId,
+  onRegisterTargetChange,
   registerTargetRestaurantName,
+  canRegisterMenu,
+  registerDisabledReason,
   onOpenStandardFoodSearch,
 }: {
   state: ItemDrawerState;
@@ -435,6 +440,10 @@ function MenuItemDrawer({
   snapshotRestaurantId: string;
   /** 追加時: いま選ばれているお店タブ（メニュー登録の宛先） */
   registerTargetRestaurantName: string;
+  /** 追加時: メニュー登録先が有効なとき true */
+  canRegisterMenu: boolean;
+  /** 追加時: メニュー登録を無効化する理由 */
+  registerDisabledReason?: string;
   onAfterSnapshotLog: () => Promise<void>;
   onSnapshotCart: (draft: {
     name: string;
@@ -444,6 +453,9 @@ function MenuItemDrawer({
     grams: number;
     shared_barcode: string | null;
   }) => void;
+  registerTargets: Restaurant[];
+  registerTargetRestaurantId: string;
+  onRegisterTargetChange: (restaurantId: string) => void;
   onOpenStandardFoodSearch?: () => void;
 }) {
   const groupListId = useId();
@@ -748,6 +760,11 @@ function MenuItemDrawer({
       }
       onSaved(result.data);
     } else {
+      if (!canRegisterMenu) {
+        setError(registerDisabledReason ?? "追加先のお店がないため、メニュー登録できません。");
+        setSaving(false);
+        return;
+      }
       const restaurantId = state.kind === "add" ? state.restaurantId : "";
       const result = await addMenuItem(restaurantId, data);
       if (result.error || !result.data) { setError(result.error ?? "追加に失敗しました"); setSaving(false); return; }
@@ -1006,12 +1023,33 @@ function MenuItemDrawer({
               </button>
             ) : (
               <>
+                <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-3 py-2">
+                  <label className="mb-1 block text-[11px] text-gray-400">メニュー登録先</label>
+                  <select
+                    value={canRegisterMenu ? registerTargetRestaurantId : ""}
+                    onChange={(e) => onRegisterTargetChange(e.target.value)}
+                    disabled={registerTargets.length === 0}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-2.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 disabled:opacity-50"
+                  >
+                    {registerTargets.length === 0 ? (
+                      <option value="">お店がありません</option>
+                    ) : (
+                      registerTargets.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
                 <button
                   type="button"
                   onClick={() => void handleSave()}
-                  disabled={saving}
+                  disabled={saving || !canRegisterMenu}
                   title={
-                    registerTargetRestaurantName
+                    !canRegisterMenu
+                      ? registerDisabledReason
+                      : registerTargetRestaurantName
                       ? `「${registerTargetRestaurantName}」のメニュー一覧に追加します`
                       : undefined
                   }
@@ -1020,20 +1058,14 @@ function MenuItemDrawer({
                   {saving ? (
                     "保存中..."
                   ) : (
-                    <>
-                      <span className="text-sm sm:text-base">メニューに登録</span>
-                      {registerTargetRestaurantName ? (
-                        <span className="max-w-full truncate px-1 text-[11px] font-normal text-emerald-100/90 sm:text-xs">
-                          {registerTargetRestaurantName}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] font-normal text-emerald-100/80 sm:text-xs">
-                          （お店タブを確認）
-                        </span>
-                      )}
-                    </>
+                    <span className="text-sm sm:text-base">メニューに登録</span>
                   )}
                 </button>
+                {!canRegisterMenu && (
+                  <p className="px-1 text-center text-[11px] leading-snug text-amber-300">
+                    {registerDisabledReason ?? "追加先のお店がないため、メニュー登録はできません。"}
+                  </p>
+                )}
                 <p className="hidden px-1 text-center text-[11px] leading-snug text-gray-500 sm:block">
                   メニュー一覧に載せずに記録するとき
                 </p>
@@ -3272,12 +3304,6 @@ export default function TodayClient({
             type="button"
             title={STANDARD_FOOD_TAB_TITLE}
             onClick={() => {
-              if (tabRestaurants.length === 0) {
-                alert(
-                  "先にお店を追加してください。上の「＋」からお店を登録できます。"
-                );
-                return;
-              }
               if (
                 selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
                 selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID
@@ -3321,18 +3347,21 @@ export default function TodayClient({
             <StandardFoodPanel
               visibleRestaurants={tabRestaurants}
               compositionTargetRestaurantId={resolvedCompositionTargetId}
+              canPickFood={Boolean(resolvedCompositionTargetId || snapshotRestaurantId)}
               onCompositionTargetChange={setCompositionTargetRestaurantId}
               onPickFood={(row) => {
-                const rid = resolvedCompositionTargetId;
+                const rid = resolvedCompositionTargetId || snapshotRestaurantId;
                 if (!rid) return;
-                const back = lastRealRestaurantTabIdRef.current;
-                const safeBack =
-                  back &&
-                  back !== MEXT_COMPOSITION_TAB_ID &&
-                  back !== FAVORITES_TAB_ID
-                    ? back
-                    : rid;
-                setSelectedRestaurantId(safeBack);
+                if (resolvedCompositionTargetId) {
+                  const back = lastRealRestaurantTabIdRef.current;
+                  const safeBack =
+                    back &&
+                    back !== MEXT_COMPOSITION_TAB_ID &&
+                    back !== FAVORITES_TAB_ID
+                      ? back
+                      : resolvedCompositionTargetId;
+                  setSelectedRestaurantId(safeBack);
+                }
                 setItemDrawer({
                   kind: "add",
                   restaurantId: rid,
@@ -3591,12 +3620,33 @@ export default function TodayClient({
           }
           logDate={selectedDate}
           snapshotRestaurantId={snapshotRestaurantId}
+          registerTargets={tabRestaurants}
+          registerTargetRestaurantId={itemDrawer.kind === "add" ? itemDrawer.restaurantId : ""}
+          onRegisterTargetChange={(restaurantId) =>
+            setItemDrawer((prev) =>
+              prev && prev.kind === "add"
+                ? { ...prev, restaurantId }
+                : prev
+            )
+          }
           registerTargetRestaurantName={
             itemDrawer.kind === "add"
-              ? (restaurantNameById.get(itemDrawer.restaurantId) ?? "")
+              ? (tabRestaurants.some((r) => r.id === itemDrawer.restaurantId)
+                ? (restaurantNameById.get(itemDrawer.restaurantId) ?? "")
+                : "")
               : selectedRestaurantIdResolved === FAVORITES_TAB_ID
                 ? (tabRestaurants[0]?.name ?? "")
                 : (selectedRestaurant?.name ?? "")
+          }
+          canRegisterMenu={
+            itemDrawer.kind === "edit" ||
+            tabRestaurants.some((r) => r.id === itemDrawer.restaurantId)
+          }
+          registerDisabledReason={
+            itemDrawer.kind === "add" &&
+            !tabRestaurants.some((r) => r.id === itemDrawer.restaurantId)
+              ? "追加先のお店がないため、メニュー登録はできません。先にお店を作成してください。"
+              : undefined
           }
           onOpenStandardFoodSearch={
             itemDrawer.kind === "add"

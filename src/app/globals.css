@@ -35,3 +35,9 @@ body {
   color: #f9fafb;
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* datalist 付き text input のネイティブ下矢印を非表示化（候補ボタンを主導線にする） */
+input.no-datalist-indicator::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+}

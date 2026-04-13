@@ -998,7 +998,7 @@ function MenuItemDrawer({
                 onChange={(e) => setGroupName(e.target.value)}
                 list={existingGroupNames.length > 0 ? groupListId : undefined}
                 placeholder="例: ホルモン系"
-                className="min-w-0 flex-1 px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
+                className="no-datalist-indicator min-w-0 flex-1 px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
               />
               {existingGroupNames.length > 0 && (
                 <button

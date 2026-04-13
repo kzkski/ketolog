@@ -150,6 +150,11 @@ export function StandardFoodPanel({
             に追加する
           </span>
         </div>
+        {visibleRestaurants.length === 0 && (
+          <p className="mt-1 text-[11px] text-amber-300 leading-relaxed">
+            追加先のお店がないため、食品の追加はできません。上の「＋」からお店を登録してください。
+          </p>
+        )}
       </div>
 
       <div>

@@ -3272,12 +3272,6 @@ export default function TodayClient({
             type="button"
             title={STANDARD_FOOD_TAB_TITLE}
             onClick={() => {
-              if (tabRestaurants.length === 0) {
-                alert(
-                  "先にお店を追加してください。上の「＋」からお店を登録できます。"
-                );
-                return;
-              }
               if (
                 selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
                 selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID

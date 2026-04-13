@@ -1058,18 +1058,7 @@ function MenuItemDrawer({
                   {saving ? (
                     "保存中..."
                   ) : (
-                    <>
-                      <span className="text-sm sm:text-base">メニューに登録</span>
-                      {registerTargetRestaurantName ? (
-                        <span className="max-w-full truncate px-1 text-[11px] font-normal text-emerald-100/90 sm:text-xs">
-                          {registerTargetRestaurantName}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] font-normal text-emerald-100/80 sm:text-xs">
-                          （お店タブを確認）
-                        </span>
-                      )}
-                    </>
+                    <span className="text-sm sm:text-base">メニューに登録</span>
                   )}
                 </button>
                 {!canRegisterMenu && (

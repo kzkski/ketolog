@@ -6,7 +6,7 @@
 
 | 状況 | 読む順 |
 |------|--------|
-| **ベータを切りたい** | [beta-checklist.md](beta-checklist.md) → [quality-and-ci.md](quality-and-ci.md)（CI 最低ライン）→ [sentry-alerts-slack.md](sentry-alerts-slack.md)（アラート）→ 必要なら [third-party-compliance.md](third-party-compliance.md) |
+| **ベータを切りたい** | [beta-checklist.md](beta-checklist.md) → [quality-and-ci.md](quality-and-ci.md)（CI 最低ライン）→ [sentry-alerts-slack.md](sentry-alerts-slack.md)（アラート）→ [sentry-operations-runbook.md](sentry-operations-runbook.md)（発報時 Runbook）→ 必要なら [third-party-compliance.md](third-party-compliance.md) |
 | **一般公開（GA）を切りたい** | [general-availability-checklist.md](general-availability-checklist.md) → [operations-and-costs.md](operations-and-costs.md) → [quality-and-ci.md](quality-and-ci.md) |
 | **課金・枠の見直しだけ** | [operations-and-costs.md](operations-and-costs.md)（表の数値は公式を再確認すること） |
 | **テスト・CI を整備する** | [quality-and-ci.md](quality-and-ci.md) |
@@ -21,6 +21,7 @@
 | [quality-and-ci.md](quality-and-ci.md) | CI 現状、lint/build、テストの段階、E2E（Issue #59）、リリース前確認 |
 | [third-party-compliance.md](third-party-compliance.md) | Open Food Facts 等の継続義務・新規 API のテンプレ |
 | [sentry-alerts-slack.md](sentry-alerts-slack.md) | Sentry の最小アラート 5 本・P1/P2・Slack 連携・通知抑制（運用者向け） |
+| [sentry-operations-runbook.md](sentry-operations-runbook.md) | 発報時の一次切り分け（Sentry→Vercel→Supabase）、無料枠の注意、月次棚卸しチェックリスト |
 
 ## 関連（戦略・市場）
 

@@ -123,6 +123,7 @@
 
 ### Added
 
+- **開発者向け**: Sentry 発報時の一次切り分けと月次棚卸しを [docs/release/sentry-operations-runbook.md](docs/release/sentry-operations-runbook.md) にまとめた。
 - **ドキュメント**: 市場調査レポートを [docs/research/README.md](docs/research/README.md) に集約し、README・ROADMAP・リリース文書から動線を張った。
 - **開発者向け**: ベータ開放・一般公開に向けたチェックリストと運用メモを [docs/release/README.md](docs/release/README.md) 以下に追加した。
 

@@ -175,9 +175,9 @@ export async function GET() {
 
   try {
     const supabase = getSupabaseClient();
-    const { error } = await supabase
-      .from("shared_products")
-      .select("id", { head: true, count: "exact" });
+    // `head: true` は PostgREST へ HEAD になり、環境によっては失敗する（Vercel の External API ログで HEAD が赤くなる）。
+    // 軽量の GET + limit(1) で疎通だけ確認する。
+    const { error } = await supabase.from("shared_products").select("id").limit(1);
 
     if (error) {
       throw error;

@@ -12,6 +12,11 @@ const { version } = require("./package.json") as { version: string };
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
+    // Vercel はビルド時に VERCEL_GIT_COMMIT_SHA を渡す。ダッシュボードに
+    // `$VERCEL_GIT_COMMIT_SHA` と文字入力しても展開されないため、ここで確実に埋める。
+    ...(process.env.VERCEL_GIT_COMMIT_SHA && {
+      NEXT_PUBLIC_SENTRY_RELEASE: process.env.VERCEL_GIT_COMMIT_SHA,
+    }),
   },
 };
 

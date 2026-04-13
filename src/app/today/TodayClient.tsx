@@ -119,6 +119,26 @@ const FAVORITES_TAB_ID = "__ketolog_favorites__";
 /** 文科省標準成分表検索パネル（仮想タブ） */
 const MEXT_COMPOSITION_TAB_ID = "__ketolog_mext_std__";
 
+/** レストランタブ「成分表」用の虫眼鏡（メニュー行の数量「＋」と役割を分ける） */
+function RestaurantTabSearchIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  );
+}
+
 const RANK_OPTIONS = [
   { value: 1, label: "◎ 最優先" },
   { value: 2, label: "○ 通常" },
@@ -3418,12 +3438,15 @@ export default function TodayClient({
               setSelectedRestaurantId(FAVORITES_TAB_ID);
               setConfirmDeleteRestaurant(false);
             }}
-            className={`px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
+            className={`inline-flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
               selectedRestaurantIdResolved === FAVORITES_TAB_ID
                 ? "border-amber-500 text-amber-100"
                 : "border-transparent text-gray-500 hover:text-gray-300"
             }`}
           >
+            <span className="text-[0.95em] leading-none tabular-nums" aria-hidden>
+              {selectedRestaurantIdResolved === FAVORITES_TAB_ID ? "★" : "☆"}
+            </span>
             お気に入り
           </button>
           <button
@@ -3439,16 +3462,15 @@ export default function TodayClient({
               setConfirmDeleteRestaurant(false);
               setSelectedRestaurantId(MEXT_COMPOSITION_TAB_ID);
             }}
-            className={`px-2 sm:px-3 py-1.5 sm:py-2.5 text-[11px] sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation max-w-[9.5rem] sm:max-w-none ${
+            className={`inline-flex min-w-0 max-w-[9.5rem] sm:max-w-none items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2.5 text-[11px] sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
               selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID
                 ? "border-sky-500 text-sky-100"
                 : "border-transparent text-gray-500 hover:text-gray-300"
             }`}
           >
+            <RestaurantTabSearchIcon className="size-[1.1em] shrink-0 sm:size-[1.05em]" />
             <span className="sm:hidden">成分表</span>
-            <span className="hidden sm:inline truncate block">
-              文科省表2023
-            </span>
+            <span className="hidden min-w-0 truncate sm:inline">文科省表2023</span>
           </button>
           <RestaurantTabsLazy
             tabRestaurants={tabRestaurants}

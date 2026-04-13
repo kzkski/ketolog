@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.29.0] - 2026-04-13
+
+### Added
+
+- **今日**: お気に入り（☆）が1件以上あるときは、開いたときのデフォルトタブを「お気に入り」にした（[#142](https://github.com/kzkski/ketolog/issues/142)）。
+
 ## [1.28.1] - 2026-04-12
 
 ### Fixed

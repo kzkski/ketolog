@@ -185,6 +185,25 @@ function firstTabRestaurantId(restaurants: Restaurant[]): string {
   return visible[0]?.id ?? "";
 }
 
+function hasFavoriteEntries(groups: FavoriteGroupPayload[]): boolean {
+  return groups.some((g) => g.entries.length > 0);
+}
+
+/** タブ並びの先頭から、お気に入りメニューが1件でもある店を探す */
+function firstRestaurantIdWithFavoriteMenu(
+  tabRestaurants: Restaurant[],
+  groups: FavoriteGroupPayload[]
+): string | undefined {
+  if (tabRestaurants.length === 0) return undefined;
+  const withFavorite = new Set<string>();
+  for (const g of groups) {
+    for (const e of g.entries) {
+      withFavorite.add(e.menu_item.restaurant_id);
+    }
+  }
+  return tabRestaurants.find((r) => withFavorite.has(r.id))?.id;
+}
+
 function pfcFromPer100(
   proteinPer100: number | null,
   fatPer100: number | null,
@@ -2546,7 +2565,9 @@ export default function TodayClient({
   const [menuItems, setMenuItems]     = useState<MenuItem[]>(initialMenuItems);
   const [favoriteGroups, setFavoriteGroups] = useState<FavoriteGroupPayload[]>(initialFavoriteGroups);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(() =>
-    firstTabRestaurantId(initialRestaurants)
+    hasFavoriteEntries(initialFavoriteGroups)
+      ? FAVORITES_TAB_ID
+      : firstTabRestaurantId(initialRestaurants)
   );
   const [cart, setCart]             = useState<Map<string, CartEntry>>(new Map());
   const [mealType, setMealType]     = useState<MealType>(initialMealType);
@@ -2673,10 +2694,19 @@ export default function TodayClient({
       return resolvedCompositionTargetId;
     }
     if (selectedRestaurantIdResolved === FAVORITES_TAB_ID) {
-      return tabRestaurants[0]?.id ?? "";
+      return (
+        firstRestaurantIdWithFavoriteMenu(tabRestaurants, favoriteGroups) ??
+        tabRestaurants[0]?.id ??
+        ""
+      );
     }
     return selectedRestaurantIdResolved;
-  }, [selectedRestaurantIdResolved, tabRestaurants, resolvedCompositionTargetId]);
+  }, [
+    selectedRestaurantIdResolved,
+    tabRestaurants,
+    resolvedCompositionTargetId,
+    favoriteGroups,
+  ]);
 
   const selectedRestaurant = restaurants.find(
     (r) => r.id === selectedRestaurantIdResolved

@@ -29,6 +29,7 @@
 
 ### Changed
 
+- **ドキュメント**: 市場調査の方針要約を [ROADMAP.md](ROADMAP.md)、[docs/research/README.md](docs/research/README.md)、ベータ／GA チェックリスト（[docs/release/beta-checklist.md](docs/release/beta-checklist.md)、[docs/release/general-availability-checklist.md](docs/release/general-availability-checklist.md)）に反映した（[#139](https://github.com/kzkski/ketolog/issues/139)）。
 - **設定・ドキュメント**: PFC プリセットを **導入期（100/150/20）** / **脂肪燃焼期（100/120/40）** / **TKD（110/110/60）** に変更した。README・DB 既定を整合し、未カスタムの従来既定 JSON に一致する行のみマイグレーションで更新する。
 - **設定**: PFC 目標の「表示」と「編集」を同じ3チップにまとめ、フェーズ番号の二重操作をやめた。
 - **設定**: PFC 目標セットを、セットごとに1行ずつ（名前＋P/F/C）並べて編集できるようにした。

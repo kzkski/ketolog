@@ -15,7 +15,7 @@
 
 | ファイル | 内容 |
 |----------|------|
-| [beta-checklist.md](beta-checklist.md) | 限定的ユーザー増：アクセス制御、認証設定、ベータ法務、運用、OFF 以外の横断 |
+| [beta-checklist.md](beta-checklist.md) | 限定的ユーザー増：アクセス制御、認証設定、ベータ法務、運用、OFF 以外の横断。検証仮説の参考は §8（[docs/research/](../research/README.md) と連動） |
 | [general-availability-checklist.md](general-availability-checklist.md) | GA：アカウント削除、濫用対策、本番法務、コミュニケーション |
 | [operations-and-costs.md](operations-and-costs.md) | Vercel / Supabase の枠、課金検討の目安、信頼性 |
 | [quality-and-ci.md](quality-and-ci.md) | CI 現状、lint/build、テストの段階、E2E（Issue #59）、リリース前確認 |

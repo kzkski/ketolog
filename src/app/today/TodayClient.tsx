@@ -460,7 +460,6 @@ function MenuItemDrawer({
 }) {
   const MEMO_MIN_ROWS = 3;
   const MEMO_MAX_ROWS = 10;
-  const groupListId = useId();
   const isEdit = state.kind === "edit";
   const existing = isEdit ? state.item : null;
   const draft = state.kind === "add" ? state.standardFoodDraft : undefined;
@@ -514,7 +513,9 @@ function MenuItemDrawer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const groupNameInputRef = useRef<HTMLInputElement>(null);
+  const groupSuggestionWrapRef = useRef<HTMLDivElement>(null);
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isGroupSuggestionsOpen, setIsGroupSuggestionsOpen] = useState(false);
   const cameraSupported =
     typeof window !== "undefined" &&
     Boolean(navigator.mediaDevices?.getUserMedia) &&
@@ -722,12 +723,31 @@ function MenuItemDrawer({
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [notes]);
 
+  useEffect(() => {
+    if (!isGroupSuggestionsOpen) return;
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (groupSuggestionWrapRef.current?.contains(target)) return;
+      setIsGroupSuggestionsOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [isGroupSuggestionsOpen]);
+
+  const groupSuggestions = useMemo(() => {
+    const q = groupName.trim().toLowerCase();
+    if (!q) return existingGroupNames;
+    return existingGroupNames.filter((name) => name.toLowerCase().includes(q));
+  }, [existingGroupNames, groupName]);
+
   function openGroupSuggestions() {
-    const input = groupNameInputRef.current;
-    if (!input) return;
-    input.focus();
-    const pickerCapable = input as HTMLInputElement & { showPicker?: () => void };
-    pickerCapable.showPicker?.();
+    groupNameInputRef.current?.focus();
+    setIsGroupSuggestionsOpen((v) => !v);
   }
 
   function buildMenuPayload(): MenuItemUpdate {
@@ -990,15 +1010,18 @@ function MenuItemDrawer({
 
           <div>
             <label className="block text-xs text-gray-400 mb-1">グループ名（任意）</label>
-            <div className="flex items-center gap-2">
+            <div ref={groupSuggestionWrapRef} className="relative">
+              <div className="flex items-center gap-2">
               <input
                 ref={groupNameInputRef}
                 type="text"
                 value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                list={existingGroupNames.length > 0 ? groupListId : undefined}
+                onChange={(e) => {
+                  setGroupName(e.target.value);
+                  if (!isGroupSuggestionsOpen) setIsGroupSuggestionsOpen(true);
+                }}
                 placeholder="例: ホルモン系"
-                className="no-datalist-indicator min-w-0 flex-1 px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
+                className="min-w-0 flex-1 px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
               />
               {existingGroupNames.length > 0 && (
                 <button
@@ -1010,13 +1033,29 @@ function MenuItemDrawer({
                 </button>
               )}
             </div>
-            {existingGroupNames.length > 0 && (
-              <datalist id={groupListId}>
-                {existingGroupNames.map((g) => (
-                  <option key={g} value={g} />
-                ))}
-              </datalist>
-            )}
+              {existingGroupNames.length > 0 && isGroupSuggestionsOpen && (
+                <ul className="absolute z-20 mt-1 max-h-44 w-full overflow-y-auto rounded-lg border border-gray-700 bg-gray-900/95 p-1 shadow-lg">
+                  {groupSuggestions.length > 0 ? (
+                    groupSuggestions.map((g) => (
+                      <li key={g}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGroupName(g);
+                            setIsGroupSuggestionsOpen(false);
+                          }}
+                          className="w-full rounded-md px-2 py-2 text-left text-sm text-gray-100 hover:bg-gray-800"
+                        >
+                          {g}
+                        </button>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="px-2 py-2 text-xs text-gray-400">一致する候補はありません</li>
+                  )}
+                </ul>
+              )}
+            </div>
           </div>
 
           <div>

@@ -99,6 +99,16 @@ git branch -d feat/your-feature-name
 
 ---
 
+## マージ運用（ブランチ保護）
+
+- ブランチ保護を**バイパスする操作は原則禁止**（例: `gh pr merge --admin`）。
+- やむを得ずバイパスが必要な場合は、**実行前に理由・影響を説明し、明示的な承認を得る**。
+- 通常マージできない場合（例: `base branch policy prohibits the merge`）は、**その場で停止**し、PR のブロッカー（required checks / review / conversation）を確認して報告する。
+- 報告後は **60〜120秒待機して再確認**を行い、`mergeable` が `MERGEABLE` かつ required checks が成功してから通常マージを再試行する。
+- 上記の再確認を実施する前に、`--admin` へフォールバックしてはならない。
+
+---
+
 ## バージョン管理（Semantic Versioning）
 
 `package.json` の `version` は [Semantic Versioning](https://semver.org/) に従う。

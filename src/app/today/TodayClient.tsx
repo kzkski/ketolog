@@ -60,8 +60,7 @@ import {
   type FoodLogExportEntry,
 } from "./actions";
 import type { SharedProduct } from "@/types/database";
-import { BrowserMultiFormatReader } from "@zxing/browser";
-import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+import type { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import {
   MACRO_BAR_BG,
   MACRO_MENU_TEXT,
@@ -659,6 +658,12 @@ function MenuItemDrawer({
         }
       } else {
         try {
+          const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] =
+            await Promise.all([import("@zxing/browser"), import("@zxing/library")]);
+          if (stopped) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
           const hints = new Map<DecodeHintType, BarcodeFormat[]>();
           hints.set(DecodeHintType.POSSIBLE_FORMATS, [
             BarcodeFormat.EAN_13,

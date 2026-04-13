@@ -89,7 +89,15 @@ Next.js 16 の既定の本番ビルドは Turbopack のため、[@next/bundle-an
 npm run analyze
 ```
 
-ビルド完了後にレポート用のタブが開くことが多い。開かない場合は、ターミナルに `Webpack Bundle Analyzer saved report to` と出る **`.next/analyze/` 以下の HTML**（例: `client.html`）をブラウザで開く。Turbopack だけのビルドではレポートは出ない。手早く試す場合は [公式の bundling ガイド](https://nextjs.org/docs/app/guides/package-bundling) の `next experimental-analyze` も参照。
+ビルド完了後にレポート用のタブが開くことが多い。開かない場合は、ターミナルに `Webpack Bundle Analyzer saved report to` と出る **`.next/analyze/` 以下の HTML** をブラウザで開く。Turbopack だけのビルドではレポートは出ない。手早く試す場合は [公式の bundling ガイド](https://nextjs.org/docs/app/guides/package-bundling) の `next experimental-analyze` も参照。
+
+次の **3 ファイル**が生成される（ビルドごとに webpack のコンパイル単位が分かれているため）。
+
+| ファイル | 対象 | 見方の目安 |
+|---|---|---|
+| `client.html` | ブラウザ向け JS | **画面まわりの依存が増えたか**を見るときの主役 |
+| `nodejs.html` | Node 上のサーバーバンドル | RSC・サーバー側のまとまり |
+| `edge.html` | Edge 上のバンドル（本プロジェクトでは [`src/proxy.ts`](src/proxy.ts) 相当） | **treemap が空に近いことがある**。Next と Analyzer の組み合わせで Edge 用 stats がうまく載らず、表示されないだけのことが多く、ビルド失敗や Proxy 未使用を意味するとは限らない |
 
 手動で同等にする例: `ANALYZE=true next build --webpack`。
 

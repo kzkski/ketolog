@@ -853,28 +853,6 @@ function MenuItemDrawer({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto space-y-4 px-4 py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {!isEdit && (
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">メニュー登録先のお店</label>
-              <select
-                value={canRegisterMenu ? registerTargetRestaurantId : ""}
-                onChange={(e) => onRegisterTargetChange(e.target.value)}
-                disabled={registerTargets.length === 0}
-                className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500 disabled:opacity-50"
-              >
-                {registerTargets.length === 0 ? (
-                  <option value="">お店がありません</option>
-                ) : (
-                  registerTargets.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-          )}
-
           <div>
             <label className="block text-xs text-gray-400 mb-1">名前</label>
             <input
@@ -1045,6 +1023,25 @@ function MenuItemDrawer({
               </button>
             ) : (
               <>
+                <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-3 py-2">
+                  <label className="mb-1 block text-[11px] text-gray-400">メニュー登録先</label>
+                  <select
+                    value={canRegisterMenu ? registerTargetRestaurantId : ""}
+                    onChange={(e) => onRegisterTargetChange(e.target.value)}
+                    disabled={registerTargets.length === 0}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-2.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 disabled:opacity-50"
+                  >
+                    {registerTargets.length === 0 ? (
+                      <option value="">お店がありません</option>
+                    ) : (
+                      registerTargets.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
                 <button
                   type="button"
                   onClick={() => void handleSave()}

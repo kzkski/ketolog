@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.30.5] - 2026-04-13
+
+### Fixed
+
+- **監視**: `/api/health` の Supabase 疎通確認を `HEAD`（`select(..., { head: true })`）から **`GET` + `limit(1)`** に変更した。PostgREST への HEAD が環境によって失敗し Vercel 上で 503 になる問題を避ける。
+
 ## [1.30.4] - 2026-04-13
 
 ### Fixed

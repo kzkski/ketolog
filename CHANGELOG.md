@@ -8,6 +8,14 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [Unreleased]
+
+## [1.31.0] - 2026-04-13
+
+### Added
+
+- **プリセット**: コンビニ統合プリセットにカップヌードルPRO 4品・どん兵衛PRO 1品を追加した。PFC は麺量（60g／うどん66g）基準の 100g 換算値とし、注記に 1食あたり目安を併記（[#175](https://github.com/kzkski/ketolog/issues/175)）。
+
 ## [1.30.6] - 2026-04-13
 
 ### Fixed

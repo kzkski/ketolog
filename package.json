@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "analyze": "ANALYZE=true next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "db:dump-baseline": "supabase db dump --linked -s public -f supabase/migrations/20260211120000_baseline.sql",
@@ -26,6 +27,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

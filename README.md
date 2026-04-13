@@ -81,6 +81,18 @@ DDL の正は `supabase/migrations/` とする。[`src/types/database.ts`](src/t
 npm run dev
 ```
 
+### バンドル分析（Bundle Analyzer）
+
+Next.js 16 の既定の本番ビルドは Turbopack のため、[@next/bundle-analyzer](https://www.npmjs.com/package/@next/bundle-analyzer) 用に **`next build --webpack`** で走らせる（`npm run analyze` に含まれる）。**上記と同様に `.env.local`（`NEXT_PUBLIC_SUPABASE_*`）が必要**。
+
+```bash
+npm run analyze
+```
+
+ビルド完了後にレポート用のタブが開くことが多い。開かない場合は、ターミナルに `Webpack Bundle Analyzer saved report to` と出る **`.next/analyze/` 以下の HTML**（例: `client.html`）をブラウザで開く。Turbopack だけのビルドではレポートは出ない。手早く試す場合は [公式の bundling ガイド](https://nextjs.org/docs/app/guides/package-bundling) の `next experimental-analyze` も参照。
+
+手動で同等にする例: `ANALYZE=true next build --webpack`。
+
 ### モバイル表示の手元確認
 
 ローカルでブラウザから確認する際、開発者ツールのレスポンシブ／デバイスモードで **viewport の幅を変えれば**、スマートフォン相当のレイアウトや主要な挙動を **最低限** 確認できます。実機や Playwright などの E2E での回帰テストは、必要になったタイミングで別途検討してください。

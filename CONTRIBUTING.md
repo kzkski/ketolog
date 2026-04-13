@@ -65,6 +65,10 @@ git pull
 git branch -d feat/your-feature-name
 ```
 
+### バンドル分析（任意）
+
+パフォーマンス調査時、`.env.local` を用意したうえで `npm run analyze` を実行すると、`next build --webpack` 完了後に Bundle Analyzer のレポートが開く（Next.js 16 の既定 Turbopack ビルドでは analyzer は動かない）。手順の詳細は [README.md](README.md) の「バンドル分析（Bundle Analyzer）」を参照。
+
 ---
 
 ## コミットメッセージ規則

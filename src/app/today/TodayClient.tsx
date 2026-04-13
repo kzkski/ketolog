@@ -20,6 +20,7 @@ import {
 import type { MealType } from "@/lib/meal-timezone";
 import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";
+import { sortMenuItemsForListOrder } from "@/lib/menu-item-sort";
 import { createClient } from "@/lib/supabase/client";
 import {
   saveMealToLog,
@@ -2952,8 +2953,8 @@ export default function TodayClient({
         });
     }
 
-    const items = menuItems.filter(
-      (item) => item.restaurant_id === selectedRestaurantIdResolved
+    const items = sortMenuItemsForListOrder(
+      menuItems.filter((item) => item.restaurant_id === selectedRestaurantIdResolved)
     );
     const groupMap = new Map<string | null, MenuGroup>();
 
@@ -3032,8 +3033,9 @@ export default function TodayClient({
   function handleItemSaved(saved: MenuItem) {
     setMenuItems((prev) => {
       const idx = prev.findIndex((m) => m.id === saved.id);
-      if (idx >= 0) return prev.map((m) => m.id === saved.id ? saved : m);
-      return [...prev, saved]; // 追加の場合
+      const next =
+        idx >= 0 ? prev.map((m) => (m.id === saved.id ? saved : m)) : [...prev, saved];
+      return sortMenuItemsForListOrder(next);
     });
     setFavoriteGroups((prev) =>
       prev.map((g) => ({
@@ -3804,7 +3806,7 @@ export default function TodayClient({
           onClose={() => setRestaurantAddSheet(null)}
           onImported={(restaurant, items) => {
             setRestaurants((prev) => sortRestaurants([...prev, restaurant]));
-            setMenuItems((prev) => [...prev, ...items]);
+            setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
             setSelectedRestaurantId(restaurant.id);
             setRestaurantAddSheet(null);
           }}
@@ -3818,7 +3820,7 @@ export default function TodayClient({
           onClose={() => setRestaurantAddSheet(null)}
           onImported={(restaurant, items) => {
             setRestaurants((prev) => sortRestaurants([...prev, restaurant]));
-            setMenuItems((prev) => [...prev, ...items]);
+            setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
             setSelectedRestaurantId(restaurant.id);
             setRestaurantAddSheet(null);
           }}
@@ -3831,7 +3833,7 @@ export default function TodayClient({
           restaurant={selectedRestaurant}
           onClose={() => setShowImportMenuItems(false)}
           onImported={(items) => {
-            setMenuItems((prev) => [...prev, ...items]);
+            setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
             setShowImportMenuItems(false);
           }}
         />

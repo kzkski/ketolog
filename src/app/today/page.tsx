@@ -24,7 +24,9 @@ export default async function TodayPage() {
         .select("*")
         .eq("user_id", user.id)
         .order("rank")
-        .order("order_count", { ascending: false }),
+        .order("name")
+        .order("created_at", { ascending: true })
+        .order("id"),
       supabase
         .from("food_log")
         .select("*")

@@ -1,0 +1,29 @@
+name: Production health check
+
+# Vercel Hobby は短間隔の Cron が使えないため、本番の GET /api/health は GitHub Actions で定期実行する。
+# 503 時はアプリ側で既存どおり Sentry に送られる（curl が失敗してジョブも赤くなる）。
+on:
+  schedule:
+    # UTC。GitHub の schedule は最短おおよそ 5 分。
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: production-health-check
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: GET /api/health
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: |
+          set -eu
+          if [ -z "${HEALTHCHECK_URL}" ]; then
+            echo "::notice title=HEALTHCHECK_URL::未設定のためスキップ。リポジトリの Actions secrets に本番の https://<host>/api/health を設定する。"
+            exit 0
+          fi
+          curl -fsS --max-time 45 --retry 2 --retry-delay 3 "${HEALTHCHECK_URL}"

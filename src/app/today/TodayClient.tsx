@@ -128,7 +128,7 @@ function RestaurantTabSearchIcon({ className }: { className?: string }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       stroke="currentColor"
-      strokeWidth={2}
+      strokeWidth={2.5}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -3438,7 +3438,7 @@ export default function TodayClient({
               setSelectedRestaurantId(FAVORITES_TAB_ID);
               setConfirmDeleteRestaurant(false);
             }}
-            className={`inline-flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
+            className={`inline-flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
               selectedRestaurantIdResolved === FAVORITES_TAB_ID
                 ? "border-amber-500 text-amber-100"
                 : "border-transparent text-gray-500 hover:text-gray-300"
@@ -3462,7 +3462,7 @@ export default function TodayClient({
               setConfirmDeleteRestaurant(false);
               setSelectedRestaurantId(MEXT_COMPOSITION_TAB_ID);
             }}
-            className={`inline-flex min-w-0 max-w-[9.5rem] sm:max-w-none items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2.5 text-[11px] sm:text-sm font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
+            className={`inline-flex min-w-0 max-w-[9.5rem] sm:max-w-none items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2.5 text-[11px] sm:text-sm font-bold whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
               selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID
                 ? "border-sky-500 text-sky-100"
                 : "border-transparent text-gray-500 hover:text-gray-300"

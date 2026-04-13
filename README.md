@@ -75,6 +75,19 @@ CLI が使えない場合の代替として、同じ SQL を Supabase の SQL Ed
 
 DDL の正は `supabase/migrations/` とする。[`src/types/database.ts`](src/types/database.ts) はアプリ用の行型であり、スキーマ変更時は必要に応じて型を合わせる（`supabase gen types` の利用は任意）。
 
+### 本番 DB migration workflow（GitHub Actions）
+
+本番向けの migration は `.github/workflows/prod-db-migrate.yml` で実行する。次の条件で起動する。
+
+- 手動実行: `workflow_dispatch`
+- 自動実行: `main` に `supabase/migrations/**` を含む変更が入ったとき
+
+いずれも `environment: production` で動くため、GitHub 側で Required reviewers を設定していれば承認待ちで停止できる。
+
+この workflow は migration の前後で `supabase db dump --db-url` を実行し、フル論理バックアップ（`pre-full-*.sql` / `post-full-*.sql`）を artifact として保存する（`retention-days: 14`）。
+
+ただし、artifact 保存領域は有限で保持期間にも上限がある。長期保管や災害復旧の最終保険としては、Supabase の managed backup / PITR と併用すること。
+
 開発サーバー:
 
 ```bash

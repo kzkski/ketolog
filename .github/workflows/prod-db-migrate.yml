@@ -1,4 +1,4 @@
-name: Prod DB Migration (manual + backup)
+name: Prod DB Migration (auto/manual + full backup)
 
 on:
   workflow_dispatch:
@@ -7,6 +7,11 @@ on:
         description: "Why this migration is needed"
         required: true
         type: string
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
 
 jobs:
   migrate:
@@ -26,19 +31,19 @@ jobs:
         with:
           version: latest
 
-      - name: Pre-migration backup
+      - name: Pre-migration full backup
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
           set -eu
           ts="$(date -u +%Y%m%dT%H%M%SZ)"
-          supabase db dump --db-url "$DATABASE_URL" -s public -f "pre-${ts}.sql"
+          supabase db dump --db-url "$DATABASE_URL" -f "pre-full-${ts}.sql"
 
-      - name: Upload pre-migration backup
+      - name: Upload pre-migration full backup
         uses: actions/upload-artifact@v4
         with:
-          name: pre-migration-backup
-          path: pre-*.sql
+          name: pre-migration-full-backup
+          path: pre-full-*.sql
           retention-days: 14
 
       - name: Link production project
@@ -52,19 +57,19 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase db push
 
-      - name: Post-migration backup
+      - name: Post-migration full backup
         if: success()
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
           set -eu
           ts="$(date -u +%Y%m%dT%H%M%SZ)"
-          supabase db dump --db-url "$DATABASE_URL" -s public -f "post-${ts}.sql"
+          supabase db dump --db-url "$DATABASE_URL" -f "post-full-${ts}.sql"
 
-      - name: Upload post-migration backup
+      - name: Upload post-migration full backup
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: post-migration-backup
-          path: post-*.sql
+          name: post-migration-full-backup
+          path: post-full-*.sql
           retention-days: 14

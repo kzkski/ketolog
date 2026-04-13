@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useMemo, useRef, useId, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useId, useEffect, useLayoutEffect, useCallback } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -2573,12 +2573,13 @@ export default function TodayClient({
   const [mealType, setMealType]     = useState<MealType>(initialMealType);
   const [saving, setSaving]         = useState(false);
   const [cartExpanded, setCartExpanded] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      const wide = window.matchMedia("(min-width: 640px)").matches;
-      if (wide) setCartExpanded(true);
-    });
-    return () => cancelAnimationFrame(id);
+  // sm 未満は折りたたみのまま。デスクトップは初回ペイント前に開く（useEffect+rAF だと描画後に伸びて CLS になる）
+  useLayoutEffect(() => {
+    if (window.matchMedia("(min-width: 640px)").matches) {
+      // 初回ペイント前にデスクトップ既定（開いたカート）を適用して CLS を防ぐ。モバイルは SSR も折りたたみのまま。
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 上記の同期レイアウト用途のみ
+      setCartExpanded(true);
+    }
   }, []);
   const [itemDrawer, setItemDrawer] = useState<ItemDrawerState | null>(null);
   const [compositionTargetRestaurantId, setCompositionTargetRestaurantId] =

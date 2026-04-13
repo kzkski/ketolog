@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.30.2] - 2026-04-13
+
+### Fixed
+
+- **監視**: `/api/health` が `503` のとき PostgREST 由来の `diagnostic`（`code` / `message`）を返し、Supabase 側の失敗理由を切り分けしやすくした。Vercel サーバーレス向けに Sentry 送信後に `flush` するようにした。`head` クエリから冗長な `.limit(1)` を外した。
+
 ## [1.30.1] - 2026-04-13
 
 ### Fixed

@@ -37,7 +37,24 @@ body {
 }
 
 /* datalist 付き text input のネイティブ下矢印を非表示化（候補ボタンを主導線にする） */
-input.no-datalist-indicator::-webkit-calendar-picker-indicator {
-  display: none;
+input.no-datalist-indicator {
+  appearance: none;
   -webkit-appearance: none;
+  background-image: none !important;
+}
+
+input.no-datalist-indicator::-webkit-calendar-picker-indicator {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  margin: 0 !important;
+  -webkit-appearance: none !important;
+}
+
+input.no-datalist-indicator::-webkit-list-button {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
 }

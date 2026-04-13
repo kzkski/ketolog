@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.30.4] - 2026-04-13
+
+### Fixed
+
+- **監視**: `/api/health` の `diagnostic` が `message=` のみになるケースに対し、プレーンオブジェクトの `status` / `statusCode` / `error` を拾い、空文字の `message` は列挙から除外する。JSON フォールバックで構造を短く返す。
+
 ## [1.30.3] - 2026-04-13
 
 ### Fixed

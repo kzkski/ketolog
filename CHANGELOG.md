@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.29.3] - 2026-04-13
+
+### Fixed
+
+- **今日（/today）**: バーコード用の ZXing（`@zxing/browser` / `@zxing/library`）を静的 import せず、ネイティブ `BarcodeDetector` が使えない環境でカメラを起動したときだけ dynamic import するようにした。初回 JS の読み込み量を抑える（[#145](https://github.com/kzkski/ketolog/issues/145) Phase 3）。
+
 ## [1.29.2] - 2026-04-13
 
 ### Fixed

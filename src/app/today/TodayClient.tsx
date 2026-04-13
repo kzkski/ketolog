@@ -3462,7 +3462,7 @@ export default function TodayClient({
               setConfirmDeleteRestaurant(false);
               setSelectedRestaurantId(MEXT_COMPOSITION_TAB_ID);
             }}
-            className={`inline-flex min-w-0 max-w-[9.5rem] sm:max-w-none items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2.5 text-[11px] sm:text-sm font-bold whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
+            className={`inline-flex min-w-0 max-w-[11rem] sm:max-w-none items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2.5 text-[11px] sm:text-sm font-bold whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
               selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID
                 ? "border-sky-500 text-sky-100"
                 : "border-transparent text-gray-500 hover:text-gray-300"
@@ -3470,7 +3470,7 @@ export default function TodayClient({
           >
             <RestaurantTabSearchIcon className="size-[1.1em] shrink-0 sm:size-[1.05em]" />
             <span className="sm:hidden">成分表</span>
-            <span className="hidden min-w-0 truncate sm:inline">文科省表2023</span>
+            <span className="hidden min-w-0 truncate sm:inline">食品成分表2023</span>
           </button>
           <RestaurantTabsLazy
             tabRestaurants={tabRestaurants}

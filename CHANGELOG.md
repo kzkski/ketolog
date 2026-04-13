@@ -8,6 +8,13 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.29.2] - 2026-04-13
+
+### Fixed
+
+- **今日（/today）**: デスクトップでカートを `useEffect` + `requestAnimationFrame` のあとから開いていたためレイアウトがずれていたのを、`useLayoutEffect` で初回ペイント前に開くように変えた（[#145](https://github.com/kzkski/ketolog/issues/145) Phase 2）。
+- **今日（/today）**: サーバーでデータ取得中は `loading.tsx` のスケルトンを表示するようにした（[#145](https://github.com/kzkski/ketolog/issues/145) Phase 2）。
+
 ## [1.29.1] - 2026-04-13
 
 ### Fixed

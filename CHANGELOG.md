@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
+
 ## [1.31.0] - 2026-04-13
 
 ### Added

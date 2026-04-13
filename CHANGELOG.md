@@ -8,6 +8,12 @@
 
 フォーマットは [Keep a Changelog](https://keepachangelog.com/) を参考にしています。
 
+## [1.29.8] - 2026-04-13
+
+### Fixed
+
+- **監視（Sentry）**: Vercel 上で `NEXT_PUBLIC_SENTRY_RELEASE` を手入力しなくても、ビルド時の `VERCEL_GIT_COMMIT_SHA` がクライアント向け `release` に反映されるようにした。環境変数 UI に `$VERCEL_GIT_COMMIT_SHA` と入力しても展開されない点との齟齬を避ける。
+
 ## [1.29.7] - 2026-04-13
 
 ### Fixed

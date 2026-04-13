@@ -12,6 +12,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // 監視・外形チェック用（未認証でも 200/503 を返す）
+  if (pathname === "/api/health") {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

@@ -458,6 +458,8 @@ function MenuItemDrawer({
   onRegisterTargetChange: (restaurantId: string) => void;
   onOpenStandardFoodSearch?: () => void;
 }) {
+  const MEMO_MIN_ROWS = 3;
+  const MEMO_MAX_ROWS = 10;
   const groupListId = useId();
   const isEdit = state.kind === "edit";
   const existing = isEdit ? state.item : null;
@@ -511,6 +513,8 @@ function MenuItemDrawer({
   const [servingHint, setServingHint] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const groupNameInputRef = useRef<HTMLInputElement>(null);
+  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
   const cameraSupported =
     typeof window !== "undefined" &&
     Boolean(navigator.mediaDevices?.getUserMedia) &&
@@ -706,6 +710,25 @@ function MenuItemDrawer({
     });
     return () => cancelAnimationFrame(id);
   }, [isEdit]);
+
+  useLayoutEffect(() => {
+    const textarea = notesTextareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    const computedStyle = window.getComputedStyle(textarea);
+    const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 20;
+    const maxHeight = lineHeight * MEMO_MAX_ROWS;
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [notes]);
+
+  function openGroupSuggestions() {
+    const input = groupNameInputRef.current;
+    if (!input) return;
+    input.focus();
+    const pickerCapable = input as HTMLInputElement & { showPicker?: () => void };
+    pickerCapable.showPicker?.();
+  }
 
   function buildMenuPayload(): MenuItemUpdate {
     return {
@@ -967,10 +990,26 @@ function MenuItemDrawer({
 
           <div>
             <label className="block text-xs text-gray-400 mb-1">グループ名（任意）</label>
-            <input type="text" value={groupName} onChange={(e) => setGroupName(e.target.value)}
-              list={existingGroupNames.length > 0 ? groupListId : undefined}
-              placeholder="例: ホルモン系"
-              className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
+            <div className="flex items-center gap-2">
+              <input
+                ref={groupNameInputRef}
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                list={existingGroupNames.length > 0 ? groupListId : undefined}
+                placeholder="例: ホルモン系"
+                className="min-w-0 flex-1 px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
+              />
+              {existingGroupNames.length > 0 && (
+                <button
+                  type="button"
+                  onClick={openGroupSuggestions}
+                  className="shrink-0 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-xs text-gray-200 transition-colors hover:border-gray-600 hover:text-white"
+                >
+                  候補
+                </button>
+              )}
+            </div>
             {existingGroupNames.length > 0 && (
               <datalist id={groupListId}>
                 {existingGroupNames.map((g) => (
@@ -982,9 +1021,14 @@ function MenuItemDrawer({
 
           <div>
             <label className="block text-xs text-gray-400 mb-1">メモ（任意）</label>
-            <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
+            <textarea
+              ref={notesTextareaRef}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={MEMO_MIN_ROWS}
               placeholder="例: 1切れ約15g"
-              className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
+              className="w-full resize-none px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
+            />
           </div>
 
           {error && <p className="text-red-400 text-sm">{error}</p>}

@@ -78,7 +78,7 @@
 ### 2-2 進行中（Phase1実装）
 - バーコード検索（Open Food Facts API）で市販品を取得
 - `shared_products` キャッシュ基盤と `menu_items.shared_barcode` 参照を導入
-- スキャン結果をメニュー追加に接続（Not Found時は手入力へフォールバック）
+- スキャン結果をメニュー追加に接続（OFF 未ヒット時は手入力で `shared_products` にも登録し他ユーザーと共有。RLS 本格は [#190](https://github.com/kzkski/ketolog/issues/190)）
 - メニュー登録なしで食事ログへ記録（スナップショット）、食事タブ行右端の記録「＋」、カートの食事区分連動
 
 ### 2-3 後日

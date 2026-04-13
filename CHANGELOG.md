@@ -15,6 +15,12 @@
 - **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 - **開発運用**: 通常マージ失敗時の待機手順（停止→ブロッカー確認→60〜120秒待機→再確認→通常マージ再試行）を追加し、待機前に `--admin` へ進まない運用を明文化した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 
+## [1.32.0] - 2026-04-13
+
+### Added
+
+- **Today / バーコード**: Open Food Facts にないバーコードでも、商品名と栄養を入力して保存すると `shared_products` に手動登録され（`source` は `manual_entry`、`created_by` で記録）、同じバーコードを後から読んだ利用者にもヒットしやすくなった。共有行とメニュー行はデータベースのトランザクションでまとめて追加する（[#191](https://github.com/kzkski/ketolog/issues/191)）。
+
 ## [1.31.1] - 2026-04-13
 
 ### Fixed

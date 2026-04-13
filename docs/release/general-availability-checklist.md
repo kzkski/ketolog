@@ -14,7 +14,7 @@
 ## 2. 濫用・セキュリティ（実装＋設定）
 
 - **サインアップ濫用対策**: Supabase の **CAPTCHA**、**レート制限**、必要なら招待制の維持。
-- **`shared_products`**: 書き込みポリシーの見直し（サーバー経由のみ、不正バーコードの抑制、監査ログ）。関連: [Issue #2](https://github.com/kzkski/ketolog/issues/2)。
+- **`shared_products`**: 書き込みポリシーの見直し（サーバー経由のみ、不正バーコードの抑制、監査ログ）。**RLS の全面収斂・登録レート制限などの本格対応は [Issue #190](https://github.com/kzkski/ketolog/issues/190) で追う**（[#191](https://github.com/kzkski/ketolog/issues/191) で手動登録は RPC トランザクションと `created_by` により監査しやすくした）。関連: [Issue #2](https://github.com/kzkski/ketolog/issues/2)。
 - **RLS・権限の再監査**: `GRANT ... TO anon` 等が本番で必要な範囲か確認。
 - **シークレット管理**: 本番キーのローテーション、Vercel / ローカルの権限。
 

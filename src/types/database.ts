@@ -60,6 +60,8 @@ export type SharedProduct = {
   serving_size: string | null;
   serving_size_grams: number | null;
   last_checked_at: string;
+  /** `shared_products.source`（lookup の SELECT に含むときのみ） */
+  source?: string | null;
 };
 
 export type TodayConsumed = {

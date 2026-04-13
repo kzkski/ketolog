@@ -59,137 +59,87 @@
 
 ---
 
-## 3. Issue アラートを 1 本作る共通手順（Slack へ通知）
+## 3. 画面操作（迷わない最短手順）
 
-Sentry の Issue アラートは **「いつ（WHEN）」「追加条件（IF）」「何をする（THEN）」**の三段で動く。
+本プロジェクトの実運用では、Sentry 画面の次ルートで作成する。
 
-### 3.1 画面の開き方
+1. **アラート**画面の右上 **「アラートを作成」** を押す。
+2. 左カラムで対象を選ぶ。
+   - Issue ルール: `Errors > 課題`
+   - Metric ルール: `Errors > Number of Errors` または `Performance > Duration`
+3. **Set Conditions** に進む。
+4. ルールを入力して保存する（後述の §5 をそのまま使う）。
 
-1. ブラウザで [sentry.io](https://sentry.io) にログインする。
-2. **Ketolog のイベントが入っている Organization** を選ぶ。
-3. 左サイドバー（または上部メニュー）から **Alerts** を開く。
-4. **Create Alert** または **Create Alert Rule** を押す。
-5. 種類の選択で **Issues**（「Issue を監視する」系の項目）を選び、**Continue** / **Set Conditions** など次画面へ進む。
+### 3.1 全ルール共通（必須）
 
-### 3.2 画面上で必ず触る項目（上から順）
+| 項目 | 値 |
+|------|----|
+| Environment | `production` |
+| Project | `ketolog` |
+| THEN | Slack 通知（workspace + channel） |
+| Name | 必須 |
+| Owner/Team | 必須 |
 
-| ブロック | 設定内容 |
-|----------|----------|
-| **Environment** | プルダウンで **`production`** のみ（開発・プレビューを混ぜない）。複数選べる UI なら本番だけに限定。 |
-| **Project** | **ketolog**（実際のプロジェクト名に合わせる）。 |
-| **WHEN（トリガー）** | 後述の「§5 ルール別」の表どおりに 1 つ選ぶ。例: *A new issue is created*、*The issue is seen more than … times in … minutes* など。 |
-| **IF（フィルタ）** | ルールによって **追加**。例: *The event's tag `route` … equals `/api/health`*。行は **Add optional filter** 等で増やせる。 |
-| **THEN（アクション）** | **Add action** → **Send a Slack notification**（または **Send a notification via an integration** の中の Slack）を選ぶ。 |
-| **Slack 先** | ドロップダウンで **ワークスペース**と **チャンネル**（例: `#incidents`）を指定。 |
-| **アクション間隔（レート制限）** | **Perform these actions at most once every …** で **30 minutes** などを選ぶ（§5 の「抑制」列に合わせる）。公式では [Action Interval](https://docs.sentry.io/product/alerts/create-alerts/issue-alert-config.md#action-interval-rate-limit) と呼ばれる。 |
-| **名前** | わかる名前（例: `[P1] Health route 連続失敗`）。 |
+Issue ルールは **Set action interval** も必須で設定する。
 
-### 3.3 テスト通知（ルール保存前後）
+### 3.2 テスト通知
 
-- 画面に **Send Test Notification**（通知テスト）があれば、**THEN** で Slack を選んだ状態で実行し、**該当チャンネルに投稿される**ことを確認する。  
-  公式: [Notification Tests](https://docs.sentry.io/product/alerts/create-alerts/issue-alert-config.md#notification-tests)
-- 無い場合は、**保存後**に意図的に小さなテスト用エラーを 1 件送るか、既存の軽い Issue でルールが発火するかで確認する。
-
-### 3.4 保存
-
-- 画面下部の **Save Rule** / **Save** で保存する。
-- **Alerts** の **Alert Rules** 一覧に名前が出ていれば作成済み。
+- **Send Test Notification** がある場合は保存前に実行し、Slack 着弾を確認する。
+- ない場合は保存後に軽いテストイベントで着弾確認する。
 
 ---
 
-## 4. Metric アラートを 1 本作る共通手順（Slack へ通知）
+## 4. UI ラベル差分（英語表示との対応）
 
-件数・パーセンタイルなど **数値の閾値**で見るときに使う（Issue アラートで表現しづらい「15 分で N 件」等）。
-
-### 4.1 画面の開き方
-
-1. **Alerts** → **Create Alert Rule**。
-2. 種類で **Issues 以外**から選ぶ。例:
-   - エラー件数: **Errors** / **Number of errors** 系
-   - 遅延: **Performance** / **Latency** / **Transaction duration** 系  
-   （表示名は Sentry のバージョンで異なる。迷ったら [Metric Alert Configuration](https://docs.sentry.io/product/alerts/create-alerts/metric-alert-config.md) の「Metrics Types」を参照。）
-3. **Set Conditions** / **Continue** で設定ページへ。
-
-### 4.2 設定の流れ
-
-| 順 | 内容 |
-|----|------|
-| 1 | **Project** = ketolog、**Environment** = `production`。 |
-| 2 | **Metric**（例: Number of errors）と **集計時間**（例: 15 minutes）を選ぶ。 |
-| 3 | **Filter** 欄に Discover 風の条件を入れる（例: `url:*auth*` や `transaction:*login*`）。タグなら `route:/api/health` 等。 |
-| 4 | **Threshold**（Critical / Warning）で「いつ赤にするか」を数値指定。 |
-| 5 | **Actions** で **Send a Slack notification** を追加し、チャンネルを指定。 |
-| 6 | **Rule name** を入力して保存（Metric は **Org 内で名前一意**の制約がある）。 |
-
-無料プランでは Metric の種類や高度なフィルタに制限がある場合がある。そのときは Issue アラートに寄せる（§8）。
+| 意味 | 表示されるラベル例 |
+|------|--------------------|
+| 同一 Issue の件数条件 | `Number of events in an issue is...` |
+| タグ条件 | `The event's tags match {key} {match} {value}` |
+| Issue アクション間隔 | `Set action interval` |
+| Number of Errors の窓 | `15分 interval` / `15 minutes interval` |
 
 ---
 
-## 5. 最小 5 本 — ルール別の「画面での選び方」
+## 5. 最小 5 本（この値で作る）
 
 `/api/health` の失敗時は [`src/app/api/health/route.ts`](../../src/app/api/health/route.ts) で `Sentry.captureException` され、タグ **`route` = `/api/health`**、**`check` = `supabase`** が付く。
 
-以下の **WHEN / IF** は英語ラベルが画面そのままの場合と、日本語 UI の場合がある。**意味が同じ選択肢**を選ぶ。
+### 5.1 `[P1] New issue (prod)`（Issue）
 
-### 5.1 新規の未処理エラー（P1）— Issue アラート
+- 入口: `Errors > 課題`
+- WHEN: `A new issue is created`
+- IF: なし
+- Set action interval: `30 minutes`
 
-| 項目 | 画面での指定 |
-|------|----------------|
-| 種類 | **Issues** |
-| Environment | `production` |
-| **WHEN** | **A new issue is created**（新しい Issue が作られたとき） |
-| **IF（推奨）** | **The event's** … **handled** / **error.handled** が **false** / **no** に相当する条件（「未処理エラー」のみ）。UI に無ければ Level が error 以上などで代用し、後で絞る。 |
-| **THEN** | **Send a Slack notification** → チャンネル指定 |
-| アクション間隔 | **30 minutes**（同一 Issue への連投抑制） |
+### 5.2 `[P1] Health route 連続失敗 (15m/2x)`（Issue）
 
-### 5.2 ヘルスチェック連続失敗（P1）— Issue アラート
+- 入口: `Errors > 課題`
+- WHEN: `Number of events in an issue is more than 2 in 15 minutes`
+- IF: `The event's tags match` で `route equals /api/health`
+  - 代替: `check equals supabase`
+- Set action interval: `10 minutes`（なければ `30 minutes`）
 
-| 項目 | 画面での指定 |
-|------|----------------|
-| 種類 | **Issues** |
-| Environment | `production` |
-| **WHEN** | **The issue is seen more than `2` times in `10` minutes**（同一 Issue のイベントが 10 分で 2 回超）に相当するトリガー |
-| **IF** | **The event's tag** `route` **equals** `/api/health`（なければ tag `check` **equals** `supabase`） |
-| **THEN** | Slack |
-| アクション間隔 | **10 minutes** 以上（連続失敗のたびに秒単位で飛ばないようにする） |
+### 5.3 `[P2] Auth error 増加 (15m)`（Metric）
 
-### 5.3 認証まわりのエラー急増（P2）— Metric アラート推奨
+- 入口: `Errors > Number of Errors`
+- Interval: `15 minutes`
+- Filter 例: `is:unresolved (url:*auth/callback* OR url:*login* OR transaction:*auth*)`
+- Threshold: Critical `Above 20`
 
-| 項目 | 画面での指定 |
-|------|----------------|
-| 種類 | **Errors** → **Number of errors**（件数） |
-| Environment | `production` |
-| 時間窓 | **15 minutes** |
-| **Filter** | 次のいずれか／組み合わせ（イベントが取れているプロパティに合わせる）: `url:*auth/callback*` または `url:*login*` または `transaction:*auth*` |
-| **Threshold** | 15 分間の件数 **> 20**（ベータのトラフィックで調整） |
-| **Actions** | Slack |
+### 5.4 `[P2] API latency p95 悪化`（Metric）
 
-Issue アラートだけで似たことをする場合は、WHEN に「◯ 分で △ 回」系を使い、IF で URL / transaction に `login` や `auth` を含む条件を足す。
+- 入口: `Performance > Duration`
+- Function: `p95`
+- Interval: `5 minutes`
+- Threshold: Critical `Above 3000 ms`
+- Filter 例（任意）: `transaction.op:http.server`
 
-### 5.4 API / サーバー応答の遅延悪化（P2）— Metric アラート
+### 5.5 `[P1] 同一Issue急増 (1h/50x)`（Issue）
 
-| 項目 | 画面での指定 |
-|------|----------------|
-| 種類 | **Performance** → **Transaction duration**（または Latency の p95） |
-| Environment | `production` |
-| 時間窓 | **5 minutes**（評価間隔は Sentry 側の仕様に従う） |
-| **Filter** | `transaction.op:http.server` 等、サーバー側トランザクションに絞る（利用可能なら） |
-| メトリック | **p95**（95 パーセンタイル） |
-| **Threshold** | **Critical** 例: p95 **> 3000 ms**（実測で上下に調整） |
-| **Actions** | Slack |
-
-前提: [`sentry.server.config.ts`](../../sentry.server.config.ts) の `tracesSampleRate` が 0 より大きく、トランザクションが届いていること。
-
-### 5.5 同一エラー（同一 Issue）の急増（P1）— Issue アラート
-
-| 項目 | 画面での指定 |
-|------|----------------|
-| 種類 | **Issues** |
-| Environment | `production` |
-| **WHEN** | **The issue is seen more than `50` times in `1` hour** に相当 |
-| **IF** | 特になし（全体対象）。ノイズが多ければ `production` のみ・特定 release などを後から足す。 |
-| **THEN** | Slack（本文に Issue リンクが付く想定） |
-| アクション間隔 | **30 minutes** 〜 **1 hour**（5.1 との二重通知を減らす） |
+- 入口: `Errors > 課題`
+- WHEN: `Number of events in an issue is more than 50 in one hour`
+- IF: なし
+- Set action interval: `30 minutes` 〜 `1 hour`
 
 ---
 

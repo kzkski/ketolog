@@ -739,11 +739,7 @@ function MenuItemDrawer({
     };
   }, [isGroupSuggestionsOpen]);
 
-  const groupSuggestions = useMemo(() => {
-    const q = groupName.trim().toLowerCase();
-    if (!q) return existingGroupNames;
-    return existingGroupNames.filter((name) => name.toLowerCase().includes(q));
-  }, [existingGroupNames, groupName]);
+  const groupSuggestions = existingGroupNames;
 
   function openGroupSuggestions() {
     groupNameInputRef.current?.focus();

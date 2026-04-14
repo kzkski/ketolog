@@ -744,6 +744,7 @@ function MenuItemDrawer({
     setCameraResult(null);
     setServingHint(null);
     setScanError(null);
+    setError(null);
     setMode("per100g");
     setRawP(null);
     setRawF(null);

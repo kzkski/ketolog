@@ -1,5 +1,4 @@
 import type { ImportRestaurantItem } from "@/app/today/actions";
-import type { MenuItem } from "@/types/database";
 
 export const MENU_QR_PAYLOAD_VERSION = 1 as const;
 
@@ -8,21 +7,6 @@ export type MenuQrPayloadV1 = {
   kind: "menuItem";
   item: ImportRestaurantItem;
 };
-
-export function menuItemToImportItem(m: MenuItem): ImportRestaurantItem {
-  return {
-    name: m.name,
-    protein_per_100g: m.protein_per_100g,
-    fat_per_100g: m.fat_per_100g,
-    carbs_per_100g: m.carbs_per_100g,
-    shared_barcode: m.shared_barcode ?? null,
-    standard_food_code: m.standard_food_code ?? null,
-    default_grams: m.default_grams,
-    rank: m.rank,
-    notes: m.notes,
-    group: m.group_name,
-  };
-}
 
 export function buildMenuQrPayloadJson(item: ImportRestaurantItem): string {
   const payload: MenuQrPayloadV1 = {

@@ -10,7 +10,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { LegendProps } from "recharts";
 
 type Point = {
   date: string;
@@ -23,7 +22,12 @@ function dateLabel(date: string): string {
   return date.slice(5);
 }
 
-function LegendContent(props: LegendProps) {
+type LegendItem = {
+  value?: string | number;
+  color?: string;
+};
+
+function LegendContent(props: { payload?: LegendItem[] }) {
   const payload = props.payload ?? [];
   const ordered = ["P", "F", "C"]
     .map((name) => payload.find((p) => p.value === name))
@@ -58,7 +62,7 @@ export default function InsightsChart({ data }: { data: Point[] }) {
           />
           <YAxis stroke="#9ca3af" tick={{ fontSize: 11 }} />
           <Tooltip
-            formatter={(value: number) => value.toFixed(1)}
+            formatter={(value) => (typeof value === "number" ? value.toFixed(1) : String(value ?? ""))}
             labelFormatter={(label) => `${label}`}
             contentStyle={{ backgroundColor: "#111827", border: "1px solid #374151" }}
           />

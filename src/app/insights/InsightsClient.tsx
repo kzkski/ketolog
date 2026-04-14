@@ -121,20 +121,20 @@ export default function InsightsClient({
   }
 
   return (
-    <div className="min-h-dvh bg-gray-950 text-white">
-      <div className="mx-auto w-full max-w-4xl px-4 py-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">分析</h1>
+    <div className="min-h-dvh bg-gray-950 text-white pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto w-full max-w-4xl space-y-4 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 sm:px-4">
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <h1 className="shrink-0 text-lg font-semibold leading-tight">分析</h1>
           <Link
             href="/today"
-            className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800 transition-colors"
+            className="shrink-0 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 transition-colors hover:bg-gray-800"
           >
             閉じる
           </Link>
         </div>
 
-        <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-3 space-y-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="space-y-2 rounded-xl border border-gray-800 bg-gray-900/70 p-3 sm:space-y-3">
+          <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [-webkit-overflow-scrolling:touch] sm:grid sm:grid-cols-4 sm:gap-2 sm:overflow-visible">
             <button
               type="button"
               onClick={() => {
@@ -142,8 +142,8 @@ export default function InsightsClient({
                 void loadRange(range.start, range.end, "7d");
               }}
               disabled={loading}
-              className={`rounded-lg px-3 py-2 text-sm transition-colors ${
-                preset === "7d" ? "bg-emerald-600 text-white" : "bg-gray-800 hover:bg-gray-700 text-gray-200"
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs transition-colors sm:px-3 sm:py-2 sm:text-sm ${
+                preset === "7d" ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-200 hover:bg-gray-700"
               }`}
             >
               過去7日
@@ -155,43 +155,43 @@ export default function InsightsClient({
                 void loadRange(range.start, range.end, "30d");
               }}
               disabled={loading}
-              className={`rounded-lg px-3 py-2 text-sm transition-colors ${
-                preset === "30d" ? "bg-emerald-600 text-white" : "bg-gray-800 hover:bg-gray-700 text-gray-200"
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs transition-colors sm:px-3 sm:py-2 sm:text-sm ${
+                preset === "30d" ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-200 hover:bg-gray-700"
               }`}
             >
               過去30日
             </button>
-            <div className="rounded-lg border border-gray-800 bg-gray-950/70 px-3 py-2 text-center text-xs text-gray-400">
+            <span className="max-w-[5.5rem] shrink-0 self-center text-[10px] leading-snug text-gray-500 sm:max-w-none sm:rounded-lg sm:border sm:border-gray-800 sm:bg-gray-950/70 sm:px-2 sm:py-2 sm:text-center sm:text-xs">
               カスタム最大90日
-            </div>
+            </span>
             <button
               type="button"
               onClick={downloadPeriodJson}
-              className="rounded-lg bg-gray-700 px-3 py-2 text-sm font-medium hover:bg-gray-600 transition-colors"
+              className="shrink-0 rounded-lg bg-gray-700 px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-gray-600 sm:px-3 sm:py-2 sm:text-sm"
             >
-              ダウンロード
+              DL
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:items-end">
-            <label className="text-xs text-gray-300">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+            <label className="min-w-0 text-[10px] text-gray-300 sm:text-xs">
               開始日
               <input
                 type="date"
                 max={today}
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
-                className="mt-1 block w-full rounded border border-gray-700 bg-gray-950 px-2 py-1 text-sm"
+                className="mt-0.5 block w-full min-w-0 max-w-full rounded border border-gray-700 bg-gray-950 px-1 py-1 text-xs sm:px-2 sm:text-sm"
               />
             </label>
-            <label className="text-xs text-gray-300">
+            <label className="min-w-0 text-[10px] text-gray-300 sm:text-xs">
               終了日
               <input
                 type="date"
                 max={today}
                 value={end}
                 onChange={(e) => setEnd(e.target.value)}
-                className="mt-1 block w-full rounded border border-gray-700 bg-gray-950 px-2 py-1 text-sm"
+                className="mt-0.5 block w-full min-w-0 max-w-full rounded border border-gray-700 bg-gray-950 px-1 py-1 text-xs sm:px-2 sm:text-sm"
               />
             </label>
             <button
@@ -205,9 +205,9 @@ export default function InsightsClient({
                 void loadRange(start, end, "custom");
               }}
               disabled={loading}
-              className="rounded-lg bg-gray-700 px-3 py-2 text-sm hover:bg-gray-600 transition-colors sm:h-[2.25rem]"
+              className="shrink-0 rounded-lg bg-gray-700 px-2.5 py-1.5 text-xs hover:bg-gray-600 sm:py-2 sm:text-sm"
             >
-              カスタム適用
+              適用
             </button>
           </div>
           {loading && <p className="text-xs text-gray-400">読み込み中...</p>}

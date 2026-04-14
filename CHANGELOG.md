@@ -15,6 +15,17 @@
 - **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 - **開発運用**: 通常マージ失敗時の待機手順（停止→ブロッカー確認→60〜120秒待機→再確認→通常マージ再試行）を追加し、待機前に `--admin` へ進まない運用を明文化した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 
+## [1.37.0] - 2026-04-15
+
+### Added
+
+- **Today / PWA**: リモートの `CHANGELOG.md` と実行中バージョンを比較し、新しい版があるときヘッダー中央に要約と更新導線を表示する。タップで Service Worker を更新して再読み込みできる（本番・`NEXT_PUBLIC_CHANGELOG_URL` または raw 導出可能時）（[#203](https://github.com/kzkski/ketolog/issues/203)）。
+
+### Changed
+
+- **Today / ヘッダー**: ブランド（アイコンと「Ketolog」）をタップすると記録（`/today`）へ戻る。バージョン表記のみ変更履歴（Changelog）を開く（[#203](https://github.com/kzkski/ketolog/issues/203)）。
+- **分析画面（/insights）**: モバイルで期間プリセット・カスタム説明・DL・日付入力を横詰めし、開始日・終了日のはみ出しを抑える。セーフエリア用の上下余白を追加した（[#203](https://github.com/kzkski/ketolog/issues/203)）。
+
 ## [1.36.0] - 2026-04-15
 
 ### Changed

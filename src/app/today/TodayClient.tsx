@@ -69,6 +69,7 @@ import {
   type MacroHighlightTargets,
 } from "@/lib/macroHighlights";
 import { computeHeaderHintText, getActiveHintSlot } from "@/lib/header-hint";
+import { useAppUpdateBanner } from "@/hooks/useAppUpdateBanner";
 import { STANDARD_FOOD_TAB_TITLE } from "@/lib/standard-food-groups";
 import { StandardFoodPanel } from "./StandardFoodPanel";
 import { MenuGroupCollapseSession } from "./MenuGroupCollapseSession";
@@ -3239,6 +3240,7 @@ export default function TodayClient({
   const [headerHint, setHeaderHint] = useState<string | null>(null);
   const [headerHintFullOpen, setHeaderHintFullOpen] = useState(false);
   const headerHintDisplayedRef = useRef<string | null>(null);
+  const { banner: appUpdateBanner, applyUpdate: applyAppUpdate } = useAppUpdateBanner();
 
   useEffect(() => {
     if (headerHintRaw === null) {
@@ -3601,49 +3603,71 @@ export default function TodayClient({
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   const changelogUrl = process.env.NEXT_PUBLIC_CHANGELOG_URL;
+  const headerCenterUpdate = appUpdateBanner.kind === "update" ? appUpdateBanner : null;
+  const headerCenterMessage = headerCenterUpdate?.line ?? headerHint;
+  const headerCenterIsAppUpdate = headerCenterUpdate !== null;
+
   return (
     <>
       {/* ヘッダー */}
       <header className="flex-none flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-3 border-b border-gray-800 pt-[max(0.375rem,env(safe-area-inset-top))]">
-        <div className="flex items-center gap-2 shrink-0 min-w-0">
-          <Image
-            src="/icons/icon-header.png"
-            alt=""
-            width={160}
-            height={160}
-            className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-full object-cover"
-            sizes="(max-width: 640px) 40px, 44px"
-            priority
-          />
-          <h1 className="text-base font-bold text-white shrink-0">
-            Ketolog
+        <div className="flex items-center gap-1.5 shrink-0 min-w-0 sm:gap-2">
+          <Link
+            href="/today"
+            className="flex min-w-0 items-center gap-2 rounded-lg pr-0.5 touch-manipulation transition-colors active:bg-gray-800/50 sm:hover:bg-gray-900/40"
+            aria-label="記録（今日）へ戻る"
+          >
+            <Image
+              src="/icons/icon-header.png"
+              alt=""
+              width={160}
+              height={160}
+              className="h-10 w-10 shrink-0 rounded-full object-cover sm:h-11 sm:w-11"
+              sizes="(max-width: 640px) 40px, 44px"
+              priority
+            />
+            <span className="text-base font-bold text-white">Ketolog</span>
+          </Link>
           {changelogUrl ? (
             <a
               href={changelogUrl}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="変更履歴（Changelog）を開く"
-              className="text-xs font-normal text-gray-500 ml-1.5 hover:text-gray-300 hover:underline underline-offset-2"
+              className="shrink-0 text-xs font-normal text-gray-500 hover:text-gray-300 hover:underline underline-offset-2"
+              onClick={(e) => e.stopPropagation()}
             >
               v{process.env.NEXT_PUBLIC_APP_VERSION}
             </a>
           ) : (
-            <span className="text-xs font-normal text-gray-500 ml-1.5">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+            <span className="shrink-0 text-xs font-normal text-gray-500">
+              v{process.env.NEXT_PUBLIC_APP_VERSION}
+            </span>
           )}
-          </h1>
         </div>
         <div className="flex-1 min-w-0 flex justify-center items-center px-1">
-          {headerHint ? (
+          {headerCenterMessage ? (
             <button
               type="button"
-              onClick={() => setHeaderHintFullOpen(true)}
-              className="text-center text-[11px] text-gray-400 leading-snug truncate max-w-full min-w-0 w-full rounded-md py-1 touch-manipulation active:bg-gray-800/50 sm:hover:bg-gray-800/40 transition-colors"
-              title={headerHint}
-              aria-label="ヘッダーメッセージの全文を表示"
-              aria-haspopup="dialog"
-              aria-expanded={headerHintFullOpen}
+              onClick={() => {
+                if (headerCenterIsAppUpdate) applyAppUpdate();
+                else setHeaderHintFullOpen(true);
+              }}
+              className={`text-center text-[11px] leading-snug truncate max-w-full min-w-0 w-full rounded-md py-1 touch-manipulation transition-colors active:bg-gray-800/50 sm:hover:bg-gray-800/40 ${
+                headerCenterIsAppUpdate
+                  ? "text-emerald-400/95 sm:hover:text-emerald-300"
+                  : "text-gray-400"
+              }`}
+              title={headerCenterIsAppUpdate ? headerCenterUpdate?.detail : headerHint ?? undefined}
+              aria-label={
+                headerCenterIsAppUpdate
+                  ? "アプリを最新版に更新する（タップで再読み込み）"
+                  : "ヘッダーメッセージの全文を表示"
+              }
+              aria-haspopup={headerCenterIsAppUpdate ? undefined : "dialog"}
+              aria-expanded={headerCenterIsAppUpdate ? undefined : headerHintFullOpen}
             >
-              {headerHint}
+              {headerCenterMessage}
             </button>
           ) : null}
         </div>
@@ -4275,8 +4299,8 @@ export default function TodayClient({
         />
       )}
 
-      {/* ヘッダーヒント全文 */}
-      {headerHint && headerHintFullOpen && (
+      {/* ヘッダーヒント全文（アプリ更新バナー表示中はヒントダイアログを出さない） */}
+      {headerHint && headerHintFullOpen && !headerCenterIsAppUpdate && (
         <>
           <div
             className="fixed inset-0 bg-black/60 z-40"

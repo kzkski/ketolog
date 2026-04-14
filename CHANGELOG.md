@@ -15,6 +15,12 @@
 - **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 - **開発運用**: 通常マージ失敗時の待機手順（停止→ブロッカー確認→60〜120秒待機→再確認→通常マージ再試行）を追加し、待機前に `--admin` へ進まない運用を明文化した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 
+## [1.34.1] - 2026-04-14
+
+### Fixed
+
+- **Today / メニュー**: QR で取り込んだメニューが一覧に出ないことがあった問題を修正した。取り込み先のお店タブへ自動で切り替える（お気に入り表示中など、追加先と表示タブがずれていたのが原因）（[#198](https://github.com/kzkski/ketolog/issues/198)）。
+
 ## [1.34.0] - 2026-04-14
 
 ### Added

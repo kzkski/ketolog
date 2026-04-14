@@ -4097,6 +4097,8 @@ export default function TodayClient({
           }}
           onMenuItemsQrImported={(items) => {
             setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
+            const rid = items[0]?.restaurant_id;
+            if (rid) setSelectedRestaurantId(rid);
             setItemDrawer(null);
           }}
         />

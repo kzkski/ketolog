@@ -3136,19 +3136,42 @@ export default function TodayClient({
 
   async function handleToggleFavorite(item: MenuItem) {
     const was = favoriteMenuItemIds.has(item.id);
+    const previous = favoriteGroups;
+
     if (was) {
+      setFavoriteGroups(
+        favoriteGroups
+          .map(g => ({ ...g, entries: g.entries.filter(e => e.menu_item_id !== item.id) }))
+          .filter(g => g.entries.length > 0)
+      );
       const result = await removeMenuItemFromFavorites(item.id);
-      if (result.error) {
-        alert(result.error);
-        return;
-      }
+      if (result.error) { alert(result.error); setFavoriteGroups(previous); return; }
       if (result.data) setFavoriteGroups(result.data);
     } else {
-      const result = await addMenuItemToFavorites(item.id);
-      if (result.error) {
-        alert(result.error);
-        return;
+      const restaurant = restaurants.find(r => r.id === item.restaurant_id);
+      const groupName = restaurant?.name ?? "その他";
+      const existingGroup = favoriteGroups.find(g => g.name === groupName);
+      const tempEntry = {
+        id: `temp-${item.id}`,
+        favorite_group_id: existingGroup?.id ?? `temp-group-${item.id}`,
+        menu_item_id: item.id,
+        display_order: existingGroup ? existingGroup.entries.length : 0,
+        menu_item: item,
+      };
+      if (existingGroup) {
+        setFavoriteGroups(favoriteGroups.map(g =>
+          g.id === existingGroup.id ? { ...g, entries: [...g.entries, tempEntry] } : g
+        ));
+      } else {
+        setFavoriteGroups([...favoriteGroups, {
+          id: `temp-group-${item.id}`,
+          name: groupName,
+          display_order: favoriteGroups.length,
+          entries: [tempEntry],
+        }]);
       }
+      const result = await addMenuItemToFavorites(item.id);
+      if (result.error) { alert(result.error); setFavoriteGroups(previous); return; }
       if (result.data) setFavoriteGroups(result.data);
     }
   }
@@ -3471,9 +3494,25 @@ export default function TodayClient({
   }
 
   async function handleDeleteEntry(id: string) {
+    const previousEntries = logEntries;
+    const previousConsumed = consumedForDate;
+    const entry = logEntries.find(e => e.id === id);
+
+    setLogEntries(prev => prev.filter(e => e.id !== id));
+    if (entry) {
+      setConsumedForDate(prev => ({
+        protein: prev.protein - entry.protein_g,
+        fat: prev.fat - entry.fat_g,
+        carbs: prev.carbs - entry.carbs_g,
+      }));
+    }
+
     const result = await deleteFoodLogEntry(id);
-    if (result.error) { alert(result.error); return; }
-    await refreshLogForDate(selectedDate);
+    if (result.error) {
+      alert(result.error);
+      setLogEntries(previousEntries);
+      setConsumedForDate(previousConsumed);
+    }
   }
 
   // ── 食事記録保存 ────────────────────────────────────────────────────────────
@@ -3519,9 +3558,43 @@ export default function TodayClient({
         restaurantId: snapshotRestaurantId,
       };
     });
-    const { error } = await saveMealToLog(items, mealType, selectedDate);
-    if (error) { alert(`保存に失敗しました: ${error}`); setSaving(false); return; }
+    const savedCart = new Map(cart);
+    const now = Date.now();
+    const tempIds = items.map((_, i) => `opt-${now}-${i}`);
+    const optimisticEntries: FoodLogEntry[] = items.map((item, i) => ({
+      id: tempIds[i],
+      date: selectedDate,
+      meal_type: mealType,
+      item_name: item.name,
+      grams: item.totalGrams,
+      protein_g: item.proteinG,
+      fat_g: item.fatG,
+      carbs_g: item.carbsG,
+      source: item.restaurantId ?? null,
+      menu_item_id: item.menuItemId ?? null,
+    }));
+
     setCart(new Map());
+    setLogEntries(prev => [...prev, ...optimisticEntries]);
+    setConsumedForDate(prev => ({
+      protein: prev.protein + items.reduce((s, i) => s + i.proteinG, 0),
+      fat: prev.fat + items.reduce((s, i) => s + i.fatG, 0),
+      carbs: prev.carbs + items.reduce((s, i) => s + i.carbsG, 0),
+    }));
+
+    const { error } = await saveMealToLog(items, mealType, selectedDate);
+    if (error) {
+      alert(`保存に失敗しました: ${error}`);
+      setCart(savedCart);
+      setLogEntries(prev => prev.filter(e => !tempIds.includes(e.id)));
+      setConsumedForDate(prev => ({
+        protein: prev.protein - items.reduce((s, i) => s + i.proteinG, 0),
+        fat: prev.fat - items.reduce((s, i) => s + i.fatG, 0),
+        carbs: prev.carbs - items.reduce((s, i) => s + i.carbsG, 0),
+      }));
+      setSaving(false);
+      return;
+    }
     await refreshLogForDate(selectedDate);
     setSaving(false);
   }

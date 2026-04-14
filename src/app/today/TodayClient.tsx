@@ -526,7 +526,7 @@ function MenuItemDrawer({
       ? "文科省標準成分表（利用可能炭水化物・質量計）"
       : (existing?.notes ?? "")
   );
-  const [mode, setMode]       = useState<NutrientMode>("per100g");
+  const [mode, setMode]       = useState<NutrientMode>("perServing");
   const [rawP, setRawP]       = useState<string | null>(null);
   const [rawF, setRawF]       = useState<string | null>(null);
   const [rawC, setRawC]       = useState<string | null>(null);
@@ -746,7 +746,7 @@ function MenuItemDrawer({
     setServingHint(null);
     setScanError(null);
     setError(null);
-    setMode("per100g");
+    setMode("perServing");
     setRawP(null);
     setRawF(null);
     setRawC(null);

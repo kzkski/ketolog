@@ -15,6 +15,12 @@
 - **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 - **開発運用**: 通常マージ失敗時の待機手順（停止→ブロッカー確認→60〜120秒待機→再確認→通常マージ再試行）を追加し、待機前に `--admin` へ進まない運用を明文化した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 
+## [1.36.0] - 2026-04-15
+
+### Changed
+
+- **Today / メニュー**: メニュー追加・編集ドロワーの栄養素トグル初期値を「1回分」にした。一覧と同様に「その時点の 1 回の量」を基準に入力でき、保存は従来どおり 100g 換算で記録する（[#206](https://github.com/kzkski/ketolog/issues/206)）。
+
 ## [1.35.2] - 2026-04-14
 
 ### Fixed

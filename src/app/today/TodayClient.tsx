@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import {
   useState,
   useMemo,
@@ -2647,6 +2648,19 @@ function SettingsDrawer({
           </div>
 
           <div>
+            <h3 className="text-sm font-medium text-white mb-1">分析</h3>
+            <p className="text-xs text-gray-400 mb-3">
+              過去7日・30日・カスタム期間（最大90日）の食事ログを、日次集計と一覧で確認できます。
+            </p>
+            <a
+              href="/insights"
+              className="block w-full rounded-xl bg-gray-700 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-gray-600"
+            >
+              分析画面を開く
+            </a>
+          </div>
+
+          <div>
             <h3 className="text-sm font-medium text-white mb-1">データソース</h3>
             <p className="text-xs text-gray-400">
               市販品データは Open Food Facts を利用しています（ODbL）。
@@ -3636,6 +3650,13 @@ export default function TodayClient({
               onClick={() => setShowLogEntries((v) => !v)}
               className="w-full flex items-center justify-end gap-2 px-3 sm:px-4 py-1 sm:py-2 text-[11px] sm:text-xs text-gray-400 hover:text-white transition-colors min-h-7 sm:min-h-0 leading-none"
             >
+              <Link
+                href="/insights"
+                className="rounded-md border border-gray-700 px-1.5 py-1 text-[10px] text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                過去7日を見る
+              </Link>
               <span className="font-medium text-gray-300 text-right">
                 この日の記録（{logEntries.length}件）
               </span>

@@ -15,6 +15,13 @@
 - **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 - **開発運用**: 通常マージ失敗時の待機手順（停止→ブロッカー確認→60〜120秒待機→再確認→通常マージ再試行）を追加し、待機前に `--admin` へ進まない運用を明文化した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 
+## [1.35.0] - 2026-04-14
+
+### Added
+
+- **分析画面（/insights）**: 過去7日を初期表示に、過去30日・カスタム（最大90日）で期間を切り替え、日次PFC推移グラフ・日別ログ（初期は全折りたたみ）・よく食べたアイテムTop10（回数）を確認できる専用ページを追加。期間内ログのJSONダウンロードにも対応（[#200](https://github.com/kzkski/ketolog/issues/200)）。
+- **Today / 設定**: 設定ドロワーに分析画面への導線を追加し、記録画面から期間分析へ遷移しやすくした（[#200](https://github.com/kzkski/ketolog/issues/200)）。
+
 ## [1.34.3] - 2026-04-14
 
 ### Fixed

@@ -15,6 +15,12 @@
 - **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 - **開発運用**: 通常マージ失敗時の待機手順（停止→ブロッカー確認→60〜120秒待機→再確認→通常マージ再試行）を追加し、待機前に `--admin` へ進まない運用を明文化した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 
+## [1.34.0] - 2026-04-14
+
+### Added
+
+- **Today / メニュー**: メニュー編集ドロワーから QR で共有（PNG 保存・画像コピー）。「メニューを追加」のカメラで共有 QR を読み取ると、選択中のお店に 1 件インポート。ペイロードはクライアント内 JSON（`v` / `kind` で将来拡張可能）。データが大きすぎて QR を生成できない場合は理由を表示。ネイティブ `BarcodeDetector` は QR を含む形式を指定、ZXing フォールバックは `QR_CODE` を追加（[#198](https://github.com/kzkski/ketolog/issues/198)）。
+
 ## [1.33.0] - 2026-04-13
 
 ### Added

@@ -553,6 +553,8 @@ function MenuItemDrawer({
   const [shareQrDataUrl, setShareQrDataUrl] = useState<string | null>(null);
   const [shareQrError, setShareQrError] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState<{ tone: "ok" | "err"; msg: string } | null>(null);
+  /** QR 共有メニューの取り込み成功（ドロワーを閉じずに表示） */
+  const [menuQrImportDone, setMenuQrImportDone] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const groupNameInputRef = useRef<HTMLInputElement>(null);
@@ -759,6 +761,7 @@ function MenuItemDrawer({
           setScanError("お店が選択されていません。");
           return;
         }
+        setMenuQrImportDone(null);
         setScanLoading(true);
         setScanError(null);
         const res = await importMenuItemsToRestaurant(restaurantId, [parsed.item]);
@@ -768,19 +771,18 @@ function MenuItemDrawer({
           return;
         }
         onMenuItemsQrImported(res.newMenuItems);
-        onClose();
+        setCameraOn(false);
+        const added = res.newMenuItems[0];
+        setMenuQrImportDone(
+          added
+            ? `「${added.name}」を追加しました。一覧は下で確認できます。続けて読み取るときは「バーコード / QR を読み取り」をもう一度タップしてください。`
+            : "メニューを追加しました。"
+        );
         return;
       }
       await lookupOffProductBarcode(trimmed);
     },
-    [
-      canRegisterMenu,
-      registerDisabledReason,
-      state,
-      onMenuItemsQrImported,
-      onClose,
-      lookupOffProductBarcode,
-    ]
+    [canRegisterMenu, registerDisabledReason, state, onMenuItemsQrImported, lookupOffProductBarcode]
   );
 
   useEffect(() => {
@@ -1140,6 +1142,7 @@ function MenuItemDrawer({
                   setScanError(null);
                   setCameraResult(null);
                   setServingHint(null);
+                  setMenuQrImportDone(null);
                   setCameraOn((v) => !v);
                 }}
                 className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm rounded-lg transition-colors inline-flex items-center justify-center gap-2"
@@ -1157,6 +1160,9 @@ function MenuItemDrawer({
                 />
               )}
               {scanLoading && <p className="text-xs text-emerald-300">読み取り結果を検索中...</p>}
+              {menuQrImportDone && (
+                <p className="text-xs leading-relaxed text-emerald-300">{menuQrImportDone}</p>
+              )}
               {cameraResult && (
                 <p className="text-xs text-emerald-300">
                   読み取り完了: {cameraResult.product_name}（{cameraResult.barcode}）
@@ -4099,7 +4105,6 @@ export default function TodayClient({
             setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
             const rid = items[0]?.restaurant_id;
             if (rid) setSelectedRestaurantId(rid);
-            setItemDrawer(null);
           }}
         />
       )}

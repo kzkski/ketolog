@@ -1384,6 +1384,7 @@ export async function importRestaurantData(data: ImportData): Promise<{
   return { added: newRestaurants.length, skipped, newRestaurants, newMenuItems, error: null };
 }
 
+/** 既存店にメニュー行を一括 INSERT する（「メニューをJSONで追加」ドロワー専用）。メニュー共有QRはクライアントでフォームに転記するだけで、ここは通らない。 */
 export async function importMenuItemsToRestaurant(
   restaurantId: string,
   items: ImportRestaurantItem[]

@@ -1,7 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useMemo, useRef, useId, useEffect, useLayoutEffect, useCallback } from "react";
+import {
+  useState,
+  useMemo,
+  useRef,
+  useId,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 import { type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type {
@@ -64,6 +72,7 @@ import { STANDARD_FOOD_TAB_TITLE } from "@/lib/standard-food-groups";
 import { StandardFoodPanel } from "./StandardFoodPanel";
 import { MenuGroupCollapseSession } from "./MenuGroupCollapseSession";
 import { RestaurantTabsLazy } from "./RestaurantTabsLazy";
+import { buildMenuQrPayloadJson, parseMenuSharePayload } from "@/lib/menu-qr-payload";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -538,6 +547,11 @@ function MenuItemDrawer({
   const [manualSharedProductPending, setManualSharedProductPending] = useState(false);
   const [lastLookup, setLastLookup] = useState<{ barcode: string; at: number } | null>(null);
   const [servingHint, setServingHint] = useState<string | null>(null);
+  const [shareQrDataUrl, setShareQrDataUrl] = useState<string | null>(null);
+  const [shareQrError, setShareQrError] = useState<string | null>(null);
+  const [shareToast, setShareToast] = useState<{ tone: "ok" | "err"; msg: string } | null>(null);
+  /** QR 共有メニューの取り込み成功（ドロワーを閉じずに表示） */
+  const [menuQrImportDone, setMenuQrImportDone] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const groupNameInputRef = useRef<HTMLInputElement>(null);
@@ -567,60 +581,216 @@ function MenuItemDrawer({
     if (field === "c") { setCarbs(stored);   setRawC(null); }
   }
 
-  const handleLookupBarcode = useCallback(async (rawBarcode: string) => {
-    const normalized = rawBarcode.replace(/[^\d]/g, "");
-    if (!normalized) {
-      setScanError("バーコードを読み取れませんでした。もう一度お試しください。");
-      return;
-    }
-    if (lastLookup?.barcode === normalized && Date.now() - lastLookup.at < 3000) return;
-
-    setScanLoading(true);
-    setScanError(null);
-    setLastLookup({ barcode: normalized, at: Date.now() });
-    const res = await lookupSharedProductByBarcode(normalized);
-    setScanLoading(false);
-    if (res.status === "error") {
-      setManualSharedProductPending(false);
-      setScanError(res.error ?? "バーコードの照会に失敗しました");
-      return;
-    }
-    if (res.status === "not_found" || !res.product) {
-      setCameraResult(null);
-      setServingHint(null);
-      setSharedBarcode(normalized);
-      setStandardFoodCode(null);
-      setManualSharedProductPending(true);
-      setScanError(
-        "Open Food Facts にこのバーコードはありませんでした。商品名と栄養を入力して保存すると、アプリ内で共有されます（写真は不要です）。"
-      );
-      return;
-    }
-    setManualSharedProductPending(false);
-    setScanError(null);
-    setCameraResult(res.product);
-    setSharedBarcode(res.product.barcode);
-    setStandardFoodCode(null);
-    setName(res.product.product_name);
-    setProtein(res.product.protein_per_100g?.toString() ?? "");
-    setFat(res.product.fat_per_100g?.toString() ?? "");
-    setCarbs(res.product.carbs_per_100g?.toString() ?? "");
-    if (res.product.serving_size_grams && res.product.serving_size_grams > 0) {
-      setGrams(res.product.serving_size_grams.toString());
-      setServingHint(`OFFの serving_size (${res.product.serving_size}) を1回量に仮入力しました。ラベルで必ず確認してください。`);
-    } else if (res.product.serving_size) {
-      setServingHint(`OFFの serving_size (${res.product.serving_size}) を取得しました。1回量(g)を手動で確認してください。`);
-    } else {
-      setServingHint(null);
-    }
-    if (!notes.trim()) {
-      if (res.product.source === SHARED_PRODUCT_SOURCE_MANUAL_ENTRY) {
-        setNotes(MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES);
-      } else {
-        setNotes(res.product.brand ? `OFF: ${res.product.brand}` : "OFF連携");
+  const lookupOffProductBarcode = useCallback(
+    async (rawBarcode: string) => {
+      const normalized = rawBarcode.replace(/[^\d]/g, "");
+      if (!normalized) {
+        setScanError("バーコードを読み取れませんでした。もう一度お試しください。");
+        return;
       }
+      if (lastLookup?.barcode === normalized && Date.now() - lastLookup.at < 3000) return;
+
+      setScanLoading(true);
+      setScanError(null);
+      setLastLookup({ barcode: normalized, at: Date.now() });
+      const res = await lookupSharedProductByBarcode(normalized);
+      setScanLoading(false);
+      if (res.status === "error") {
+        setManualSharedProductPending(false);
+        setScanError(res.error ?? "バーコードの照会に失敗しました");
+        return;
+      }
+      if (res.status === "not_found" || !res.product) {
+        setCameraResult(null);
+        setServingHint(null);
+        setSharedBarcode(normalized);
+        setStandardFoodCode(null);
+        setManualSharedProductPending(true);
+        setScanError(
+          "Open Food Facts にこのバーコードはありませんでした。商品名と栄養を入力して保存すると、アプリ内で共有されます（写真は不要です）。"
+        );
+        return;
+      }
+      setManualSharedProductPending(false);
+      setScanError(null);
+      setCameraResult(res.product);
+      setSharedBarcode(res.product.barcode);
+      setStandardFoodCode(null);
+      setName(res.product.product_name);
+      setProtein(res.product.protein_per_100g?.toString() ?? "");
+      setFat(res.product.fat_per_100g?.toString() ?? "");
+      setCarbs(res.product.carbs_per_100g?.toString() ?? "");
+      if (res.product.serving_size_grams && res.product.serving_size_grams > 0) {
+        setGrams(res.product.serving_size_grams.toString());
+        setServingHint(
+          `OFFの serving_size (${res.product.serving_size}) を1回量に仮入力しました。ラベルで必ず確認してください。`
+        );
+      } else if (res.product.serving_size) {
+        setServingHint(
+          `OFFの serving_size (${res.product.serving_size}) を取得しました。1回量(g)を手動で確認してください。`
+        );
+      } else {
+        setServingHint(null);
+      }
+      if (!notes.trim()) {
+        if (res.product.source === SHARED_PRODUCT_SOURCE_MANUAL_ENTRY) {
+          setNotes(MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES);
+        } else {
+          setNotes(res.product.brand ? `OFF: ${res.product.brand}` : "OFF連携");
+        }
+      }
+    },
+    [lastLookup, notes]
+  );
+
+  const importItemPreviewForQr = useMemo((): ImportRestaurantItem | null => {
+    if (!isEdit) return null;
+    if (!name.trim()) return null;
+    const gramsNum = parseFloat(grams) || 100;
+    const p = protein === "" ? null : parseFloat(protein);
+    const f = fat === "" ? null : parseFloat(fat);
+    const c = carbs === "" ? null : parseFloat(carbs);
+    return {
+      name: name.trim(),
+      protein_per_100g: p !== null && Number.isFinite(p) ? p : null,
+      fat_per_100g: f !== null && Number.isFinite(f) ? f : null,
+      carbs_per_100g: c !== null && Number.isFinite(c) ? c : null,
+      shared_barcode: sharedBarcode,
+      standard_food_code: standardFoodCode,
+      default_grams: gramsNum,
+      rank,
+      notes: notes.trim() || null,
+      group: groupName.trim() || null,
+    };
+  }, [
+    isEdit,
+    name,
+    protein,
+    fat,
+    carbs,
+    grams,
+    rank,
+    notes,
+    groupName,
+    sharedBarcode,
+    standardFoodCode,
+  ]);
+
+  useEffect(() => {
+    if (!isEdit) {
+      setShareQrDataUrl(null);
+      setShareQrError(null);
+      return;
     }
-  }, [lastLookup, notes]);
+    if (!importItemPreviewForQr) {
+      setShareQrDataUrl(null);
+      setShareQrError(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const json = buildMenuQrPayloadJson(importItemPreviewForQr);
+        const QRCode = (await import("qrcode")).default;
+        const url = await QRCode.toDataURL(json, {
+          errorCorrectionLevel: "L",
+          margin: 1,
+          width: 220,
+          color: { dark: "#000000ff", light: "#ffffffff" },
+        });
+        if (!cancelled) {
+          setShareQrDataUrl(url);
+          setShareQrError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setShareQrDataUrl(null);
+          setShareQrError(
+            e instanceof Error
+              ? `QRを生成できませんでした（${e.message}）。メモや名前を短くするか、項目を減らして保存内容を試してください。`
+              : "QRを生成できませんでした。メモや名前を短くしてください。"
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, importItemPreviewForQr]);
+
+  /** メニュー共有 QR のペイロードを「メニューを追加」フォームへ転記（DB 保存はメニューに登録などで行う） */
+  const applyImportRestaurantItemToForm = useCallback((item: ImportRestaurantItem) => {
+    setName(item.name);
+    setProtein(
+      item.protein_per_100g === null || item.protein_per_100g === undefined
+        ? ""
+        : String(item.protein_per_100g)
+    );
+    setFat(
+      item.fat_per_100g === null || item.fat_per_100g === undefined ? "" : String(item.fat_per_100g)
+    );
+    setCarbs(
+      item.carbs_per_100g === null || item.carbs_per_100g === undefined
+        ? ""
+        : String(item.carbs_per_100g)
+    );
+    setGrams(String(item.default_grams));
+    setRank(item.rank);
+    setGroupName(item.group ?? "");
+    setNotes(item.notes ?? "");
+    setSharedBarcode(item.shared_barcode ?? null);
+    setStandardFoodCode(item.standard_food_code ?? null);
+    setManualSharedProductPending(false);
+    setCameraResult(null);
+    setServingHint(null);
+    setScanError(null);
+    setError(null);
+    setMode("per100g");
+    setRawP(null);
+    setRawF(null);
+    setRawC(null);
+    setLastLookup(null);
+  }, []);
+
+  const handleDecodedScan = useCallback(
+    async (raw: string) => {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        setScanError("バーコードを読み取れませんでした。もう一度お試しください。");
+        return;
+      }
+      if (/^https?:\/\//i.test(trimmed)) {
+        setCameraOn(false);
+        setScanLoading(false);
+        setScanError("URLからの取り込みは、まだ対応していません。");
+        return;
+      }
+      if (trimmed.startsWith("{")) {
+        const parsed = parseMenuSharePayload(trimmed);
+        if (!parsed.ok) {
+          setCameraOn(false);
+          setScanLoading(false);
+          setScanError(parsed.error);
+          return;
+        }
+        if (!canRegisterMenu) {
+          setCameraOn(false);
+          setScanLoading(false);
+          setScanError(registerDisabledReason ?? "追加先のお店がありません。");
+          return;
+        }
+        setCameraOn(false);
+        setScanLoading(false);
+        setMenuQrImportDone(null);
+        applyImportRestaurantItemToForm(parsed.item);
+        setMenuQrImportDone(`「${parsed.item.name}」をフォームに反映しました。`);
+        requestAnimationFrame(() => nameInputRef.current?.focus());
+        return;
+      }
+      await lookupOffProductBarcode(trimmed);
+    },
+    [canRegisterMenu, registerDisabledReason, applyImportRestaurantItemToForm, lookupOffProductBarcode]
+  );
 
   useEffect(() => {
     if (isEdit || !cameraOn || !cameraSupported) return;
@@ -685,7 +855,18 @@ function MenuItemDrawer({
 
       if (typeof w.BarcodeDetector !== "undefined") {
         try {
-          const detector = new w.BarcodeDetector();
+          type BarcodeDetectorCtor = new (opts?: { formats?: string[] }) => {
+            detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>>;
+          };
+          const Detector = w.BarcodeDetector as unknown as BarcodeDetectorCtor;
+          let detector: InstanceType<BarcodeDetectorCtor>;
+          try {
+            detector = new Detector({
+              formats: ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e"],
+            });
+          } catch {
+            detector = new Detector();
+          }
           while (!stopped) {
             if (!videoRef.current) break;
             try {
@@ -693,7 +874,7 @@ function MenuItemDrawer({
               const value = detected[0]?.rawValue?.trim();
               if (value) {
                 setCameraOn(false);
-                void handleLookupBarcode(value);
+                void handleDecodedScan(value);
                 break;
               }
             } catch {
@@ -717,6 +898,7 @@ function MenuItemDrawer({
           }
           const hints = new Map<DecodeHintType, BarcodeFormat[]>();
           hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+            BarcodeFormat.QR_CODE,
             BarcodeFormat.EAN_13,
             BarcodeFormat.EAN_8,
             BarcodeFormat.UPC_A,
@@ -729,7 +911,7 @@ function MenuItemDrawer({
             if (text) {
               ctrls.stop();
               setCameraOn(false);
-              void handleLookupBarcode(text);
+              void handleDecodedScan(text);
             }
           });
           stopZxing = () => controls.stop();
@@ -748,7 +930,7 @@ function MenuItemDrawer({
       stopZxing = null;
       if (stream) stream.getTracks().forEach((t) => t.stop());
     };
-  }, [isEdit, cameraOn, cameraSupported, handleLookupBarcode]);
+  }, [isEdit, cameraOn, cameraSupported, handleDecodedScan]);
 
   useEffect(() => {
     if (isEdit) return;
@@ -967,12 +1149,13 @@ function MenuItemDrawer({
                   setScanError(null);
                   setCameraResult(null);
                   setServingHint(null);
+                  setMenuQrImportDone(null);
                   setCameraOn((v) => !v);
                 }}
                 className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm rounded-lg transition-colors inline-flex items-center justify-center gap-2"
               >
                 <span aria-hidden="true">{cameraOn ? "■" : "|||:"}</span>
-                <span>{cameraOn ? "読み取りを停止" : "バーコード読み取り"}</span>
+                <span>{cameraOn ? "読み取りを停止" : "バーコード / QR を読み取り"}</span>
               </button>
               {cameraOn && (
                 <video
@@ -984,6 +1167,9 @@ function MenuItemDrawer({
                 />
               )}
               {scanLoading && <p className="text-xs text-emerald-300">読み取り結果を検索中...</p>}
+              {menuQrImportDone && (
+                <p className="text-xs leading-relaxed text-emerald-300">{menuQrImportDone}</p>
+              )}
               {cameraResult && (
                 <p className="text-xs text-emerald-300">
                   読み取り完了: {cameraResult.product_name}（{cameraResult.barcode}）
@@ -997,7 +1183,7 @@ function MenuItemDrawer({
               )}
               {servingHint && <p className="text-xs text-amber-300">{servingHint}</p>}
               <p className="text-[11px] text-gray-500">
-                Data source: Open Food Facts (ODbL)
+                市販品バーコードは Open Food Facts (ODbL) を参照します。Ketolog のメニュー共有 QR も読み取れます。
               </p>
               {onOpenStandardFoodSearch && (
                 <button
@@ -1131,6 +1317,98 @@ function MenuItemDrawer({
               className="w-full resize-none px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
             />
           </div>
+
+          {isEdit && (
+            <div className="space-y-2 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-3">
+              <p className="text-xs text-gray-400">共有（QR）</p>
+              <p className="text-[11px] leading-snug text-gray-500">
+                入力中の内容を QR にします。相手は「メニューを追加」からカメラで読み取れます。
+              </p>
+              {!importItemPreviewForQr && (
+                <p className="text-xs text-amber-300">名前を入力すると QR を表示できます。</p>
+              )}
+              {shareQrError && <p className="text-xs text-amber-300">{shareQrError}</p>}
+              {shareQrDataUrl && importItemPreviewForQr && (
+                <>
+                  <div className="flex justify-center rounded-lg bg-white p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- data URL from qrcode */}
+                    <img
+                      src={shareQrDataUrl}
+                      alt=""
+                      width={220}
+                      height={220}
+                      className="h-44 w-44 max-w-full object-contain"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!shareQrDataUrl) return;
+                        const slug =
+                          name
+                            .trim()
+                            .replace(/[\\/:*?"<>|]+/g, "_")
+                            .slice(0, 48) || "menu";
+                        const a = document.createElement("a");
+                        a.href = shareQrDataUrl;
+                        a.download = `ketolog-menu-${slug}.png`;
+                        a.click();
+                        setShareToast({ tone: "ok", msg: "PNG を保存しました" });
+                        window.setTimeout(() => setShareToast(null), 2800);
+                      }}
+                      className="flex-1 rounded-lg bg-gray-800 py-2.5 text-center text-sm text-gray-200 transition-colors hover:bg-gray-700"
+                    >
+                      PNG を保存
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void (async () => {
+                          if (!shareQrDataUrl) return;
+                          try {
+                            const res = await fetch(shareQrDataUrl);
+                            const blob = await res.blob();
+                            if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+                              setShareToast({
+                                tone: "err",
+                                msg: "このブラウザでは画像のコピーに対応していない可能性があります。",
+                              });
+                              window.setTimeout(() => setShareToast(null), 4000);
+                              return;
+                            }
+                            await navigator.clipboard.write([
+                              new ClipboardItem({ [blob.type]: blob }),
+                            ]);
+                            setShareToast({
+                              tone: "ok",
+                              msg: "画像をコピーしました（LINE などに貼り付けできます）",
+                            });
+                            window.setTimeout(() => setShareToast(null), 3500);
+                          } catch {
+                            setShareToast({ tone: "err", msg: "画像のコピーに失敗しました。" });
+                            window.setTimeout(() => setShareToast(null), 4000);
+                          }
+                        })();
+                      }}
+                      className="flex-1 rounded-lg border border-gray-600 py-2.5 text-center text-sm text-gray-200 transition-colors hover:border-gray-500"
+                    >
+                      画像をコピー
+                    </button>
+                  </div>
+                </>
+              )}
+              {shareToast && (
+                <p
+                  className={
+                    shareToast.tone === "ok" ? "text-xs text-emerald-300" : "text-xs text-amber-300"
+                  }
+                >
+                  {shareToast.msg}
+                </p>
+              )}
+            </div>
+          )}
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 

@@ -464,7 +464,6 @@ function MenuItemDrawer({
   canRegisterMenu,
   registerDisabledReason,
   onOpenStandardFoodSearch,
-  onMenuItemsQrImported,
 }: {
   state: ItemDrawerState;
   existingGroupNames: string[];
@@ -493,8 +492,6 @@ function MenuItemDrawer({
   registerTargetRestaurantId: string;
   onRegisterTargetChange: (restaurantId: string) => void;
   onOpenStandardFoodSearch?: () => void;
-  /** QR 取り込み成功時（メニュー追加ドロワーでカメラから読んだとき） */
-  onMenuItemsQrImported?: (items: MenuItem[]) => void;
 }) {
   const MEMO_MIN_ROWS = 3;
   const MEMO_MAX_ROWS = 10;
@@ -721,6 +718,39 @@ function MenuItemDrawer({
     };
   }, [isEdit, importItemPreviewForQr]);
 
+  /** メニュー共有 QR のペイロードを「メニューを追加」フォームへ転記（DB 保存はメニューに登録などで行う） */
+  const applyImportRestaurantItemToForm = useCallback((item: ImportRestaurantItem) => {
+    setName(item.name);
+    setProtein(
+      item.protein_per_100g === null || item.protein_per_100g === undefined
+        ? ""
+        : String(item.protein_per_100g)
+    );
+    setFat(
+      item.fat_per_100g === null || item.fat_per_100g === undefined ? "" : String(item.fat_per_100g)
+    );
+    setCarbs(
+      item.carbs_per_100g === null || item.carbs_per_100g === undefined
+        ? ""
+        : String(item.carbs_per_100g)
+    );
+    setGrams(String(item.default_grams));
+    setRank(item.rank);
+    setGroupName(item.group ?? "");
+    setNotes(item.notes ?? "");
+    setSharedBarcode(item.shared_barcode ?? null);
+    setStandardFoodCode(item.standard_food_code ?? null);
+    setManualSharedProductPending(false);
+    setCameraResult(null);
+    setServingHint(null);
+    setScanError(null);
+    setMode("per100g");
+    setRawP(null);
+    setRawF(null);
+    setRawC(null);
+    setLastLookup(null);
+  }, []);
+
   const handleDecodedScan = useCallback(
     async (raw: string) => {
       const trimmed = raw.trim();
@@ -742,47 +772,23 @@ function MenuItemDrawer({
           setScanError(parsed.error);
           return;
         }
-        if (!onMenuItemsQrImported) {
-          setCameraOn(false);
-          setScanLoading(false);
-          setScanError("QRの取り込みを続行できません。");
-          return;
-        }
         if (!canRegisterMenu) {
           setCameraOn(false);
           setScanLoading(false);
           setScanError(registerDisabledReason ?? "追加先のお店がありません。");
           return;
         }
-        const restaurantId = state.kind === "add" ? state.restaurantId : "";
-        if (!restaurantId) {
-          setCameraOn(false);
-          setScanLoading(false);
-          setScanError("お店が選択されていません。");
-          return;
-        }
-        setMenuQrImportDone(null);
-        setScanLoading(true);
-        setScanError(null);
-        const res = await importMenuItemsToRestaurant(restaurantId, [parsed.item]);
-        setScanLoading(false);
-        if (res.error) {
-          setScanError(res.error);
-          return;
-        }
-        onMenuItemsQrImported(res.newMenuItems);
         setCameraOn(false);
-        const added = res.newMenuItems[0];
-        setMenuQrImportDone(
-          added
-            ? `「${added.name}」を追加しました。一覧は下で確認できます。続けて読み取るときは「バーコード / QR を読み取り」をもう一度タップしてください。`
-            : "メニューを追加しました。"
-        );
+        setScanLoading(false);
+        setMenuQrImportDone(null);
+        applyImportRestaurantItemToForm(parsed.item);
+        setMenuQrImportDone(`「${parsed.item.name}」をフォームに反映しました。`);
+        requestAnimationFrame(() => nameInputRef.current?.focus());
         return;
       }
       await lookupOffProductBarcode(trimmed);
     },
-    [canRegisterMenu, registerDisabledReason, state, onMenuItemsQrImported, lookupOffProductBarcode]
+    [canRegisterMenu, registerDisabledReason, applyImportRestaurantItemToForm, lookupOffProductBarcode]
   );
 
   useEffect(() => {
@@ -4100,11 +4106,6 @@ export default function TodayClient({
               });
               return next;
             });
-          }}
-          onMenuItemsQrImported={(items) => {
-            setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
-            const rid = items[0]?.restaurant_id;
-            if (rid) setSelectedRestaurantId(rid);
           }}
         />
       )}

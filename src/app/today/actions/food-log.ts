@@ -1,5 +1,6 @@
 "use server";
 
+import { sumPfc, type PfcGrams } from "@/lib/pfc";
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type { FoodLogEntry, TodayConsumed } from "@/types/database";
 
@@ -77,14 +78,20 @@ export async function getFoodLogForDate(date: string): Promise<{
   if (error) return { entries: [], consumed: { protein: 0, fat: 0, carbs: 0 }, error: error.message };
 
   const entries = (data ?? []) as FoodLogEntry[];
-  const consumed = entries.reduce(
-    (acc, row) => ({
-      protein: acc.protein + (row.protein_g ?? 0),
-      fat: acc.fat + (row.fat_g ?? 0),
-      carbs: acc.carbs + (row.carbs_g ?? 0),
-    }),
-    { protein: 0, fat: 0, carbs: 0 }
+  const summed = entries.reduce<PfcGrams>(
+    (acc, row) =>
+      sumPfc(acc, {
+        p: row.protein_g ?? 0,
+        f: row.fat_g ?? 0,
+        c: row.carbs_g ?? 0,
+      }),
+    { p: 0, f: 0, c: 0 }
   );
+  const consumed: TodayConsumed = {
+    protein: summed.p,
+    fat: summed.f,
+    carbs: summed.c,
+  };
   return { entries, consumed, error: null };
 }
 

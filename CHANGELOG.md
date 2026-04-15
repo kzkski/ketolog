@@ -12,6 +12,7 @@
 
 ### Changed
 
+- **内部**: PFC（g）の合算を `src/lib/pfc.ts` の `sumPfc()` に集約し、Today・食事ログ取得・分析集計の重複加算を整理した（[#216](https://github.com/kzkski/ketolog/issues/216)）。
 - **Today / コード整理**: Server Actions の参照先を `src/app/today/actions/*` の責務別エントリへ分割し、食事区分定数と JST 日付ユーティリティを `src/lib/constants/meal.ts` / `src/lib/date.ts` に集約した（[#215](https://github.com/kzkski/ketolog/issues/215)）。
 - **開発運用**: コードベース責務分割・パフォーマンス改善の設計をドキュメント化した（`AGENTS.md` / `CONTRIBUTING.md` にディレクトリ配置規約・Server Actions import ルールを追記、`ROADMAP.md` に技術的改善セクションを追加、`docs/plans/issue-213-refactor-codebase.md` を新規作成）（[#213](https://github.com/kzkski/ketolog/issues/213)）。
 - **ROADMAP**: Phase 2-2 に、[Issue #54](https://github.com/kzkski/ketolog/issues/54)（最近スキャン・検索した市販品の一覧 UI）と既存の OFF／メニュー／お気に入りとの関係を追記した（[#212](https://github.com/kzkski/ketolog/pull/212)）。

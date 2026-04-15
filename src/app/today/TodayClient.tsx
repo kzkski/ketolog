@@ -1505,6 +1505,7 @@ export default function TodayClient({
 
   const [headerHint, setHeaderHint] = useState<string | null>(null);
   const [headerHintFullOpen, setHeaderHintFullOpen] = useState(false);
+  const [appUpdateDialogOpen, setAppUpdateDialogOpen] = useState(false);
   const headerHintDisplayedRef = useRef<string | null>(null);
   const { banner: appUpdateBanner, applyUpdate: applyAppUpdate } = useAppUpdateBanner();
 
@@ -1547,6 +1548,15 @@ export default function TodayClient({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [headerHintFullOpen]);
+
+  useEffect(() => {
+    if (!appUpdateDialogOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAppUpdateDialogOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [appUpdateDialogOpen]);
 
   const cartEntries = useMemo(() => Array.from(cart.values()).filter((e) => e.count > 0), [cart]);
   const hasCart = cartEntries.length > 0;
@@ -1708,6 +1718,11 @@ export default function TodayClient({
     headerHint && headerHintFullOpen && !headerCenterIsAppUpdate
   );
 
+  useEffect(() => {
+    if (headerCenterIsAppUpdate) return;
+    setAppUpdateDialogOpen(false);
+  }, [headerCenterIsAppUpdate]);
+
   return (
     <>
       <PfcHeader
@@ -1757,7 +1772,7 @@ export default function TodayClient({
         centerMessage={headerCenterMessage}
         centerIsAppUpdate={headerCenterIsAppUpdate}
         onCenterClick={() => {
-          if (headerCenterIsAppUpdate) applyAppUpdate();
+          if (headerCenterIsAppUpdate) setAppUpdateDialogOpen(true);
           else setHeaderHintFullOpen(true);
         }}
         centerTitle={
@@ -1768,12 +1783,16 @@ export default function TodayClient({
             ? "アプリを最新版に更新する（タップで再読み込み）"
             : "ヘッダーメッセージの全文を表示"
         }
-        centerAriaHasPopup={headerCenterIsAppUpdate ? undefined : "dialog"}
-        centerAriaExpanded={headerCenterIsAppUpdate ? undefined : headerHintFullOpen}
+        centerAriaHasPopup="dialog"
+        centerAriaExpanded={headerCenterIsAppUpdate ? appUpdateDialogOpen : headerHintFullOpen}
         onOpenSettings={() => setShowSettings(true)}
         headerHint={headerHint}
         hintDialogOpen={hintDialogOpen}
         onCloseHintDialog={() => setHeaderHintFullOpen(false)}
+        appUpdateDetail={headerCenterUpdate?.detail ?? null}
+        appUpdateDialogOpen={appUpdateDialogOpen}
+        onCloseAppUpdateDialog={() => setAppUpdateDialogOpen(false)}
+        onApplyAppUpdate={applyAppUpdate}
       />
 
       <div className="flex-1 flex flex-col min-h-0">

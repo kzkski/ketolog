@@ -53,6 +53,7 @@
 - 品質ゲート強化（CI: lint/test/build/typecheck、回帰テスト拡張）
 - ベータ運用手順の固定（障害対応、ロールバック、サポート導線）
 - 公開チェックリスト整備（法務・コスト・コンプライアンス）
+- Ketovisor 連携向けデータ契約の固定（`contractVersion`・スキーマ・互換ポリシー）
 - 実務トラッキングは [docs/release/README.md](docs/release/README.md) を正とする（ドキュメントで設計固定 → Issue で実装実行）。
 
 ### ベータの2段階運用

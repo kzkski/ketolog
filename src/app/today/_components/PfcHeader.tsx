@@ -68,6 +68,7 @@ export type PfcHeaderProps = {
   appUpdateDetail: string | null;
   appUpdateDialogOpen: boolean;
   onCloseAppUpdateDialog: () => void;
+  appUpdateApplying: boolean;
   onApplyAppUpdate: () => void;
 };
 
@@ -96,6 +97,7 @@ export function PfcHeader({
   appUpdateDetail,
   appUpdateDialogOpen,
   onCloseAppUpdateDialog,
+  appUpdateApplying,
   onApplyAppUpdate,
 }: PfcHeaderProps) {
   const changelogUrl = process.env.NEXT_PUBLIC_CHANGELOG_URL;
@@ -274,6 +276,7 @@ export function PfcHeader({
                 <button
                   type="button"
                   onClick={onCloseAppUpdateDialog}
+                  disabled={appUpdateApplying}
                   className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors"
                 >
                   閉じる
@@ -281,9 +284,10 @@ export function PfcHeader({
                 <button
                   type="button"
                   onClick={onApplyAppUpdate}
-                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-xl transition-colors"
+                  disabled={appUpdateApplying}
+                  className="touch-manipulation flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400 disabled:bg-emerald-700/70 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors"
                 >
-                  更新する
+                  {appUpdateApplying ? "更新中..." : "更新する"}
                 </button>
               </div>
             </div>

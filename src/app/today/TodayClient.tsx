@@ -1506,6 +1506,7 @@ export default function TodayClient({
   const [headerHint, setHeaderHint] = useState<string | null>(null);
   const [headerHintFullOpen, setHeaderHintFullOpen] = useState(false);
   const [appUpdateDialogOpen, setAppUpdateDialogOpen] = useState(false);
+  const [appUpdateApplying, setAppUpdateApplying] = useState(false);
   const headerHintDisplayedRef = useRef<string | null>(null);
   const { banner: appUpdateBanner, applyUpdate: applyAppUpdate } = useAppUpdateBanner();
 
@@ -1721,6 +1722,7 @@ export default function TodayClient({
   useEffect(() => {
     if (headerCenterIsAppUpdate) return;
     setAppUpdateDialogOpen(false);
+    setAppUpdateApplying(false);
   }, [headerCenterIsAppUpdate]);
 
   return (
@@ -1792,7 +1794,13 @@ export default function TodayClient({
         appUpdateDetail={headerCenterUpdate?.detail ?? null}
         appUpdateDialogOpen={appUpdateDialogOpen}
         onCloseAppUpdateDialog={() => setAppUpdateDialogOpen(false)}
-        onApplyAppUpdate={applyAppUpdate}
+        appUpdateApplying={appUpdateApplying}
+        onApplyAppUpdate={async () => {
+          if (appUpdateApplying) return;
+          setAppUpdateApplying(true);
+          const applied = await applyAppUpdate();
+          if (!applied) setAppUpdateApplying(false);
+        }}
       />
 
       <div className="flex-1 flex flex-col min-h-0">

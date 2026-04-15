@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import {
   useState,
@@ -70,9 +69,7 @@ import {
   MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
   SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
 } from "@/lib/shared-product-source";
-import type { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import {
-  MACRO_BAR_BG,
   MACRO_MENU_TEXT,
   menuRowMacroHighlights,
   type MacroHighlightTargets,
@@ -85,6 +82,8 @@ import { MenuGroupCollapseSession } from "./MenuGroupCollapseSession";
 import { RestaurantTabsLazy } from "./RestaurantTabsLazy";
 import { buildMenuQrPayloadJson, parseMenuSharePayload } from "@/lib/menu-qr-payload";
 import { MEAL_LABELS, MEAL_TAB_STYLES } from "@/lib/constants/meal";
+import { PfcHeader } from "./_components/PfcHeader";
+import { BarcodeScanner } from "./_components/BarcodeScanner";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
 
@@ -409,27 +408,6 @@ function toServing(val: string, gramsStr: string): string {
   return parseFloat((v * g / 100).toFixed(2)).toString();
 }
 
-// ─── PFCバー ──────────────────────────────────────────────────────────────────
-
-function PFCBar({ label, current, target, color }: {
-  label: string; current: number; target: number; color: string;
-}) {
-  const pct = Math.min((current / target) * 100, 100);
-  const over = current > target;
-  return (
-    <div className="flex items-center gap-1 sm:gap-2">
-      <span className="text-xs text-gray-400 w-4 shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 sm:h-2 bg-gray-800 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all duration-300 ${over ? "bg-red-500" : color}`}
-          style={{ width: `${pct}%` }} />
-      </div>
-      <span className={`text-xs tabular-nums w-[4.75rem] sm:w-[4.5rem] text-right ${over ? "text-red-400" : "text-gray-300"}`}>
-        {fmt(current)} / {target}g
-      </span>
-    </div>
-  );
-}
-
 // ─── メニューアイテム追加・編集ドロワー ────────────────────────────────────────
 
 function MenuItemDrawer({
@@ -538,7 +516,6 @@ function MenuItemDrawer({
   const [shareToast, setShareToast] = useState<{ tone: "ok" | "err"; msg: string } | null>(null);
   /** QR 共有メニューの取り込み成功（ドロワーを閉じずに表示） */
   const [menuQrImportDone, setMenuQrImportDone] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const groupNameInputRef = useRef<HTMLInputElement>(null);
   const groupSuggestionWrapRef = useRef<HTMLDivElement>(null);
@@ -778,145 +755,27 @@ function MenuItemDrawer({
     [canRegisterMenu, registerDisabledReason, applyImportRestaurantItemToForm, lookupOffProductBarcode]
   );
 
-  useEffect(() => {
-    if (isEdit || !cameraOn || !cameraSupported) return;
-    let stopped = false;
-    let stream: MediaStream | null = null;
-    let stopZxing: (() => void) | null = null;
+  const closeBarcodeCamera = useCallback(() => {
+    setCameraOn(false);
+  }, []);
 
-    const w = window as Window & {
-      BarcodeDetector?: new () => { detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>> };
-    };
+  const reportBarcodeRuntimeError = useCallback((message: string) => {
+    setScanError(message);
+  }, []);
 
-    void (async () => {
-      try {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "environment" } },
-            audio: false,
-          });
-        } catch {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        }
-      } catch {
-        if (!stopped) {
-          setScanError("カメラを起動できませんでした。権限設定を確認してください。");
-          setCameraOn(false);
-        }
-        return;
-      }
-
-      if (stopped) {
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-
-      const video = videoRef.current;
-      if (!video) {
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-
-      video.srcObject = stream;
-      video.muted = true;
-      video.playsInline = true;
-      video.setAttribute("playsinline", "true");
-      video.setAttribute("webkit-playsinline", "true");
-
-      try {
-        await video.play();
-      } catch {
-        if (!stopped) {
-          setScanError("映像の再生を開始できませんでした。");
-          setCameraOn(false);
-        }
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-
-      if (stopped) {
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-
-      if (typeof w.BarcodeDetector !== "undefined") {
-        try {
-          type BarcodeDetectorCtor = new (opts?: { formats?: string[] }) => {
-            detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>>;
-          };
-          const Detector = w.BarcodeDetector as unknown as BarcodeDetectorCtor;
-          let detector: InstanceType<BarcodeDetectorCtor>;
-          try {
-            detector = new Detector({
-              formats: ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e"],
-            });
-          } catch {
-            detector = new Detector();
-          }
-          while (!stopped) {
-            if (!videoRef.current) break;
-            try {
-              const detected = await detector.detect(videoRef.current);
-              const value = detected[0]?.rawValue?.trim();
-              if (value) {
-                setCameraOn(false);
-                void handleDecodedScan(value);
-                break;
-              }
-            } catch {
-              // フレームごとの検出失敗は無視して続行
-            }
-            await new Promise((r) => setTimeout(r, 350));
-          }
-        } catch {
-          if (!stopped) {
-            setScanError("バーコードの自動読み取りを開始できませんでした。");
-            setCameraOn(false);
-          }
-        }
-      } else {
-        try {
-          const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] =
-            await Promise.all([import("@zxing/browser"), import("@zxing/library")]);
-          if (stopped) {
-            stream.getTracks().forEach((t) => t.stop());
-            return;
-          }
-          const hints = new Map<DecodeHintType, BarcodeFormat[]>();
-          hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-            BarcodeFormat.QR_CODE,
-            BarcodeFormat.EAN_13,
-            BarcodeFormat.EAN_8,
-            BarcodeFormat.UPC_A,
-            BarcodeFormat.UPC_E,
-          ]);
-          const reader = new BrowserMultiFormatReader(hints);
-          const controls = reader.scan(video, (result, _err, ctrls) => {
-            if (stopped || !result) return;
-            const text = result.getText().trim();
-            if (text) {
-              ctrls.stop();
-              setCameraOn(false);
-              void handleDecodedScan(text);
-            }
-          });
-          stopZxing = () => controls.stop();
-        } catch {
-          if (!stopped) {
-            setScanError("バーコードの自動読み取りを開始できませんでした。");
-            setCameraOn(false);
-          }
-        }
-      }
-    })();
-
-    return () => {
-      stopped = true;
-      stopZxing?.();
-      stopZxing = null;
-      if (stream) stream.getTracks().forEach((t) => t.stop());
-    };
-  }, [isEdit, cameraOn, cameraSupported, handleDecodedScan]);
+  const toggleBarcodeScan = useCallback(() => {
+    if (!cameraOn && !cameraSupported) {
+      setScanError(
+        "この環境ではカメラを利用できません。HTTPS で開いているか、ブラウザのカメラ権限を確認してください。"
+      );
+      return;
+    }
+    setScanError(null);
+    setCameraResult(null);
+    setServingHint(null);
+    setMenuQrImportDone(null);
+    setCameraOn((v) => !v);
+  }, [cameraOn, cameraSupported]);
 
   useEffect(() => {
     if (isEdit) return;
@@ -1122,65 +981,22 @@ function MenuItemDrawer({
           </div>
 
           {!isEdit && (
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!cameraOn && !cameraSupported) {
-                    setScanError(
-                      "この環境ではカメラを利用できません。HTTPS で開いているか、ブラウザのカメラ権限を確認してください。"
-                    );
-                    return;
-                  }
-                  setScanError(null);
-                  setCameraResult(null);
-                  setServingHint(null);
-                  setMenuQrImportDone(null);
-                  setCameraOn((v) => !v);
-                }}
-                className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm rounded-lg transition-colors inline-flex items-center justify-center gap-2"
-              >
-                <span aria-hidden="true">{cameraOn ? "■" : "|||:"}</span>
-                <span>{cameraOn ? "読み取りを停止" : "バーコード / QR を読み取り"}</span>
-              </button>
-              {cameraOn && (
-                <video
-                  ref={videoRef}
-                  muted
-                  playsInline
-                  autoPlay
-                  className="mx-auto w-full max-h-[min(42svh,15rem)] rounded-lg border border-gray-700 bg-black aspect-video object-cover sm:max-h-none"
-                />
-              )}
-              {scanLoading && <p className="text-xs text-emerald-300">読み取り結果を検索中...</p>}
-              {menuQrImportDone && (
-                <p className="text-xs leading-relaxed text-emerald-300">{menuQrImportDone}</p>
-              )}
-              {cameraResult && (
-                <p className="text-xs text-emerald-300">
-                  読み取り完了: {cameraResult.product_name}（{cameraResult.barcode}）
-                </p>
-              )}
-              {scanError && <p className="text-xs text-amber-300">{scanError}</p>}
-              {manualSharedProductPending && sharedBarcode && (
-                <p className="text-xs text-emerald-300/90">
-                  共有に使うバーコード: <span className="font-mono">{sharedBarcode}</span>
-                </p>
-              )}
-              {servingHint && <p className="text-xs text-amber-300">{servingHint}</p>}
-              <p className="text-[11px] text-gray-500">
-                市販品バーコードは Open Food Facts (ODbL) を参照します。Ketolog のメニュー共有 QR も読み取れます。
-              </p>
-              {onOpenStandardFoodSearch && (
-                <button
-                  type="button"
-                  onClick={onOpenStandardFoodSearch}
-                  className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm rounded-lg transition-colors"
-                >
-                  文科省成分表で検索
-                </button>
-              )}
-            </div>
+            <BarcodeScanner
+              cameraSupported={cameraSupported}
+              cameraOn={cameraOn}
+              onToggleScan={toggleBarcodeScan}
+              scanLoading={scanLoading}
+              scanError={scanError}
+              cameraResult={cameraResult}
+              menuQrImportDone={menuQrImportDone}
+              manualSharedProductPending={manualSharedProductPending}
+              sharedBarcode={sharedBarcode}
+              servingHint={servingHint}
+              onDecoded={handleDecodedScan}
+              onRuntimeError={reportBarcodeRuntimeError}
+              onCameraClosed={closeBarcodeCamera}
+              onOpenStandardFoodSearch={onOpenStandardFoodSearch}
+            />
           )}
 
           <div>
@@ -3628,142 +3444,82 @@ export default function TodayClient({
   }
 
   // ── UI ──────────────────────────────────────────────────────────────────────
-  const changelogUrl = process.env.NEXT_PUBLIC_CHANGELOG_URL;
   const headerCenterUpdate = appUpdateBanner.kind === "update" ? appUpdateBanner : null;
   const headerCenterMessage = headerCenterUpdate?.line ?? headerHint;
   const headerCenterIsAppUpdate = headerCenterUpdate !== null;
+  const hintDialogOpen = Boolean(
+    headerHint && headerHintFullOpen && !headerCenterIsAppUpdate
+  );
 
   return (
     <>
-      {/* ヘッダー */}
-      <header className="flex-none flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-3 border-b border-gray-800 pt-[max(0.375rem,env(safe-area-inset-top))]">
-        <div className="flex items-center gap-1.5 shrink-0 min-w-0 sm:gap-2">
-          <Link
-            href="/today"
-            className="flex min-w-0 items-center gap-2 rounded-lg pr-0.5 touch-manipulation transition-colors active:bg-gray-800/50 sm:hover:bg-gray-900/40"
-            aria-label="記録（今日）へ戻る"
-          >
-            <Image
-              src="/icons/icon-header.png"
-              alt=""
-              width={160}
-              height={160}
-              className="h-10 w-10 shrink-0 rounded-full object-cover sm:h-11 sm:w-11"
-              sizes="(max-width: 640px) 40px, 44px"
-              priority
-            />
-            <span className="text-base font-bold text-white">Ketolog</span>
-          </Link>
-          {changelogUrl ? (
-            <a
-              href={changelogUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="変更履歴（Changelog）を開く"
-              className="shrink-0 text-xs font-normal text-gray-500 hover:text-gray-300 hover:underline underline-offset-2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              v{process.env.NEXT_PUBLIC_APP_VERSION}
-            </a>
-          ) : (
-            <span className="shrink-0 text-xs font-normal text-gray-500">
-              v{process.env.NEXT_PUBLIC_APP_VERSION}
-            </span>
-          )}
-        </div>
-        <div className="flex-1 min-w-0 flex justify-center items-center px-1">
-          {headerCenterMessage ? (
+      <PfcHeader
+        dateNav={
+          <div className="flex-none flex items-center justify-between px-1.5 sm:px-4 py-0.5 sm:py-2 border-b border-gray-800 bg-gray-900 gap-0.5 sm:gap-2">
             <button
               type="button"
-              onClick={() => {
-                if (headerCenterIsAppUpdate) applyAppUpdate();
-                else setHeaderHintFullOpen(true);
-              }}
-              className={`text-center text-[11px] leading-snug truncate max-w-full min-w-0 w-full rounded-md py-1 touch-manipulation transition-colors active:bg-gray-800/50 sm:hover:bg-gray-800/40 ${
-                headerCenterIsAppUpdate
-                  ? "text-emerald-400/95 sm:hover:text-emerald-300"
-                  : "text-gray-400"
-              }`}
-              title={headerCenterIsAppUpdate ? headerCenterUpdate?.detail : headerHint ?? undefined}
-              aria-label={
-                headerCenterIsAppUpdate
-                  ? "アプリを最新版に更新する（タップで再読み込み）"
-                  : "ヘッダーメッセージの全文を表示"
-              }
-              aria-haspopup={headerCenterIsAppUpdate ? undefined : "dialog"}
-              aria-expanded={headerCenterIsAppUpdate ? undefined : headerHintFullOpen}
+              onClick={() => navigateDate(-1)}
+              disabled={loadingDate}
+              className="min-h-8 min-w-8 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-base sm:text-lg rounded-md sm:rounded-none active:bg-gray-800/50 shrink-0"
             >
-              {headerCenterMessage}
+              ‹
             </button>
-          ) : null}
-        </div>
-        <button onClick={() => setShowSettings(true)}
-          type="button"
-          className="shrink-0 text-gray-400 hover:text-white transition-colors text-base sm:text-lg leading-none min-h-9 min-w-9 sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg sm:rounded-none active:bg-gray-800/60 sm:active:bg-transparent">
-          ⚙
-        </button>
-      </header>
+            <div className="flex flex-row sm:flex-col flex-wrap items-center justify-center gap-x-1.5 gap-y-0 sm:gap-1 min-w-0 flex-1 px-0.5 leading-none">
+              <span className="text-[13px] sm:text-sm font-medium text-white text-center leading-tight">
+                {loadingDate ? "読込中..." : formatNavDate(selectedDate, today)}
+              </span>
+              {selectedDate !== today && !loadingDate && (
+                <button
+                  type="button"
+                  onClick={() => void goToToday()}
+                  className="text-[10px] sm:text-[11px] text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline shrink-0 py-0 sm:py-0.5"
+                >
+                  今日に戻る
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => navigateDate(1)}
+              disabled={selectedDate >= today || loadingDate}
+              className="min-h-8 min-w-8 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-base sm:text-lg rounded-md sm:rounded-none active:bg-gray-800/50 shrink-0"
+            >
+              ›
+            </button>
+          </div>
+        }
+        dietPhases={DIET_PHASES}
+        phaseProfiles={currentSettings.phase_profiles}
+        activeDietPhase={currentSettings.diet_phase}
+        phaseQuickSaving={phaseQuickSaving}
+        onSelectQuickPhase={selectQuickPhase}
+        totalConsumed={totalPFC}
+        proteinTargetG={activeProfile.protein_target_g}
+        fatTargetG={activeProfile.fat_target_g}
+        carbsTargetG={activeProfile.carbs_target_g}
+        centerMessage={headerCenterMessage}
+        centerIsAppUpdate={headerCenterIsAppUpdate}
+        onCenterClick={() => {
+          if (headerCenterIsAppUpdate) applyAppUpdate();
+          else setHeaderHintFullOpen(true);
+        }}
+        centerTitle={
+          headerCenterIsAppUpdate ? headerCenterUpdate?.detail : headerHint ?? undefined
+        }
+        centerAriaLabel={
+          headerCenterIsAppUpdate
+            ? "アプリを最新版に更新する（タップで再読み込み）"
+            : "ヘッダーメッセージの全文を表示"
+        }
+        centerAriaHasPopup={headerCenterIsAppUpdate ? undefined : "dialog"}
+        centerAriaExpanded={headerCenterIsAppUpdate ? undefined : headerHintFullOpen}
+        onOpenSettings={() => setShowSettings(true)}
+        headerHint={headerHint}
+        hintDialogOpen={hintDialogOpen}
+        onCloseHintDialog={() => setHeaderHintFullOpen(false)}
+      />
 
       <div className="flex-1 flex flex-col min-h-0">
-        {/* 日付ナビゲーション */}
-        <div className="flex-none flex items-center justify-between px-1.5 sm:px-4 py-0.5 sm:py-2 border-b border-gray-800 bg-gray-900 gap-0.5 sm:gap-2">
-          <button type="button" onClick={() => navigateDate(-1)} disabled={loadingDate}
-            className="min-h-8 min-w-8 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-base sm:text-lg rounded-md sm:rounded-none active:bg-gray-800/50 shrink-0">
-            ‹
-          </button>
-          <div className="flex flex-row sm:flex-col flex-wrap items-center justify-center gap-x-1.5 gap-y-0 sm:gap-1 min-w-0 flex-1 px-0.5 leading-none">
-            <span className="text-[13px] sm:text-sm font-medium text-white text-center leading-tight">
-              {loadingDate ? "読込中..." : formatNavDate(selectedDate, today)}
-            </span>
-            {selectedDate !== today && !loadingDate && (
-              <button
-                type="button"
-                onClick={() => void goToToday()}
-                className="text-[10px] sm:text-[11px] text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline shrink-0 py-0 sm:py-0.5"
-              >
-                今日に戻る
-              </button>
-            )}
-          </div>
-          <button type="button" onClick={() => navigateDate(1)} disabled={selectedDate >= today || loadingDate}
-            className="min-h-8 min-w-8 sm:min-h-8 sm:min-w-8 flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-30 transition-colors text-base sm:text-lg rounded-md sm:rounded-none active:bg-gray-800/50 shrink-0">
-            ›
-          </button>
-        </div>
-
-        {/* ダイエットフェーズ（表示中の目標） */}
-        <div className="flex-none px-2 sm:px-4 py-1 sm:py-1.5 border-b border-gray-800 bg-gray-900">
-          <div className="flex gap-1 sm:gap-2 justify-stretch">
-            {DIET_PHASES.map((ph) => {
-              const pr = currentSettings.phase_profiles[String(ph) as keyof PhaseProfiles];
-              const on = currentSettings.diet_phase === ph;
-              return (
-                <button
-                  key={ph}
-                  type="button"
-                  disabled={phaseQuickSaving}
-                  onClick={() => void selectQuickPhase(ph)}
-                  title={pr.name}
-                  className={`flex-1 min-w-0 min-h-8 sm:min-h-9 px-1 sm:px-2 rounded-lg text-[10px] sm:text-xs font-medium transition-colors border touch-manipulation ${
-                    on
-                      ? "border-emerald-500 bg-emerald-950/50 text-emerald-100"
-                      : "border-gray-700 bg-gray-800/60 text-gray-400 hover:border-gray-600 hover:text-gray-200"
-                  } disabled:opacity-50`}
-                >
-                  <span className="block truncate">{pr.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* PFCバー */}
-        <div className="flex-none px-3 sm:px-4 py-1.5 sm:py-3 bg-gray-900 border-b border-gray-800 space-y-1 sm:space-y-1.5">
-          <PFCBar label="P" current={totalPFC.p} target={activeProfile.protein_target_g} color={MACRO_BAR_BG.p} />
-          <PFCBar label="F" current={totalPFC.f} target={activeProfile.fat_target_g}     color={MACRO_BAR_BG.f} />
-          <PFCBar label="C" current={totalPFC.c} target={activeProfile.carbs_target_g}   color={MACRO_BAR_BG.c} />
-        </div>
-
         {/* 記録済みパネル */}
         {logEntries.length > 0 && (
           <div className="flex-none border-b border-gray-800">
@@ -4323,42 +4079,6 @@ export default function TodayClient({
           onClose={() => setEditingEntry(null)}
           onSaved={() => refreshLogForDate(selectedDate)}
         />
-      )}
-
-      {/* ヘッダーヒント全文（アプリ更新バナー表示中はヒントダイアログを出さない） */}
-      {headerHint && headerHintFullOpen && !headerCenterIsAppUpdate && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/60 z-40"
-            onClick={() => setHeaderHintFullOpen(false)}
-            aria-hidden
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="header-hint-dialog-title"
-            className="fixed inset-x-0 bottom-0 z-50 max-w-md mx-auto flex flex-col rounded-t-2xl border-x border-t border-gray-700 bg-gray-900 shadow-lg pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-gray-600 rounded-full" />
-            </div>
-            <div className="px-4 pt-2 pb-3 space-y-3">
-              <h2 id="header-hint-dialog-title" className="text-center text-sm font-semibold text-white">
-                ヒント
-              </h2>
-              <p className="text-sm text-gray-300 whitespace-pre-wrap break-words max-h-[55svh] overflow-y-auto leading-relaxed">
-                {headerHint}
-              </p>
-              <button
-                type="button"
-                onClick={() => setHeaderHintFullOpen(false)}
-                className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors"
-              >
-                閉じる
-              </button>
-            </div>
-          </div>
-        </>
       )}
 
       {/* お店タブ: コンテキストメニュー */}

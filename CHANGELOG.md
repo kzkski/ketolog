@@ -13,6 +13,7 @@
 ### Changed
 
 - **ドキュメント**: `ROADMAP.md` を公開向けのマイルストーン構成（v1/v2/v3）へ再編し、市場調査は公開サマリー中心に整理した。詳細な戦略レポートは公開リポジトリ管理の対象外にした。
+- **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 
 ## [1.38.5] - 2026-04-15
 

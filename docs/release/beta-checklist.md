@@ -2,6 +2,12 @@
 
 **ゴール**: 信頼できる少数〜数十人規模が、**招待または許可リスト**で利用開始でき、フィードバックと障害対応が回る状態。
 
+## このドキュメントの使い方
+
+- 本書は **v2 ベータ公開の必須ゲート**を扱う。
+- 実装は Issue で進め、ここは「判断と完了条件」の正本として更新する。
+- §8 は **参考（非ブロッキング）**。ベータ公開判定の必須条件には含めない。
+
 ## 現状の前提（コードベース）
 
 - **利用者制限**: [`src/proxy.ts`](../../src/proxy.ts) でログイン後メールが `@civictech.tv` でないユーザーは `signOut` し、[`src/app/login/page.tsx`](../../src/app/login/page.tsx) に専用エラーメッセージがある。**ベータ／一般開放の最優先はこのゲートの設計変更**。
@@ -29,16 +35,37 @@ flowchart LR
 | **ベータ専用モード** | 例: `BETA_MODE=true` のときだけ追加チェック、GA 時はオフで全通し、のように **デプロイ単位で切り替え**できると運用しやすい。 |
 | **招待コード**（任意） | コード入力 → Server Action / Edge で検証。**実装コストとコード流出リスクのトレードオフ**あり。 |
 
+**Tracking**
+- Status: Not started
+- Track: v2-1
+- Tracking Issue: TBD
+- Owner: TBD
+- DoD: ドメイン固定（`@civictech.tv`）依存を外し、ベータ許可方式を1つに確定して本番で有効化できる。
+
 ## 2. 登録・認証（実装＋ Supabase ダッシュボード）
 
 - **Redirect URL**: 本番 URL を Supabase Auth（Google 含む）の許可リストに登録。
 - **メール確認**: ベータでは「確認メール必須」にするとスパム登録が減りやすい。
 - **ログイン画面文言**: 「civictech 専用」から **ベータ参加者向け説明**へ差し替え（[`login/page.tsx`](../../src/app/login/page.tsx)）。
 
+**Tracking**
+- Status: Not started
+- Track: v2-1
+- Tracking Issue: TBD
+- Owner: TBD
+- DoD: メール/Google の導線と Supabase 設定が一致し、対象ユーザーが想定どおりログインできる。
+
 ## 3. 法務・同意（実装の最低ライン）
 
 - **ベータ利用規約／プライバシー（簡易版）** の静的ページと、サインアップまたは初回利用前の **同意**（記録するなら `user_settings` 拡張や Auth metadata を検討）。
 - 文言は法務レビュー前提でよいが、**URL と画面導線は実装タスク**。
+
+**Tracking**
+- Status: Not started
+- Track: 共通
+- Tracking Issue: TBD
+- Owner: TBD
+- DoD: 規約/プライバシーのページとUI導線が実装され、同意の取得方式が明文化されている。
 
 ## 4. 運用・観測
 
@@ -54,17 +81,45 @@ flowchart LR
 - **問い合わせ先**: フッターや設定に **連絡メールまたはフォーム URL**。
 - **バージョン・変更履歴**: `NEXT_PUBLIC_CHANGELOG_URL`（[README.md](../../README.md)）。ベータ向けに「既知の制限」を短く書くと期待値調整に有効。
 
+**Tracking**
+- Status: In progress
+- Track: 共通
+- Tracking Issue: TBD
+- Owner: TBD
+- DoD: `/api/health`・定期監視・アラート運用・問い合わせ導線が本番前提で確認済みである。
+
 ## 5. 外部サービス（Open Food Facts）
 
 継続運用は [third-party-compliance.md](third-party-compliance.md)。バーコード機能をベータで使う場合も同ドキュメントに従う。
+
+**Tracking**
+- Status: Not started
+- Track: 共通
+- Tracking Issue: TBD
+- Owner: TBD
+- DoD: OFF 利用条件・連絡先・User-Agent 運用が現行実装と一致している。
 
 ## 6. プロダクト完成度
 
 [ROADMAP.md](../../ROADMAP.md) の Phase 2-2（バーコード等）と README の機能一覧の表記差は主催者判断。**最低限**: 既存フローのクリティカルな不具合の解消と、モバイル主要画面の確認（[README.md](../../README.md) のモバイル手順）。
 
+**Tracking**
+- Status: Not started
+- Track: v2-1
+- Tracking Issue: TBD
+- Owner: TBD
+- DoD: ログ記録の主要フローに P0/P1 不具合が残っておらず、モバイル主要画面の確認記録がある。
+
 ## 7. CI の最低ライン（推奨）
 
 [quality-and-ci.md](quality-and-ci.md) を参照。**PR 時に `npm run lint` と `npm run build`** を載せると、デプロイ前の破壊検知に効く。
+
+**Tracking**
+- Status: Not started
+- Track: 共通
+- Tracking Issue: TBD
+- Owner: TBD
+- DoD: PR で品質ゲート（最低 `lint` + `test` + `build`）が自動実行される。
 
 ## 8. 検証仮説・観測指標（参考）
 

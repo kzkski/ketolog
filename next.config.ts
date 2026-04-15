@@ -10,6 +10,14 @@ const withBundleAnalyzer = bundleAnalyzer({
 const { version } = require("./package.json") as { version: string };
 
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: [
+      "recharts",
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+      "@dnd-kit/utilities",
+    ],
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
     // Vercel はビルド時に VERCEL_GIT_COMMIT_SHA を渡す。ダッシュボードに

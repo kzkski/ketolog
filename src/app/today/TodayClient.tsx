@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   useState,
   useMemo,
@@ -29,14 +30,6 @@ import { pfcGramsFromMenuItem, pfcGramsFromNullablePer100 } from "@/lib/menu-ite
 import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";
 import { createClient } from "@/lib/supabase/client";
-import {
-  addMenuItem,
-  addMenuItemWithManualSharedProduct,
-  deleteMenuItem,
-  lookupSharedProductByBarcode,
-  updateMenuItem,
-  type MenuItemUpdate,
-} from "./actions/menu-item";
 import { addRestaurant } from "./actions/restaurant";
 import {
   importMenuItemsToRestaurant,
@@ -51,21 +44,20 @@ import {
   type SaveItem,
 } from "./actions/food-log";
 import { updateUserSettings } from "./actions/settings";
-import type { SharedProduct } from "@/types/database";
-import {
-  MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
-  SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
-} from "@/lib/shared-product-source";
 import { computeHeaderHintText, getActiveHintSlot } from "@/lib/header-hint";
 import { useAppUpdateBanner } from "@/hooks/useAppUpdateBanner";
-import { buildMenuQrPayloadJson, parseMenuSharePayload } from "@/lib/menu-qr-payload";
 import { MEAL_LABELS, MEAL_TAB_STYLES } from "@/lib/constants/meal";
 import { PfcHeader } from "./_components/PfcHeader";
-import { BarcodeScanner } from "./_components/BarcodeScanner";
 import { CartPanel, type CartEntry } from "./_components/CartPanel";
 import { MenuItemList } from "./_components/MenuItemList";
 import { RestaurantPanel } from "./_components/RestaurantPanel";
-import { MenuItemDrawer, type ItemDrawerState } from "./_components/ItemDrawer";
+import type { ItemDrawerState, MenuItemDrawerProps } from "./_components/ItemDrawer";
+
+const MenuItemDrawer = dynamic<MenuItemDrawerProps>(
+  () =>
+    import("./_components/ItemDrawer").then((m) => ({ default: m.MenuItemDrawer })),
+  { ssr: false }
+);
 import { formatNavDate, useMealLog } from "./_hooks/useMealLog";
 import {
   FAVORITES_TAB_ID,
@@ -1354,9 +1346,7 @@ export default function TodayClient({
   const {
     restaurants,
     menuItems,
-    selectedRestaurantId,
     setSelectedRestaurantId,
-    compositionTargetRestaurantId,
     setCompositionTargetRestaurantId,
     lastRealRestaurantTabIdRef,
     deletingRestaurant,

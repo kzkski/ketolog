@@ -80,6 +80,7 @@
 - `shared_products` キャッシュ基盤と `menu_items.shared_barcode` 参照を導入
 - スキャン結果をメニュー追加に接続（OFF 未ヒット時は手入力で `shared_products` にも登録し他ユーザーと共有。RLS 本格は [#190](https://github.com/kzkski/ketolog/issues/190)）
 - メニュー登録なしで食事ログへ記録（スナップショット）、食事タブ行右端の記録「＋」、カートの食事区分連動
+- 「最近スキャン・検索した市販品だけを一覧する」**専用 UI／データ設計**は [#54](https://github.com/kzkski/ketolog/issues/54) で検討中。現状は OFF ルックアップと `shared_products`、メニュー行の `shared_barcode`、お気に入りで再選択を補助できるが、**時系列の「最近」一覧**そのものは未実装（仕様・優先度は Issue 側で未合意）。
 
 ### 2-3 後日
 - 食材名検索（文部科学省食品成分表）

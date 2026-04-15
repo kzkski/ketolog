@@ -107,10 +107,6 @@ export function useAppUpdateBanner(): {
   }, [check]);
 
   const applyUpdate = useCallback(async (): Promise<boolean> => {
-    if (typeof window !== "undefined") {
-      const ok = window.confirm("最新版に更新するため再読み込みします。続行しますか？");
-      if (!ok) return false;
-    }
     await applyServiceWorkerUpdateAndReload();
     return true;
   }, []);

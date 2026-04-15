@@ -55,8 +55,6 @@ import {
   type ImportRestaurantItem,
 } from "./actions/import-export";
 import {
-  deleteFoodLogEntry,
-  getFoodLogForDate,
   getFoodLogForExport,
   saveMealToLog,
   updateFoodLogEntry,
@@ -84,28 +82,10 @@ import { buildMenuQrPayloadJson, parseMenuSharePayload } from "@/lib/menu-qr-pay
 import { MEAL_LABELS, MEAL_TAB_STYLES } from "@/lib/constants/meal";
 import { PfcHeader } from "./_components/PfcHeader";
 import { BarcodeScanner } from "./_components/BarcodeScanner";
+import { CartPanel, type CartEntry } from "./_components/CartPanel";
+import { formatNavDate, useMealLog } from "./_hooks/useMealLog";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
-
-/** カート内「記録する食事」セグメントの選択中スタイル（タブと同色） */
-const MEAL_CART_SEGMENT_ACTIVE: Record<MealType, string> = {
-  breakfast: "border-rose-400 bg-rose-500/25 text-rose-100",
-  lunch: "border-cyan-400 bg-cyan-500/25 text-cyan-100",
-  dinner: "border-violet-400 bg-violet-500/25 text-violet-100",
-  snack: "border-teal-400 bg-teal-500/25 text-teal-100",
-};
-
-/** カートパネル外枠（選択中の食事タブと同系色の上線＋淡いグラデーション） */
-const MEAL_CART_SHELL: Record<MealType, string> = {
-  breakfast:
-    "border-t-2 border-rose-400 bg-gradient-to-b from-rose-500/20 via-gray-900 to-gray-950",
-  lunch:
-    "border-t-2 border-cyan-400 bg-gradient-to-b from-cyan-500/20 via-gray-900 to-gray-950",
-  dinner:
-    "border-t-2 border-violet-400 bg-gradient-to-b from-violet-500/20 via-gray-900 to-gray-950",
-  snack:
-    "border-t-2 border-teal-400 bg-gradient-to-b from-teal-500/20 via-gray-900 to-gray-950",
-};
 
 /** レストランタブではない「お気に入り」集約ビュー */
 const FAVORITES_TAB_ID = "__ketolog_favorites__";
@@ -147,19 +127,6 @@ const CATEGORY_OPTIONS = [
   { value: "other",      label: "その他" },
 ];
 
-type CartEntry =
-  | { kind: "menu"; item: MenuItem; count: number; gramsPerServing: number }
-  | {
-      kind: "snapshot";
-      cartKey: string;
-      name: string;
-      protein_per_100g: number | null;
-      fat_per_100g: number | null;
-      carbs_per_100g: number | null;
-      gramsPerServing: number;
-      count: number;
-      shared_barcode: string | null;
-    };
 type NutrientMode = "per100g" | "perServing";
 
 type StandardFoodDraft = {
@@ -233,158 +200,6 @@ function pfc(item: MenuItem, grams: number) {
 
 function fmt(n: number) {
   return n < 10 ? n.toFixed(1) : Math.round(n).toString();
-}
-
-function CartBarHeader({
-  cartExpanded,
-  onToggle,
-  cartEntryCount,
-  cartPFC,
-  mealType,
-}: {
-  cartExpanded: boolean;
-  onToggle: () => void;
-  cartEntryCount: number;
-  cartPFC: { p: number; f: number; c: number };
-  mealType: MealType;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full flex items-center justify-between gap-2 px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0 text-left"
-    >
-      <div className="flex flex-col items-start min-w-0 flex-1 gap-0.5">
-        <span className="text-base sm:text-sm font-medium text-white">
-          カート（{cartEntryCount}品）
-        </span>
-        <span
-          className={`text-[11px] sm:text-xs leading-snug ${MEAL_TAB_STYLES[mealType].label}`}
-        >
-          {MEAL_LABELS[mealType]}に記録
-        </span>
-      </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <span className="text-sm sm:text-xs text-gray-400 tabular-nums">
-          P{fmt(cartPFC.p)} F{fmt(cartPFC.f)} C{fmt(cartPFC.c)}
-        </span>
-        <span className="text-gray-400 text-sm sm:text-xs" aria-hidden>
-          {cartExpanded ? "▼" : "▲"}
-        </span>
-      </div>
-    </button>
-  );
-}
-
-function CartExpandedBody({
-  mealType,
-  setMealType,
-  cartEntries,
-  cartPFC,
-  removeCartLine,
-  onSave,
-  saving,
-  layout = "inline",
-}: {
-  mealType: MealType;
-  setMealType: (t: MealType) => void;
-  cartEntries: CartEntry[];
-  cartPFC: { p: number; f: number; c: number };
-  removeCartLine: (key: string) => void;
-  onSave: () => void | Promise<void>;
-  saving: boolean;
-  /** モバイルのオーバーレイでは一覧を縦に伸ばす */
-  layout?: "inline" | "sheet";
-}) {
-  const listScrollClass =
-    layout === "sheet"
-      ? "min-h-0 flex-1 overflow-y-auto border-t border-gray-800/70"
-      : "max-h-36 overflow-y-auto border-t border-gray-800/70";
-  return (
-    <>
-      <div className="px-3 pt-1 pb-2 border-t border-gray-800/70">
-        <p className="text-[10px] text-gray-500 mb-1.5 px-0.5">記録する食事</p>
-        <div className="flex gap-1">
-          {(Object.keys(MEAL_LABELS) as MealType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setMealType(t)}
-              className={`flex-1 min-h-10 min-w-0 px-0.5 py-2 rounded-lg text-[10px] sm:text-xs font-medium border-2 transition-colors touch-manipulation ${
-                mealType === t
-                  ? MEAL_CART_SEGMENT_ACTIVE[t]
-                  : "border-gray-700/90 bg-gray-800/70 text-gray-500 hover:text-gray-300 hover:border-gray-600"
-              }`}
-            >
-              {MEAL_LABELS[t]}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className={listScrollClass}>
-        {cartEntries.map((entry) => {
-          const totalGrams = entry.gramsPerServing * entry.count;
-          const v =
-            entry.kind === "menu"
-              ? pfc(entry.item, totalGrams)
-              : pfcFromPer100(
-                  entry.protein_per_100g,
-                  entry.fat_per_100g,
-                  entry.carbs_per_100g,
-                  totalGrams
-                );
-          const lineKey = entry.kind === "menu" ? entry.item.id : entry.cartKey;
-          const title = entry.kind === "menu" ? entry.item.name : entry.name;
-          const snapshotTag =
-            entry.kind === "snapshot" ? (
-              <span className="text-gray-600 ml-1 text-[10px] shrink-0">
-                スナップショット
-              </span>
-            ) : null;
-          return (
-            <div
-              key={lineKey}
-              className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-800/50"
-            >
-              <span className="text-sm text-gray-200 truncate flex-1 min-w-0">
-                {title}
-                {snapshotTag}
-                <span className="text-gray-500 ml-1 text-xs whitespace-nowrap">
-                  ×{entry.count}（{totalGrams}g）
-                </span>
-              </span>
-              <span className="text-xs text-gray-400 shrink-0 tabular-nums">
-                P{fmt(v.p)} F{fmt(v.f)} C{fmt(v.c)}
-              </span>
-              <button
-                type="button"
-                aria-label="カートから外す"
-                onClick={() => removeCartLine(lineKey)}
-                className="shrink-0 min-w-9 min-h-9 sm:min-w-8 sm:min-h-8 flex items-center justify-center text-gray-500 hover:text-white text-lg leading-none touch-manipulation rounded-lg active:bg-gray-800/60"
-              >
-                ×
-              </button>
-            </div>
-          );
-        })}
-      </div>
-      <div className="px-4 py-3.5 sm:py-3 flex items-center justify-between gap-3 flex-none border-t border-gray-800/70">
-        <div className="text-base sm:text-sm text-gray-300 tabular-nums min-w-0">
-          合計 P<span className="text-white font-medium">{fmt(cartPFC.p)}</span>{" "}
-          F<span className="text-white font-medium">{fmt(cartPFC.f)}</span>{" "}
-          C<span className="text-white font-medium">{fmt(cartPFC.c)}</span>g
-        </div>
-        <button
-          type="button"
-          onClick={() => void onSave()}
-          disabled={saving}
-          className="px-5 py-3 sm:px-4 sm:py-2 min-h-11 sm:min-h-0 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-base sm:text-sm font-medium rounded-lg transition-colors shrink-0"
-        >
-          {saving ? "記録中..." : "記録する"}
-        </button>
-      </div>
-    </>
-  );
 }
 
 function sortRestaurants(list: Restaurant[]): Restaurant[] {
@@ -1920,22 +1735,6 @@ function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onTo
   );
 }
 
-// ─── 日付ユーティリティ ────────────────────────────────────────────────────────
-
-const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
-
-function formatNavDate(dateStr: string, today: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const label = `${d.getMonth() + 1}/${d.getDate()}（${DAY_LABELS[d.getDay()]}）`;
-  return dateStr === today ? `今日 ${label}` : label;
-}
-
-function addDays(dateStr: string, delta: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + delta);
-  return d.toLocaleDateString("sv-SE");
-}
-
 // ─── 食事ログ エントリ行 ────────────────────────────────────────────────────────
 
 function LogEntryRow({
@@ -2811,13 +2610,23 @@ export default function TodayClient({
     setRenameRestaurantTarget(null);
   }, [renameRestaurantTarget]);
 
-  // ── 日付ナビゲーション ────────────────────────────────────────────────────
-  const [selectedDate, setSelectedDate]       = useState(today);
-  const [consumedForDate, setConsumedForDate] = useState(todayConsumed);
-  const [logEntries, setLogEntries]           = useState<FoodLogEntry[]>(initialLogEntries);
-  const [loadingDate, setLoadingDate]         = useState(false);
-  const [showLogEntries, setShowLogEntries]   = useState(false);
-  const [editingEntry, setEditingEntry]       = useState<FoodLogEntry | null>(null);
+  // ── 日付ナビゲーション・食事ログ ────────────────────────────────────────────
+  const {
+    selectedDate,
+    consumedForDate,
+    setConsumedForDate,
+    logEntries,
+    setLogEntries,
+    loadingDate,
+    showLogEntries,
+    setShowLogEntries,
+    editingEntry,
+    setEditingEntry,
+    navigateDate,
+    goToToday,
+    refreshLogForDate,
+    handleDeleteEntry,
+  } = useMealLog({ today, todayConsumed, initialLogEntries });
 
   type RestaurantAddSheet = "choice" | "manual" | "import" | "preset" | null;
   const [restaurantAddSheet, setRestaurantAddSheet] = useState<RestaurantAddSheet>(null);
@@ -3306,59 +3115,6 @@ export default function TodayClient({
     setDeletingRestaurant(false);
   }
 
-  // ── 日付ナビ ────────────────────────────────────────────────────────────────
-  async function loadDate(dateStr: string) {
-    if (dateStr > today) return;
-    setSelectedDate(dateStr);
-    setLoadingDate(true);
-    const result = await getFoodLogForDate(dateStr);
-    setLoadingDate(false);
-    if (!result.error) {
-      setConsumedForDate(result.consumed);
-      setLogEntries(result.entries);
-      setShowLogEntries(dateStr !== today);
-    }
-  }
-
-  async function navigateDate(delta: number) {
-    const newDate = addDays(selectedDate, delta);
-    await loadDate(newDate);
-  }
-
-  async function goToToday() {
-    await loadDate(today);
-  }
-
-  async function refreshLogForDate(date: string) {
-    const result = await getFoodLogForDate(date);
-    if (!result.error) {
-      setConsumedForDate(result.consumed);
-      setLogEntries(result.entries);
-    }
-  }
-
-  async function handleDeleteEntry(id: string) {
-    const previousEntries = logEntries;
-    const previousConsumed = consumedForDate;
-    const entry = logEntries.find(e => e.id === id);
-
-    setLogEntries(prev => prev.filter(e => e.id !== id));
-    if (entry) {
-      setConsumedForDate(prev => ({
-        protein: prev.protein - entry.protein_g,
-        fat: prev.fat - entry.fat_g,
-        carbs: prev.carbs - entry.carbs_g,
-      }));
-    }
-
-    const result = await deleteFoodLogEntry(id);
-    if (result.error) {
-      alert(result.error);
-      setLogEntries(previousEntries);
-      setConsumedForDate(previousConsumed);
-    }
-  }
-
   // ── 食事記録保存 ────────────────────────────────────────────────────────────
   async function handleSave() {
     if (!hasCart || saving) return;
@@ -3844,86 +3600,17 @@ export default function TodayClient({
         </div>
 
         {/* カート: sm+ は従来どおりインライン展開。未満は折りたたみバー＋展開時オーバーレイ（メニュー領域を確保） */}
-        {hasCart && (
-          <>
-            <div
-              className={`sm:hidden flex-none pb-[env(safe-area-inset-bottom)] ${MEAL_CART_SHELL[mealType]} ${cartExpanded ? "hidden" : ""}`}
-            >
-              <CartBarHeader
-                cartExpanded={cartExpanded}
-                onToggle={() => setCartExpanded((v) => !v)}
-                cartEntryCount={cartEntries.length}
-                cartPFC={cartPFC}
-                mealType={mealType}
-              />
-            </div>
-
-            {cartExpanded && (
-              <div
-                className="sm:hidden fixed inset-0 z-[38] flex flex-col justify-end pointer-events-none"
-                role="dialog"
-                aria-modal="true"
-                aria-label="カートの詳細"
-              >
-                <button
-                  type="button"
-                  className="pointer-events-auto absolute inset-0 border-0 bg-black/50"
-                  aria-label="カートを閉じる"
-                  onClick={() => setCartExpanded(false)}
-                />
-                <div
-                  className={`pointer-events-auto relative z-[1] flex max-h-[min(85svh,560px)] flex-col rounded-t-2xl border-x border-t border-gray-700 ${MEAL_CART_SHELL[mealType]} pb-[env(safe-area-inset-bottom)] max-w-md mx-auto w-full min-h-0`}
-                >
-                  <div className="flex-none flex justify-center pt-2 pb-1">
-                    <div className="w-10 h-1 rounded-full bg-gray-600" aria-hidden />
-                  </div>
-                  <CartBarHeader
-                    cartExpanded={cartExpanded}
-                    onToggle={() => setCartExpanded((v) => !v)}
-                    cartEntryCount={cartEntries.length}
-                    cartPFC={cartPFC}
-                    mealType={mealType}
-                  />
-                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                    <CartExpandedBody
-                      layout="sheet"
-                      mealType={mealType}
-                      setMealType={setMealType}
-                      cartEntries={cartEntries}
-                      cartPFC={cartPFC}
-                      removeCartLine={removeCartLine}
-                      onSave={handleSave}
-                      saving={saving}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div
-              className={`hidden sm:flex sm:flex-none sm:flex-col sm:pb-[env(safe-area-inset-bottom)] ${MEAL_CART_SHELL[mealType]}`}
-            >
-              <CartBarHeader
-                cartExpanded={cartExpanded}
-                onToggle={() => setCartExpanded((v) => !v)}
-                cartEntryCount={cartEntries.length}
-                cartPFC={cartPFC}
-                mealType={mealType}
-              />
-              {cartExpanded && (
-                <CartExpandedBody
-                  mealType={mealType}
-                  setMealType={setMealType}
-                  cartEntries={cartEntries}
-                  cartPFC={cartPFC}
-                  removeCartLine={removeCartLine}
-                  onSave={handleSave}
-                  saving={saving}
-                />
-              )}
-            </div>
-          </>
-        )}
+        <CartPanel
+          mealType={mealType}
+          onMealTypeChange={setMealType}
+          cartExpanded={cartExpanded}
+          onCartExpandedChange={setCartExpanded}
+          cartEntries={cartEntries}
+          cartPfc={cartPFC}
+          saving={saving}
+          onSave={handleSave}
+          onRemoveCartLine={removeCartLine}
+        />
       </div>
 
       {/* メニュー追加・編集ドロワー */}

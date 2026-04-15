@@ -17,6 +17,7 @@
 
 ### Changed
 
+- **内部（Today）**: `TodayClient` からカート UI（折りたたみバー・展開パネル・記録ボタン）を `CartPanel` に、日付切替・ログ一覧・削除・再取得の状態と処理を `useMealLog` に切り出した。画面の挙動は従来どおり（[#220](https://github.com/kzkski/ketolog/issues/220)）。
 - **内部（Today）**: `TodayClient` からブランド行・日付ナビ・ダイエットフェーズ・PFC バー・ヘッダーヒント全文ダイアログを `PfcHeader` に、メニュー追加ドロワー内のバーコード／QR 読み取りを `BarcodeScanner` に切り出した。見た目と挙動は従来どおりで、状態は親から props で渡す（[#219](https://github.com/kzkski/ketolog/issues/219)）。
 - **開発**: `TodayClient` の状態一覧・移管先・props フロー・Ph-2 分割用の props 案を `docs/plans/issue-213-today-state-design.md` に整理し、Ph-2a〜2d（[#219](https://github.com/kzkski/ketolog/issues/219)〜[#222](https://github.com/kzkski/ketolog/issues/222)）向けに当該設計書・実装計画書からの必須参照を明示した（[#218](https://github.com/kzkski/ketolog/issues/218)）。
 - **内部**: PFC（g）の合算を `src/lib/pfc.ts` の `sumPfc()` に集約し、Today・食事ログ取得・分析集計の重複加算を整理した（[#216](https://github.com/kzkski/ketolog/issues/216)）。

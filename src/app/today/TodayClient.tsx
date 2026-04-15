@@ -2930,6 +2930,10 @@ export default function TodayClient({
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
   const [menuItems, setMenuItems]     = useState<MenuItem[]>(initialMenuItems);
   const [favoriteGroups, setFavoriteGroups] = useState<FavoriteGroupPayload[]>(initialFavoriteGroups);
+  /** お気に入りトグルごとの世代。古い非同期結果で state を上書きしない。 */
+  const favoriteToggleGenRef = useRef<Map<string, number>>(new Map());
+  /** 同一 menu_item_id のサーバー更新を直列化（前段の失敗で後段を止めない）。 */
+  const favoriteToggleChainRef = useRef<Map<string, Promise<void>>>(new Map());
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(() =>
     hasFavoriteEntries(initialFavoriteGroups)
       ? FAVORITES_TAB_ID
@@ -3135,47 +3139,83 @@ export default function TodayClient({
     }
   }
 
-  async function handleToggleFavorite(item: MenuItem) {
-    const was = favoriteMenuItemIds.has(item.id);
-    const previous = favoriteGroups;
+  const handleToggleFavorite = useCallback((item: MenuItem) => {
+    const id = item.id;
+    const myGen = (favoriteToggleGenRef.current.get(id) ?? 0) + 1;
+    favoriteToggleGenRef.current.set(id, myGen);
 
-    if (was) {
-      setFavoriteGroups(
-        favoriteGroups
-          .map(g => ({ ...g, entries: g.entries.filter(e => e.menu_item_id !== item.id) }))
-          .filter(g => g.entries.length > 0)
+    let snapshotBefore: FavoriteGroupPayload[] | null = null;
+    let removeFavorite = false;
+
+    setFavoriteGroups((prev) => {
+      snapshotBefore = prev;
+      const was = prev.some((g) =>
+        g.entries.some((e) => e.menu_item_id === id)
       );
-      const result = await removeMenuItemFromFavorites(item.id);
-      if (result.error) { alert(result.error); setFavoriteGroups(previous); return; }
-      if (result.data) setFavoriteGroups(result.data);
-    } else {
-      const restaurant = restaurants.find(r => r.id === item.restaurant_id);
+      if (was) {
+        removeFavorite = true;
+        return prev
+          .map((g) => ({
+            ...g,
+            entries: g.entries.filter((e) => e.menu_item_id !== id),
+          }))
+          .filter((g) => g.entries.length > 0);
+      }
+      removeFavorite = false;
+      const restaurant = restaurants.find((r) => r.id === item.restaurant_id);
       const groupName = restaurant?.name ?? "その他";
-      const existingGroup = favoriteGroups.find(g => g.name === groupName);
+      const existingGroup = prev.find((g) => g.name === groupName);
       const tempEntry = {
-        id: `temp-${item.id}`,
-        favorite_group_id: existingGroup?.id ?? `temp-group-${item.id}`,
-        menu_item_id: item.id,
+        id: `temp-${id}`,
+        favorite_group_id: existingGroup?.id ?? `temp-group-${id}`,
+        menu_item_id: id,
         display_order: existingGroup ? existingGroup.entries.length : 0,
         menu_item: item,
       };
       if (existingGroup) {
-        setFavoriteGroups(favoriteGroups.map(g =>
+        return prev.map((g) =>
           g.id === existingGroup.id ? { ...g, entries: [...g.entries, tempEntry] } : g
-        ));
-      } else {
-        setFavoriteGroups([...favoriteGroups, {
-          id: `temp-group-${item.id}`,
-          name: groupName,
-          display_order: favoriteGroups.length,
-          entries: [tempEntry],
-        }]);
+        );
       }
-      const result = await addMenuItemToFavorites(item.id);
-      if (result.error) { alert(result.error); setFavoriteGroups(previous); return; }
+      return [
+        ...prev,
+        {
+          id: `temp-group-${id}`,
+          name: groupName,
+          display_order: prev.length,
+          entries: [tempEntry],
+        },
+      ];
+    });
+
+    if (snapshotBefore === null) return;
+    const rollbackTarget = snapshotBefore;
+
+    const tail = favoriteToggleChainRef.current.get(id) ?? Promise.resolve();
+    const safeTail = tail.catch(() => {});
+
+    const work = async () => {
+      const result = removeFavorite
+        ? await removeMenuItemFromFavorites(id)
+        : await addMenuItemToFavorites(id);
+
+      if (favoriteToggleGenRef.current.get(id) !== myGen) return;
+
+      if (result.error) {
+        alert(result.error);
+        setFavoriteGroups((prev) => {
+          if (favoriteToggleGenRef.current.get(id) !== myGen) return prev;
+          return rollbackTarget;
+        });
+        return;
+      }
       if (result.data) setFavoriteGroups(result.data);
-    }
-  }
+    };
+
+    const next = safeTail.then(() => work());
+    favoriteToggleChainRef.current.set(id, next);
+    void next;
+  }, [restaurants]);
 
   // ── カート計算 ──────────────────────────────────────────────────────────────
   const cartPFC = useMemo(() => {

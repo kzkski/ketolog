@@ -27,6 +27,9 @@ type LegendItem = {
   color?: string;
 };
 
+/** Recharts Tooltip の既定 itemSorter は name（アルファベット順）で、P/F/C が C→F→P と並ぶ。PFC の表示順に合わせる。 */
+const PFC_TOOLTIP_ORDER: Record<string, number> = { P: 0, F: 1, C: 2 };
+
 function LegendContent(props: { payload?: LegendItem[] }) {
   const payload = props.payload ?? [];
   const ordered = ["P", "F", "C"]
@@ -65,6 +68,7 @@ export default function InsightsChart({ data }: { data: Point[] }) {
             formatter={(value) => (typeof value === "number" ? value.toFixed(1) : String(value ?? ""))}
             labelFormatter={(label) => `${label}`}
             contentStyle={{ backgroundColor: "#111827", border: "1px solid #374151" }}
+            itemSorter={(item) => PFC_TOOLTIP_ORDER[String(item.name ?? "")] ?? 99}
           />
           <Legend content={<LegendContent />} />
           <Line type="monotone" dataKey="protein" name="P" stroke="#60a5fa" strokeWidth={2} dot={false} />

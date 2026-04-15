@@ -123,6 +123,18 @@
 
 ---
 
+## 技術的改善（内部品質）
+
+- **コードベースのリファクタリング**（[#213](https://github.com/kzkski/ketolog/issues/213)）
+  - `TodayClient.tsx`（4,440行）を責務別コンポーネントに段階分割（`_components/` + `_hooks/`）
+  - `actions.ts`（1,433行）をドメイン別ファイルに分割（`actions/` フォルダ）
+  - 重複定数・ユーティリティを `lib/constants/` と `lib/date.ts` に統合
+  - **Vitest** によるユニットテスト導入（`lib/` pure functions から段階的に）
+  - バンドル最適化による初期ロード改善（目標: 5秒 → 2秒以下）
+  - 詳細な実装計画: [docs/plans/issue-213-refactor-codebase.md](docs/plans/issue-213-refactor-codebase.md)
+
+---
+
 ## 公開・運用（ベータ／一般公開）
 
 機能ロードマップとは別に、**リリースゲート・法務・インフラコスト・CI/QA・第三者コンプライアンス**のチェックリストは [docs/release/README.md](docs/release/README.md) を正とする。

@@ -34,6 +34,35 @@
 | ドキュメント | `docs/` | `docs/update-readme` |
 | リファクタリング | `refactor/` | `refactor/preset-api` |
 | 雑務・設定 | `chore/` | `chore/bump-version` |
+| テスト追加 | `test/` | `test/lib-unit` |
+
+---
+
+## ディレクトリ配置規約
+
+新しいファイルを追加する際は以下の規約に従う。詳細は [AGENTS.md](AGENTS.md) も参照。
+
+| 置き場 | 対象 |
+|---|---|
+| `src/app/<page>/_components/` | そのページ専用の UI コンポーネント |
+| `src/app/<page>/_hooks/` | そのページ専用の React hooks |
+| `src/app/<page>/actions/` | Server Actions（責務別ファイルに分割・バレル index.ts は作らない） |
+| `src/components/` | 複数ページで使う共通 UI コンポーネント |
+| `src/hooks/` | 複数ページで使う共通 React hooks |
+| `src/lib/` | ビジネスロジック・ユーティリティ（UI に依存しない pure な関数） |
+| `src/lib/constants/` | アプリ全体で共有する定数 |
+| `src/types/` | 型定義（DB スキーマ型は `database.ts` を正とする） |
+
+### Server Actions の import ルール
+
+`"use server"` が宣言されたファイルは**バレル経由でなく直接インポート**すること。
+
+```typescript
+// ✅ 正しい
+import { saveMealToLog } from './actions/food-log';
+// ❌ 避ける（バレル経由）
+import { saveMealToLog } from './actions';
+```
 
 ---
 

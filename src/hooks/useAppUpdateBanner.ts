@@ -79,7 +79,7 @@ export function useAppUpdateBanner(): {
       setBanner({
         kind: "update",
         latestVersion: latest.version,
-        line: `v${current} → v${latest.version} が利用可能です。タップで更新${summaryPart ? ` —${summaryPart}` : ""}`,
+        line: `v${current} → v${latest.version} が利用可能です。タップで詳細${summaryPart ? ` —${summaryPart}` : ""}`,
         detail: `現在 v${current}。リリース v${latest.version} が公開されています。${latest.summary ? `\n\n${latest.summary}` : ""}`,
       });
     } catch {
@@ -107,6 +107,10 @@ export function useAppUpdateBanner(): {
   }, [check]);
 
   const applyUpdate = useCallback(() => {
+    if (typeof window !== "undefined") {
+      const ok = window.confirm("最新版に更新するため再読み込みします。続行しますか？");
+      if (!ok) return;
+    }
     void applyServiceWorkerUpdateAndReload();
   }, []);
 

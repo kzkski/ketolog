@@ -1780,7 +1780,7 @@ export default function TodayClient({
         }
         centerAriaLabel={
           headerCenterIsAppUpdate
-            ? "アプリを最新版に更新する（タップで再読み込み）"
+            ? "アプリ更新情報の詳細を表示"
             : "ヘッダーメッセージの全文を表示"
         }
         centerAriaHasPopup="dialog"

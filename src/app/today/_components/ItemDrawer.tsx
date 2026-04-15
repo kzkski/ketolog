@@ -69,25 +69,7 @@ function toServing(val: string, gramsStr: string): string {
   return parseFloat((v * g / 100).toFixed(2)).toString();
 }
 
-export function MenuItemDrawer({
-  state,
-  existingGroupNames,
-  onClose,
-  onSaved,
-  onDeleted,
-  mealTypeForLog,
-  logDate,
-  snapshotRestaurantId,
-  onAfterSnapshotLog,
-  onSnapshotCart,
-  registerTargets,
-  registerTargetRestaurantId,
-  onRegisterTargetChange,
-  registerTargetRestaurantName,
-  canRegisterMenu,
-  registerDisabledReason,
-  onOpenStandardFoodSearch,
-}: {
+export type MenuItemDrawerProps = {
   state: ItemDrawerState;
   existingGroupNames: string[];
   onClose: () => void;
@@ -115,7 +97,27 @@ export function MenuItemDrawer({
   registerTargetRestaurantId: string;
   onRegisterTargetChange: (restaurantId: string) => void;
   onOpenStandardFoodSearch?: () => void;
-}) {
+};
+
+export function MenuItemDrawer({
+  state,
+  existingGroupNames,
+  onClose,
+  onSaved,
+  onDeleted,
+  mealTypeForLog,
+  logDate,
+  snapshotRestaurantId,
+  onAfterSnapshotLog,
+  onSnapshotCart,
+  registerTargets,
+  registerTargetRestaurantId,
+  onRegisterTargetChange,
+  registerTargetRestaurantName,
+  canRegisterMenu,
+  registerDisabledReason,
+  onOpenStandardFoodSearch,
+}: MenuItemDrawerProps) {
   const MEMO_MIN_ROWS = 3;
   const MEMO_MAX_ROWS = 10;
   const isEdit = state.kind === "edit";

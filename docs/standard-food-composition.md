@@ -65,7 +65,7 @@
 
 ## アプリ側
 
-- **Server Action**: `searchStandardFoods`（`src/app/today/actions.ts`）が RPC を呼び出す。
+- **Server Action**: `searchStandardFoods`（`src/app/today/actions/menu-item.ts`）が RPC を呼び出す。
 - **定数**: `STANDARD_FOOD_SEARCH_PAGE_SIZE`（40）は Next.js の制約により `src/lib/standard-food-search.ts` に置いている（`"use server"` ファイルでは async 関数以外を `export` できない）。
 - **UI**: `src/app/today/StandardFoodPanel.tsx`（食品群チップ・名称検索・**40件ページ送り**〈一覧上下に前へ／次へ〉）、タブ・ドロワー連携は `TodayClient.tsx`。
 

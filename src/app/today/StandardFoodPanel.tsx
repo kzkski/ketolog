@@ -7,7 +7,7 @@ import {
   STANDARD_FOOD_TAB_TITLE,
 } from "@/lib/standard-food-groups";
 import { STANDARD_FOOD_SEARCH_PAGE_SIZE } from "@/lib/standard-food-search";
-import { searchStandardFoods, type StandardFoodSearchRow } from "./actions";
+import { searchStandardFoods, type StandardFoodSearchRow } from "./actions/menu-item";
 
 function fmtMacro(n: number | null) {
   if (n === null || n === undefined) return "—";

@@ -6,7 +6,7 @@
 - **継続義務**（実装・運用の両方）:
   - [Terms of use, contribution and re-use](https://world.openfoodfacts.org/terms-of-use) の遵守
   - **帰属表示**（アプリ内クレジットは設定ドロワー等に記載）
-  - **User-Agent**: `AppName/Version (連絡先メール)` 形式。[`.env.example`](../../.env.example) の `OFF_USER_AGENT`。未設定時のデフォルト連絡先は [`src/app/today/actions.ts`](../../src/app/today/actions.ts) の定数を参照し、実運用の連絡先と一致させる。
+  - **User-Agent**: `AppName/Version (連絡先メール)` 形式。[`.env.example`](../../.env.example) の `OFF_USER_AGENT`。未設定時のデフォルト連絡先は [`src/app/today/actions/menu-item.ts`](../../src/app/today/actions/menu-item.ts) の定数を参照し、実運用の連絡先と一致させる。
   - **レート制限**: 商品取得などエンドポイント別に制限あり。`shared_products` キャッシュで再取得を抑える（[README.md](../../README.md)「Open Food Facts API」）。
 - **設計の背景**: [Issue #2](https://github.com/kzkski/ketolog/issues/2)
 

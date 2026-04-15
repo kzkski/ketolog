@@ -32,30 +32,38 @@ import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";
 import { sortMenuItemsForListOrder } from "@/lib/menu-item-sort";
 import { createClient } from "@/lib/supabase/client";
 import {
-  saveMealToLog,
-  updateMenuItem,
   addMenuItem,
   addMenuItemWithManualSharedProduct,
   deleteMenuItem,
+  lookupSharedProductByBarcode,
+  updateMenuItem,
+  type MenuItemUpdate,
+} from "./actions/menu-item";
+import {
   addMenuItemToFavorites,
   removeMenuItemFromFavorites,
+} from "./actions/favorites";
+import {
   addRestaurant,
   deleteRestaurant,
-  updateRestaurantName,
   reorderRestaurants,
-  importRestaurantData,
+  updateRestaurantName,
+} from "./actions/restaurant";
+import {
   importMenuItemsToRestaurant,
+  importRestaurantData,
+  type ImportRestaurantItem,
+} from "./actions/import-export";
+import {
+  deleteFoodLogEntry,
   getFoodLogForDate,
   getFoodLogForExport,
-  deleteFoodLogEntry,
+  saveMealToLog,
   updateFoodLogEntry,
-  updateUserSettings,
-  lookupSharedProductByBarcode,
-  type MenuItemUpdate,
-  type ImportRestaurantItem,
-  type SaveItem,
   type FoodLogExportEntry,
-} from "./actions";
+  type SaveItem,
+} from "./actions/food-log";
+import { updateUserSettings } from "./actions/settings";
 import type { SharedProduct } from "@/types/database";
 import {
   MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
@@ -75,34 +83,9 @@ import { StandardFoodPanel } from "./StandardFoodPanel";
 import { MenuGroupCollapseSession } from "./MenuGroupCollapseSession";
 import { RestaurantTabsLazy } from "./RestaurantTabsLazy";
 import { buildMenuQrPayloadJson, parseMenuSharePayload } from "@/lib/menu-qr-payload";
+import { MEAL_LABELS, MEAL_TAB_STYLES } from "@/lib/constants/meal";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
-
-const MEAL_LABELS: Record<MealType, string> = {
-  breakfast: "朝食",
-  lunch: "昼食",
-  dinner: "夕食",
-  snack: "間食",
-};
-
-const MEAL_TAB_STYLES: Record<MealType, { row: string; label: string }> = {
-  breakfast: {
-    row: "border-rose-400 bg-rose-400/10",
-    label: "text-rose-300",
-  },
-  lunch: {
-    row: "border-cyan-400 bg-cyan-400/10",
-    label: "text-cyan-300",
-  },
-  dinner: {
-    row: "border-violet-400 bg-violet-400/10",
-    label: "text-violet-300",
-  },
-  snack: {
-    row: "border-teal-400 bg-teal-400/10",
-    label: "text-teal-300",
-  },
-};
 
 /** カート内「記録する食事」セグメントの選択中スタイル（タブと同色） */
 const MEAL_CART_SEGMENT_ACTIVE: Record<MealType, string> = {

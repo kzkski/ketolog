@@ -10,8 +10,6 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { type DragEndEvent } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import type {
   FoodLogEntry,
   MenuItem,
@@ -29,7 +27,6 @@ import type { MealType } from "@/lib/meal-timezone";
 import { sumPfc, type PfcGrams } from "@/lib/pfc";
 import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";
-import { sortMenuItemsForListOrder } from "@/lib/menu-item-sort";
 import { createClient } from "@/lib/supabase/client";
 import {
   addMenuItem,
@@ -39,16 +36,7 @@ import {
   updateMenuItem,
   type MenuItemUpdate,
 } from "./actions/menu-item";
-import {
-  addMenuItemToFavorites,
-  removeMenuItemFromFavorites,
-} from "./actions/favorites";
-import {
-  addRestaurant,
-  deleteRestaurant,
-  reorderRestaurants,
-  updateRestaurantName,
-} from "./actions/restaurant";
+import { addRestaurant } from "./actions/restaurant";
 import {
   importMenuItemsToRestaurant,
   importRestaurantData,
@@ -67,51 +55,24 @@ import {
   MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
   SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
 } from "@/lib/shared-product-source";
-import {
-  MACRO_MENU_TEXT,
-  menuRowMacroHighlights,
-  type MacroHighlightTargets,
-} from "@/lib/macroHighlights";
 import { computeHeaderHintText, getActiveHintSlot } from "@/lib/header-hint";
 import { useAppUpdateBanner } from "@/hooks/useAppUpdateBanner";
-import { STANDARD_FOOD_TAB_TITLE } from "@/lib/standard-food-groups";
-import { StandardFoodPanel } from "./StandardFoodPanel";
-import { MenuGroupCollapseSession } from "./MenuGroupCollapseSession";
-import { RestaurantTabsLazy } from "./RestaurantTabsLazy";
 import { buildMenuQrPayloadJson, parseMenuSharePayload } from "@/lib/menu-qr-payload";
 import { MEAL_LABELS, MEAL_TAB_STYLES } from "@/lib/constants/meal";
 import { PfcHeader } from "./_components/PfcHeader";
 import { BarcodeScanner } from "./_components/BarcodeScanner";
 import { CartPanel, type CartEntry } from "./_components/CartPanel";
+import { MenuItemList } from "./_components/MenuItemList";
+import { RestaurantPanel } from "./_components/RestaurantPanel";
 import { formatNavDate, useMealLog } from "./_hooks/useMealLog";
+import {
+  FAVORITES_TAB_ID,
+  MEXT_COMPOSITION_TAB_ID,
+  useRestaurantState,
+} from "./_hooks/useRestaurantState";
+import { TAB_CONTEXT_MENU_H, TAB_CONTEXT_MENU_W } from "./ui-constants";
 
 // ─── 型 ────────────────────────────────────────────────────────────────────────
-
-/** レストランタブではない「お気に入り」集約ビュー */
-const FAVORITES_TAB_ID = "__ketolog_favorites__";
-
-/** 文科省標準成分表検索パネル（仮想タブ） */
-const MEXT_COMPOSITION_TAB_ID = "__ketolog_mext_std__";
-
-/** レストランタブ「成分表」用の虫眼鏡（メニュー行の数量「＋」と役割を分ける） */
-function RestaurantTabSearchIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.35-4.35" />
-    </svg>
-  );
-}
 
 const RANK_OPTIONS = [
   { value: 1, label: "◎ 最優先" },
@@ -153,30 +114,6 @@ const HEADER_HINT_DEBOUNCE_MS = 300;
 
 // ─── ユーティリティ ────────────────────────────────────────────────────────────
 
-function firstTabRestaurantId(restaurants: Restaurant[]): string {
-  const visible = restaurants.filter((r) => !isSnapshotRestaurant(r));
-  return visible[0]?.id ?? "";
-}
-
-function hasFavoriteEntries(groups: FavoriteGroupPayload[]): boolean {
-  return groups.some((g) => g.entries.length > 0);
-}
-
-/** タブ並びの先頭から、お気に入りメニューが1件でもある店を探す */
-function firstRestaurantIdWithFavoriteMenu(
-  tabRestaurants: Restaurant[],
-  groups: FavoriteGroupPayload[]
-): string | undefined {
-  if (tabRestaurants.length === 0) return undefined;
-  const withFavorite = new Set<string>();
-  for (const g of groups) {
-    for (const e of g.entries) {
-      withFavorite.add(e.menu_item.restaurant_id);
-    }
-  }
-  return tabRestaurants.find((r) => withFavorite.has(r.id))?.id;
-}
-
 function pfcFromPer100(
   proteinPer100: number | null,
   fatPer100: number | null,
@@ -200,15 +137,6 @@ function pfc(item: MenuItem, grams: number) {
 
 function fmt(n: number) {
   return n < 10 ? n.toFixed(1) : Math.round(n).toString();
-}
-
-function sortRestaurants(list: Restaurant[]): Restaurant[] {
-  return [...list].sort((a, b) => {
-    const ao = a.display_order ?? 0;
-    const bo = b.display_order ?? 0;
-    if (ao !== bo) return ao - bo;
-    return b.order_count - a.order_count;
-  });
 }
 
 function to100g(val: string, gramsStr: string): string {
@@ -1613,128 +1541,6 @@ function ImportMenuItemsDrawer({
   );
 }
 
-// ─── メニューアイテム行 ────────────────────────────────────────────────────────
-
-const RANK_ICON: Record<number, { icon: string; className: string }> = {
-  1: { icon: "◎", className: "text-emerald-400" },
-  2: { icon: "○", className: "text-gray-500" },
-  3: { icon: "△", className: "text-amber-400" },
-  4: { icon: "✕", className: "text-red-400" },
-};
-
-function MenuItemRow({ item, entry, onAdd, onRemove, onChangeGrams, onEdit, onToggleFavorite, isFavorited, originCaption, pfcTargets }: {
-  item: MenuItem; entry: CartEntry | undefined;
-  onAdd: (grams: number) => void; onRemove: () => void;
-  onChangeGrams: (g: number) => void; onEdit: () => void;
-  onToggleFavorite: () => void | Promise<void>;
-  isFavorited: boolean;
-  originCaption?: string | null;
-  pfcTargets: MacroHighlightTargets;
-}) {
-  const [editingGrams, setEditingGrams] = useState(false);
-  const [gramsInput, setGramsInput] = useState("");
-  const [localGrams, setLocalGrams] = useState(item.default_grams);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const displayGrams = entry?.gramsPerServing ?? localGrams;
-  const serving = pfc(item, displayGrams);
-  const count = entry?.count ?? 0;
-  const rank = RANK_ICON[item.rank] ?? RANK_ICON[2];
-  const { highlightP, highlightF } =
-    item.protein_per_100g !== null
-      ? menuRowMacroHighlights(serving, item, pfcTargets)
-      : { highlightP: false, highlightF: false };
-
-  const menuItemPfcLine =
-    item.protein_per_100g !== null ? (
-      <>
-        <span className={highlightP ? MACRO_MENU_TEXT.p : "text-gray-500"}>P{fmt(serving.p)}</span>{" "}
-        <span className={highlightF ? MACRO_MENU_TEXT.f : "text-gray-500"}>F{fmt(serving.f)}</span>{" "}
-        <span className="text-gray-500">C{fmt(serving.c)}</span>
-      </>
-    ) : (
-      <span className="text-gray-500">PFC未設定 — タップして編集</span>
-    );
-
-  function startGramsEdit() {
-    setGramsInput(displayGrams.toString());
-    setEditingGrams(true);
-    setTimeout(() => inputRef.current?.select(), 0);
-  }
-
-  function commitGramsEdit() {
-    const val = parseFloat(gramsInput);
-    if (!isNaN(val) && val > 0) {
-      if (entry) {
-        onChangeGrams(val);
-      } else {
-        setLocalGrams(val);
-      }
-    }
-    setEditingGrams(false);
-  }
-
-  return (
-    <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2.5 border-b border-gray-800/60">
-      <button
-        type="button"
-        aria-label={isFavorited ? "お気に入りを解除" : "お気に入りに追加"}
-        onClick={(e) => {
-          e.stopPropagation();
-          void onToggleFavorite();
-        }}
-        className={`shrink-0 w-8 h-9 sm:w-8 sm:h-8 flex items-center justify-center text-sm sm:text-base leading-none rounded-lg sm:rounded-md active:bg-gray-800/70 touch-manipulation ${
-          isFavorited ? "text-amber-400" : "text-gray-600 hover:text-gray-400"
-        }`}
-      >
-        {isFavorited ? "★" : "☆"}
-      </button>
-      <span className={`text-[11px] sm:text-xs shrink-0 w-3.5 sm:w-4 flex justify-center ${rank.className}`}>{rank.icon}</span>
-      <button type="button" className="flex-1 min-w-0 text-left py-0.5 -my-0.5" onClick={onEdit}>
-        <p className="text-xs sm:text-sm text-white truncate leading-snug">{item.name}</p>
-        {originCaption ? (
-          <>
-            <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 truncate leading-snug">{originCaption}</p>
-            <p className="text-[11px] sm:text-xs mt-0.5 tabular-nums leading-snug">{menuItemPfcLine}</p>
-          </>
-        ) : (
-          <p className="text-[11px] sm:text-xs mt-0.5 tabular-nums leading-snug">{menuItemPfcLine}</p>
-        )}
-      </button>
-
-      <div className="shrink-0">
-        {editingGrams ? (
-          <input ref={inputRef} type="number" value={gramsInput}
-            onChange={(e) => setGramsInput(e.target.value)}
-            onBlur={commitGramsEdit}
-            onKeyDown={(e) => e.key === "Enter" && commitGramsEdit()}
-            className="w-[3.5rem] sm:w-14 text-center text-xs sm:text-sm bg-gray-800 border border-emerald-500 rounded px-0.5 py-0.5 sm:py-0.5 text-white" />
-        ) : (
-          <button type="button" onClick={startGramsEdit}
-            className="text-[11px] sm:text-xs text-gray-400 hover:text-white transition-colors min-h-7 min-w-7 sm:min-h-0 sm:min-w-0 px-0.5 py-0.5 rounded-md sm:rounded-none active:bg-gray-800/80 tabular-nums">
-            {displayGrams}g
-          </button>
-        )}
-      </div>
-
-      {count === 0 ? (
-        <button type="button" onClick={() => onAdd(displayGrams)}
-          className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-base sm:text-lg font-bold shrink-0">
-          +
-        </button>
-      ) : (
-        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-          <button type="button" onClick={onRemove}
-            className="w-7 h-7 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-white text-sm sm:text-base">−</button>
-          <span className="w-4 sm:w-5 text-center text-xs sm:text-sm font-bold text-emerald-400 tabular-nums">{count}</span>
-          <button type="button" onClick={() => onAdd(displayGrams)}
-            className="w-7 h-7 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm sm:text-base">+</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── 食事ログ エントリ行 ────────────────────────────────────────────────────────
 
 function LogEntryRow({
@@ -2392,9 +2198,6 @@ function downloadJsonDocument(filename: string, payload: unknown) {
   URL.revokeObjectURL(url);
 }
 
-const TAB_CONTEXT_MENU_W = 176;
-const TAB_CONTEXT_MENU_H = 44;
-
 function RestaurantRenameSheet({
   title,
   initialName,
@@ -2526,18 +2329,52 @@ export default function TodayClient({
     [currentSettings.diet_phase, phaseQuickSaving]
   );
   const [showSettings, setShowSettings]       = useState(false);
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
-  const [menuItems, setMenuItems]     = useState<MenuItem[]>(initialMenuItems);
-  const [favoriteGroups, setFavoriteGroups] = useState<FavoriteGroupPayload[]>(initialFavoriteGroups);
-  /** お気に入りトグルごとの世代。古い非同期結果で state を上書きしない。 */
-  const favoriteToggleGenRef = useRef<Map<string, number>>(new Map());
-  /** 同一 menu_item_id のサーバー更新を直列化（前段の失敗で後段を止めない）。 */
-  const favoriteToggleChainRef = useRef<Map<string, Promise<void>>>(new Map());
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState(() =>
-    hasFavoriteEntries(initialFavoriteGroups)
-      ? FAVORITES_TAB_ID
-      : firstTabRestaurantId(initialRestaurants)
-  );
+  const {
+    restaurants,
+    menuItems,
+    selectedRestaurantId,
+    setSelectedRestaurantId,
+    compositionTargetRestaurantId,
+    setCompositionTargetRestaurantId,
+    lastRealRestaurantTabIdRef,
+    deletingRestaurant,
+    confirmDeleteRestaurant,
+    setConfirmDeleteRestaurant,
+    showImportMenuItems,
+    setShowImportMenuItems,
+    restaurantTabMenu,
+    setRestaurantTabMenu,
+    renameRestaurantTarget,
+    setRenameRestaurantTarget,
+    renameRestaurantSaving,
+    restaurantAddSheet,
+    setRestaurantAddSheet,
+    tabRestaurants,
+    tabRestaurantIds,
+    selectedRestaurantIdResolved,
+    resolvedCompositionTargetId,
+    menuAddRestaurantId,
+    selectedRestaurant,
+    restaurantNameById,
+    favoriteMenuItemIds,
+    openRestaurantTabMenu,
+    submitRestaurantRename,
+    handleRestaurantDragEnd,
+    handleToggleFavorite,
+    menuGroups,
+    collapsibleMenuSectionKeys,
+    menuGroupCollapseSessionKey,
+    applyMenuItemSaved,
+    applyMenuItemDeleted,
+    handleDeleteRestaurant,
+    registerManualRestaurant,
+    registerImportedRestaurant,
+    registerAdditionalMenuItems,
+  } = useRestaurantState({
+    initialRestaurants,
+    initialMenuItems,
+    initialFavoriteGroups,
+  });
   const [cart, setCart]             = useState<Map<string, CartEntry>>(new Map());
   const [mealType, setMealType]     = useState<MealType>(initialMealType);
   const [saving, setSaving]         = useState(false);
@@ -2551,64 +2388,6 @@ export default function TodayClient({
     }
   }, []);
   const [itemDrawer, setItemDrawer] = useState<ItemDrawerState | null>(null);
-  const [compositionTargetRestaurantId, setCompositionTargetRestaurantId] =
-    useState("");
-  const lastRealRestaurantTabIdRef = useRef<string>("");
-  const [deletingRestaurant, setDeletingRestaurant] = useState(false);
-  const [confirmDeleteRestaurant, setConfirmDeleteRestaurant] = useState(false);
-  const [showImportMenuItems, setShowImportMenuItems] = useState(false);
-  const [restaurantTabMenu, setRestaurantTabMenu] = useState<
-    null | { restaurant: Restaurant; x: number; y: number }
-  >(null);
-  const [renameRestaurantTarget, setRenameRestaurantTarget] = useState<Restaurant | null>(null);
-  const [renameRestaurantSaving, setRenameRestaurantSaving] = useState(false);
-
-  const openRestaurantTabMenu = useCallback((r: Restaurant, cx: number, cy: number) => {
-    if (typeof window === "undefined") return;
-    const x = Math.min(
-      window.innerWidth - TAB_CONTEXT_MENU_W - 8,
-      Math.max(8, cx)
-    );
-    const y = Math.min(
-      window.innerHeight - TAB_CONTEXT_MENU_H - 8,
-      Math.max(8, cy)
-    );
-    setRestaurantTabMenu({ restaurant: r, x, y });
-  }, []);
-
-  useEffect(() => {
-    if (!restaurantTabMenu && !renameRestaurantTarget) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setRestaurantTabMenu(null);
-      setRenameRestaurantTarget(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [restaurantTabMenu, renameRestaurantTarget]);
-
-  const submitRestaurantRename = useCallback(async (trimmed: string) => {
-    if (!renameRestaurantTarget) return;
-    setRenameRestaurantSaving(true);
-    const res = await updateRestaurantName(renameRestaurantTarget.id, trimmed);
-    setRenameRestaurantSaving(false);
-    if (res.error) {
-      alert(res.error);
-      return;
-    }
-    if (!res.data) return;
-    setRestaurants((prev) =>
-      sortRestaurants(prev.map((row) => (row.id === res.data!.id ? res.data! : row)))
-    );
-    if (res.updatedFavoriteGroupId) {
-      setFavoriteGroups((prev) =>
-        prev.map((g) =>
-          g.id === res.updatedFavoriteGroupId ? { ...g, name: res.data!.name } : g
-        )
-      );
-    }
-    setRenameRestaurantTarget(null);
-  }, [renameRestaurantTarget]);
 
   // ── 日付ナビゲーション・食事ログ ────────────────────────────────────────────
   const {
@@ -2628,69 +2407,6 @@ export default function TodayClient({
     handleDeleteEntry,
   } = useMealLog({ today, todayConsumed, initialLogEntries });
 
-  type RestaurantAddSheet = "choice" | "manual" | "import" | "preset" | null;
-  const [restaurantAddSheet, setRestaurantAddSheet] = useState<RestaurantAddSheet>(null);
-
-  const tabRestaurants = useMemo(
-    () => restaurants.filter((r) => !isSnapshotRestaurant(r)),
-    [restaurants]
-  );
-
-  const selectedRestaurantIdResolved = useMemo(() => {
-    if (selectedRestaurantId === FAVORITES_TAB_ID) return FAVORITES_TAB_ID;
-    if (selectedRestaurantId === MEXT_COMPOSITION_TAB_ID) {
-      return MEXT_COMPOSITION_TAB_ID;
-    }
-    if (tabRestaurants.length === 0) return "";
-    if (tabRestaurants.some((r) => r.id === selectedRestaurantId)) {
-      return selectedRestaurantId;
-    }
-    return tabRestaurants[0].id;
-  }, [tabRestaurants, selectedRestaurantId]);
-
-  useEffect(() => {
-    if (
-      selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
-      selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID &&
-      selectedRestaurantIdResolved
-    ) {
-      lastRealRestaurantTabIdRef.current = selectedRestaurantIdResolved;
-    }
-  }, [selectedRestaurantIdResolved]);
-
-  const resolvedCompositionTargetId = useMemo(() => {
-    if (tabRestaurants.length === 0) return "";
-    if (
-      compositionTargetRestaurantId &&
-      tabRestaurants.some((r) => r.id === compositionTargetRestaurantId)
-    ) {
-      return compositionTargetRestaurantId;
-    }
-    return tabRestaurants[0]!.id;
-  }, [tabRestaurants, compositionTargetRestaurantId]);
-
-  const menuAddRestaurantId = useMemo(() => {
-    if (selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID) {
-      return resolvedCompositionTargetId;
-    }
-    if (selectedRestaurantIdResolved === FAVORITES_TAB_ID) {
-      return (
-        firstRestaurantIdWithFavoriteMenu(tabRestaurants, favoriteGroups) ??
-        tabRestaurants[0]?.id ??
-        ""
-      );
-    }
-    return selectedRestaurantIdResolved;
-  }, [
-    selectedRestaurantIdResolved,
-    tabRestaurants,
-    resolvedCompositionTargetId,
-    favoriteGroups,
-  ]);
-
-  const selectedRestaurant = restaurants.find(
-    (r) => r.id === selectedRestaurantIdResolved
-  );
   const drawerRestaurantId =
     itemDrawer?.kind === "add"
       ? itemDrawer.restaurantId
@@ -2707,124 +2423,6 @@ export default function TodayClient({
     }
     return Array.from(names).sort((a, b) => a.localeCompare(b, "ja"));
   }, [menuItems, drawerRestaurantId]);
-  const tabRestaurantIds = useMemo(
-    () => tabRestaurants.map((r) => r.id),
-    [tabRestaurants]
-  );
-
-  const restaurantNameById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of restaurants) m.set(r.id, r.name);
-    return m;
-  }, [restaurants]);
-
-  const favoriteMenuItemIds = useMemo(() => {
-    const s = new Set<string>();
-    for (const g of favoriteGroups) {
-      for (const e of g.entries) s.add(e.menu_item_id);
-    }
-    return s;
-  }, [favoriteGroups]);
-  async function handleRestaurantDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = tabRestaurants.findIndex((r) => r.id === active.id);
-    const newIndex = tabRestaurants.findIndex((r) => r.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-
-    const moved = arrayMove(tabRestaurants, oldIndex, newIndex).map((r, index) => ({
-      ...r,
-      display_order: index,
-    }));
-    const previous = restaurants;
-    const tabIdSet = new Set(tabRestaurants.map((r) => r.id));
-    const rest = restaurants.filter((r) => !tabIdSet.has(r.id));
-    setRestaurants([...moved, ...rest]);
-    const result = await reorderRestaurants(moved.map((r) => r.id));
-    if (result.error) {
-      alert(result.error);
-      setRestaurants(previous);
-    }
-  }
-
-  const handleToggleFavorite = useCallback((item: MenuItem) => {
-    const id = item.id;
-    const myGen = (favoriteToggleGenRef.current.get(id) ?? 0) + 1;
-    favoriteToggleGenRef.current.set(id, myGen);
-
-    let snapshotBefore: FavoriteGroupPayload[] | null = null;
-    let removeFavorite = false;
-
-    setFavoriteGroups((prev) => {
-      snapshotBefore = prev;
-      const was = prev.some((g) =>
-        g.entries.some((e) => e.menu_item_id === id)
-      );
-      if (was) {
-        removeFavorite = true;
-        return prev
-          .map((g) => ({
-            ...g,
-            entries: g.entries.filter((e) => e.menu_item_id !== id),
-          }))
-          .filter((g) => g.entries.length > 0);
-      }
-      removeFavorite = false;
-      const restaurant = restaurants.find((r) => r.id === item.restaurant_id);
-      const groupName = restaurant?.name ?? "その他";
-      const existingGroup = prev.find((g) => g.name === groupName);
-      const tempEntry = {
-        id: `temp-${id}`,
-        favorite_group_id: existingGroup?.id ?? `temp-group-${id}`,
-        menu_item_id: id,
-        display_order: existingGroup ? existingGroup.entries.length : 0,
-        menu_item: item,
-      };
-      if (existingGroup) {
-        return prev.map((g) =>
-          g.id === existingGroup.id ? { ...g, entries: [...g.entries, tempEntry] } : g
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: `temp-group-${id}`,
-          name: groupName,
-          display_order: prev.length,
-          entries: [tempEntry],
-        },
-      ];
-    });
-
-    if (snapshotBefore === null) return;
-    const rollbackTarget = snapshotBefore;
-
-    const tail = favoriteToggleChainRef.current.get(id) ?? Promise.resolve();
-    const safeTail = tail.catch(() => {});
-
-    const work = async () => {
-      const result = removeFavorite
-        ? await removeMenuItemFromFavorites(id)
-        : await addMenuItemToFavorites(id);
-
-      if (favoriteToggleGenRef.current.get(id) !== myGen) return;
-
-      if (result.error) {
-        alert(result.error);
-        setFavoriteGroups((prev) => {
-          if (favoriteToggleGenRef.current.get(id) !== myGen) return prev;
-          return rollbackTarget;
-        });
-        return;
-      }
-      if (result.data) setFavoriteGroups(result.data);
-    };
-
-    const next = safeTail.then(() => work());
-    favoriteToggleChainRef.current.set(id, next);
-    void next;
-  }, [restaurants]);
 
   // ── カート計算 ──────────────────────────────────────────────────────────────
   const cartPFC = useMemo(() => {
@@ -2936,77 +2534,6 @@ export default function TodayClient({
   const cartEntries = useMemo(() => Array.from(cart.values()).filter((e) => e.count > 0), [cart]);
   const hasCart = cartEntries.length > 0;
 
-  // ── メニュー表示 ────────────────────────────────────────────────────────────
-  type MenuGroup = {
-    sectionKey: string;
-    groupName: string | null;
-    groupOrder: number;
-    items: MenuItem[];
-    /** お気に入りタブ用: 行ごとの由来（店名・店内グループ） */
-    originByItemId?: Record<string, string>;
-  };
-
-  const menuGroups = useMemo((): MenuGroup[] => {
-    if (selectedRestaurantIdResolved === FAVORITES_TAB_ID) {
-      return favoriteGroups
-        .filter((g) => g.entries.length > 0)
-        .slice()
-        .sort((a, b) => a.display_order - b.display_order)
-        .map((g) => {
-          const originByItemId: Record<string, string> = {};
-          const items: MenuItem[] = g.entries
-            .slice()
-            .sort((x, y) => x.display_order - y.display_order)
-            .map((e) => {
-              const live = menuItems.find((m) => m.id === e.menu_item_id) ?? e.menu_item;
-              const rname = restaurantNameById.get(live.restaurant_id) ?? "お店";
-              const gn = live.group_name?.trim();
-              originByItemId[live.id] = gn ? `${rname} · ${gn}` : rname;
-              return live;
-            });
-          return {
-            sectionKey: `favg:${g.id}`,
-            groupName: g.name,
-            groupOrder: g.display_order,
-            items,
-            originByItemId,
-          };
-        });
-    }
-
-    const items = sortMenuItemsForListOrder(
-      menuItems.filter((item) => item.restaurant_id === selectedRestaurantIdResolved)
-    );
-    const groupMap = new Map<string | null, MenuGroup>();
-
-    for (const item of items) {
-      const key = item.group_name;
-      if (!groupMap.has(key)) {
-        groupMap.set(key, {
-          sectionKey: key === null ? "ungrouped" : `g:${key}`,
-          groupName: key,
-          groupOrder: item.group_order,
-          items: [],
-        });
-      }
-      groupMap.get(key)!.items.push(item);
-    }
-
-    return Array.from(groupMap.values())
-      .sort((a, b) => {
-        if (a.groupName === null) return -1;
-        if (b.groupName === null) return 1;
-        return a.groupOrder - b.groupOrder;
-      });
-  }, [menuItems, selectedRestaurantIdResolved, favoriteGroups, restaurantNameById]);
-
-  const collapsibleMenuSectionKeys = useMemo(
-    () => menuGroups.filter((g) => g.groupName !== null).map((g) => g.sectionKey),
-    [menuGroups]
-  );
-
-  const menuGroupCollapseSessionKey = `${selectedRestaurantIdResolved}\0${collapsibleMenuSectionKeys.join("\0")}`;
-
   // ── カート操作 ──────────────────────────────────────────────────────────────
   function addItem(item: MenuItem, grams: number) {
     setCart((prev) => {
@@ -3052,20 +2579,7 @@ export default function TodayClient({
 
   // ── メニューアイテム保存後 ──────────────────────────────────────────────────
   function handleItemSaved(saved: MenuItem) {
-    setMenuItems((prev) => {
-      const idx = prev.findIndex((m) => m.id === saved.id);
-      const next =
-        idx >= 0 ? prev.map((m) => (m.id === saved.id ? saved : m)) : [...prev, saved];
-      return sortMenuItemsForListOrder(next);
-    });
-    setFavoriteGroups((prev) =>
-      prev.map((g) => ({
-        ...g,
-        entries: g.entries.map((e) =>
-          e.menu_item_id === saved.id ? { ...e, menu_item: saved } : e
-        ),
-      }))
-    );
+    applyMenuItemSaved(saved);
     // カートにあれば item を更新（gramsPerServing はユーザーの手動編集値を保持）
     setCart((prev) => {
       const entry = prev.get(saved.id);
@@ -3077,42 +2591,12 @@ export default function TodayClient({
   }
 
   function handleItemDeleted(id: string) {
-    setMenuItems((prev) => prev.filter((m) => m.id !== id));
-    setFavoriteGroups((prev) =>
-      prev
-        .map((g) => ({
-          ...g,
-          entries: g.entries.filter((e) => e.menu_item_id !== id),
-        }))
-        .filter((g) => g.entries.length > 0)
-    );
-    setCart((prev) => { const next = new Map(prev); next.delete(id); return next; });
-  }
-
-  // ── お店の削除 ──────────────────────────────────────────────────────────────
-  async function handleDeleteRestaurant() {
-    if (!selectedRestaurant) return;
-    setDeletingRestaurant(true);
-    const result = await deleteRestaurant(selectedRestaurant.id);
-    if (result.error) { alert(result.error); setDeletingRestaurant(false); return; }
-    const rid = selectedRestaurant.id;
-    const next = restaurants.filter((r) => r.id !== rid);
-    setRestaurants(next);
-    setMenuItems((prev) => prev.filter((m) => m.restaurant_id !== rid));
-    setFavoriteGroups((prev) =>
-      prev
-        .map((g) => ({
-          ...g,
-          entries: g.entries.filter((e) => {
-            const it = menuItems.find((m) => m.id === e.menu_item_id) ?? e.menu_item;
-            return it.restaurant_id !== rid;
-          }),
-        }))
-        .filter((g) => g.entries.length > 0)
-    );
-    setSelectedRestaurantId(next[0]?.id ?? "");
-    setConfirmDeleteRestaurant(false);
-    setDeletingRestaurant(false);
+    applyMenuItemDeleted(id);
+    setCart((prev) => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
   }
 
   // ── 食事記録保存 ────────────────────────────────────────────────────────────
@@ -3364,240 +2848,94 @@ export default function TodayClient({
           </button>
         </div>
 
-        {/* レストラン タブ + 追加ボタン（左ハンドルで並べ替え） */}
-        <div className="flex-none flex border-b border-gray-800 overflow-x-auto [scrollbar-gutter:stable] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))] items-stretch">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedRestaurantId(FAVORITES_TAB_ID);
-              setConfirmDeleteRestaurant(false);
-            }}
-            className={`inline-flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
-              selectedRestaurantIdResolved === FAVORITES_TAB_ID
-                ? "border-amber-500 text-amber-100"
-                : "border-transparent text-gray-500 hover:text-gray-300"
-            }`}
-          >
-            <span className="text-[0.95em] leading-none tabular-nums" aria-hidden>
-              {selectedRestaurantIdResolved === FAVORITES_TAB_ID ? "★" : "☆"}
-            </span>
-            お気に入り
-          </button>
-          <button
-            type="button"
-            title={STANDARD_FOOD_TAB_TITLE}
-            onClick={() => {
-              if (
-                selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
-                selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID
-              ) {
-                setCompositionTargetRestaurantId(selectedRestaurantIdResolved);
-              }
-              setConfirmDeleteRestaurant(false);
-              setSelectedRestaurantId(MEXT_COMPOSITION_TAB_ID);
-            }}
-            className={`inline-flex min-w-0 max-w-[11rem] sm:max-w-none items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2.5 text-[11px] sm:text-sm font-bold whitespace-nowrap shrink-0 border-b-2 transition-colors min-h-9 sm:min-h-0 touch-manipulation ${
-              selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID
-                ? "border-sky-500 text-sky-100"
-                : "border-transparent text-gray-500 hover:text-gray-300"
-            }`}
-          >
-            <RestaurantTabSearchIcon className="size-[1.1em] shrink-0 sm:size-[1.05em]" />
-            <span className="sm:hidden">成分表</span>
-            <span className="hidden min-w-0 truncate sm:inline">食品成分表2023</span>
-          </button>
-          <RestaurantTabsLazy
-            tabRestaurants={tabRestaurants}
-            tabRestaurantIds={tabRestaurantIds}
-            selectedRestaurantIdResolved={selectedRestaurantIdResolved}
-            onSelectRestaurant={(id) => {
-              setSelectedRestaurantId(id);
-              setConfirmDeleteRestaurant(false);
-            }}
-            onOpenTabMenu={openRestaurantTabMenu}
-            onDragEnd={(e) => void handleRestaurantDragEnd(e)}
-          />
-          <button type="button" onClick={() => setRestaurantAddSheet("choice")}
-            className="px-2.5 py-1.5 sm:py-2.5 min-w-9 sm:min-w-11 text-gray-500 hover:text-white shrink-0 transition-colors text-lg sm:text-lg leading-none flex items-center justify-center self-center">
-            ＋
-          </button>
-        </div>
-
-        {/* メニューリスト / 成分表パネル */}
-        <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-          {selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID ? (
-            <StandardFoodPanel
-              visibleRestaurants={tabRestaurants}
-              compositionTargetRestaurantId={resolvedCompositionTargetId}
-              canPickFood={Boolean(resolvedCompositionTargetId || snapshotRestaurantId)}
-              onCompositionTargetChange={setCompositionTargetRestaurantId}
-              onPickFood={(row) => {
-                const rid = resolvedCompositionTargetId || snapshotRestaurantId;
-                if (!rid) return;
-                if (resolvedCompositionTargetId) {
-                  const back = lastRealRestaurantTabIdRef.current;
-                  const safeBack =
-                    back &&
-                    back !== MEXT_COMPOSITION_TAB_ID &&
-                    back !== FAVORITES_TAB_ID
-                      ? back
-                      : resolvedCompositionTargetId;
-                  setSelectedRestaurantId(safeBack);
-                }
-                setItemDrawer({
-                  kind: "add",
-                  restaurantId: rid,
-                  openedAt: Date.now(),
-                  standardFoodDraft: {
-                    food_code: row.food_code,
-                    name: row.name,
-                    protein_per_100g: row.protein_per_100g,
-                    fat_per_100g: row.fat_per_100g,
-                    carbs_per_100g: row.carbs_per_100g,
-                  },
-                });
-              }}
-            />
-          ) : (
-            <>
-          <MenuGroupCollapseSession
-            key={menuGroupCollapseSessionKey}
-            selectedRestaurantIdResolved={selectedRestaurantIdResolved}
-            collapsibleMenuSectionKeys={collapsibleMenuSectionKeys}
-          >
-            {({ collapsedGroups, toggleMenuGroupCollapsed }) => (
-              <>
-          {menuGroups.map((group) => {
-            if (group.groupName === null) {
-              return group.items.map((item) => (
-                <MenuItemRow
-                  key={`${item.id}-${item.default_grams}`}
-                  item={item}
-                  entry={cart.get(item.id)}
-                  onAdd={(g) => addItem(item, g)}
-                  onRemove={() => removeItem(item.id)}
-                  onChangeGrams={(g) => updateGrams(item.id, g)}
-                  onEdit={() => setItemDrawer({ kind: "edit", item })}
-                  onToggleFavorite={() => void handleToggleFavorite(item)}
-                  isFavorited={favoriteMenuItemIds.has(item.id)}
-                  pfcTargets={{
-                    protein_target_g: activeProfile.protein_target_g,
-                    fat_target_g: activeProfile.fat_target_g,
-                  }}
-                />
-              ));
+        <RestaurantPanel
+          favoritesTabId={FAVORITES_TAB_ID}
+          compositionTabId={MEXT_COMPOSITION_TAB_ID}
+          selectedRestaurantIdResolved={selectedRestaurantIdResolved}
+          onSelectFavorites={() => {
+            setSelectedRestaurantId(FAVORITES_TAB_ID);
+            setConfirmDeleteRestaurant(false);
+          }}
+          onSelectCompositionTab={() => {
+            if (
+              selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
+              selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID
+            ) {
+              setCompositionTargetRestaurantId(selectedRestaurantIdResolved);
             }
-            const isCollapsed = collapsedGroups.has(group.sectionKey);
-            const cartCount = group.items.reduce((n, item) => n + (cart.get(item.id)?.count ?? 0), 0);
-            return (
-              <div key={group.sectionKey}>
-                <button
-                  onClick={() => toggleMenuGroupCollapsed(group.sectionKey)}
-                  type="button"
-                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2 text-gray-400 text-xs sm:text-xs bg-gray-900/50 border-b border-gray-800/60 hover:text-gray-200 transition-colors min-h-9 sm:min-h-0">
-                  <span className="flex items-center gap-1.5">
-                    <span>{isCollapsed ? "▶" : "▼"}</span>
-                    <span>{group.groupName}（{group.items.length}品）</span>
-                    {isCollapsed && cartCount > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 bg-emerald-600 text-white rounded-full text-xs leading-none">{cartCount}</span>
-                    )}
-                  </span>
-                </button>
-                {!isCollapsed && group.items.map((item) => (
-                  <MenuItemRow
-                    key={`${item.id}-${item.default_grams}`}
-                    item={item}
-                    entry={cart.get(item.id)}
-                    onAdd={(g) => addItem(item, g)}
-                    onRemove={() => removeItem(item.id)}
-                    onChangeGrams={(g) => updateGrams(item.id, g)}
-                    onEdit={() => setItemDrawer({ kind: "edit", item })}
-                    onToggleFavorite={() => void handleToggleFavorite(item)}
-                    isFavorited={favoriteMenuItemIds.has(item.id)}
-                    originCaption={group.originByItemId?.[item.id] ?? null}
-                    pfcTargets={{
-                      protein_target_g: activeProfile.protein_target_g,
-                      fat_target_g: activeProfile.fat_target_g,
-                    }}
-                  />
-                ))}
-              </div>
-            );
-          })}
-              </>
-            )}
-          </MenuGroupCollapseSession>
+            setConfirmDeleteRestaurant(false);
+            setSelectedRestaurantId(MEXT_COMPOSITION_TAB_ID);
+          }}
+          tabRestaurants={tabRestaurants}
+          tabRestaurantIds={tabRestaurantIds}
+          onSelectRestaurantTab={(id) => {
+            setSelectedRestaurantId(id);
+            setConfirmDeleteRestaurant(false);
+          }}
+          onOpenRestaurantTabMenu={openRestaurantTabMenu}
+          onRestaurantDragEnd={(e) => void handleRestaurantDragEnd(e)}
+          onOpenRestaurantAddSheet={() => setRestaurantAddSheet("choice")}
+        />
 
-          {/* メニュー追加 & お店削除 */}
-          {selectedRestaurantIdResolved &&
-            selectedRestaurantIdResolved !== FAVORITES_TAB_ID && (
-            <div className="px-4 py-3 space-y-2 border-t border-gray-800/60 mt-1">
-              <button
-                onClick={() =>
-                  setItemDrawer({
-                    kind: "add",
-                    restaurantId: selectedRestaurantIdResolved,
-                    openedAt: Date.now(),
-                  })
-                }
-                className="w-full py-2 border border-dashed border-gray-700 rounded-lg text-gray-400 hover:text-white hover:border-gray-500 text-sm transition-colors">
-                ＋ メニューを追加
-              </button>
-
-              {/* エクスポート・インポート */}
-              {selectedRestaurant && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => downloadRestaurantJson(selectedRestaurant, menuItems)}
-                    className="flex-1 py-1.5 text-gray-500 hover:text-white text-xs transition-colors border border-gray-800 rounded-lg">
-                    JSONでエクスポート
-                  </button>
-                  <button
-                    onClick={() => setShowImportMenuItems(true)}
-                    className="flex-1 py-1.5 text-gray-500 hover:text-white text-xs transition-colors border border-gray-800 rounded-lg">
-                    JSONでメニューを追加
-                  </button>
-                </div>
-              )}
-
-              {selectedRestaurant && (
-                confirmDeleteRestaurant ? (
-                  <div className="flex gap-2">
-                    <button onClick={() => setConfirmDeleteRestaurant(false)}
-                      className="flex-1 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm">
-                      キャンセル
-                    </button>
-                    <button onClick={handleDeleteRestaurant} disabled={deletingRestaurant}
-                      className="flex-1 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg text-sm font-medium">
-                      {deletingRestaurant ? "削除中..." : "削除する"}
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={() => setConfirmDeleteRestaurant(true)}
-                    className="w-full py-1.5 text-red-400 hover:text-red-300 text-xs transition-colors">
-                    このお店を削除
-                  </button>
-                )
-              )}
-            </div>
-          )}
-
-          {menuGroups.every((g) => g.items.length === 0) &&
-            selectedRestaurantIdResolved === FAVORITES_TAB_ID && (
-            <p className="text-center text-gray-500 text-base sm:text-sm py-8 px-4">
-              お気に入りはまだありません。各メニューの☆をタップすると、ここに集約されます。
-            </p>
-          )}
-          {menuGroups.every((g) => g.items.length === 0) &&
-            selectedRestaurantIdResolved &&
-            selectedRestaurantIdResolved !== FAVORITES_TAB_ID && (
-            <p className="text-center text-gray-500 text-base sm:text-sm py-8">
-              メニューがまだありません
-            </p>
-          )}
-            </>
-          )}
-        </div>
+        <MenuItemList
+          selectedRestaurantIdResolved={selectedRestaurantIdResolved}
+          snapshotRestaurantId={snapshotRestaurantId}
+          tabRestaurants={tabRestaurants}
+          resolvedCompositionTargetId={resolvedCompositionTargetId}
+          onCompositionTargetChange={setCompositionTargetRestaurantId}
+          onPickStandardFood={(row) => {
+            const rid = resolvedCompositionTargetId || snapshotRestaurantId;
+            if (!rid) return;
+            if (resolvedCompositionTargetId) {
+              const back = lastRealRestaurantTabIdRef.current;
+              const safeBack =
+                back &&
+                back !== MEXT_COMPOSITION_TAB_ID &&
+                back !== FAVORITES_TAB_ID
+                  ? back
+                  : resolvedCompositionTargetId;
+              setSelectedRestaurantId(safeBack);
+            }
+            setItemDrawer({
+              kind: "add",
+              restaurantId: rid,
+              openedAt: Date.now(),
+              standardFoodDraft: {
+                food_code: row.food_code,
+                name: row.name,
+                protein_per_100g: row.protein_per_100g,
+                fat_per_100g: row.fat_per_100g,
+                carbs_per_100g: row.carbs_per_100g,
+              },
+            });
+          }}
+          onOpenItemAddDrawer={(restaurantId) =>
+            setItemDrawer({ kind: "add", restaurantId, openedAt: Date.now() })
+          }
+          menuGroupCollapseSessionKey={menuGroupCollapseSessionKey}
+          collapsibleMenuSectionKeys={collapsibleMenuSectionKeys}
+          menuGroups={menuGroups}
+          cart={cart}
+          proteinTargetG={activeProfile.protein_target_g}
+          fatTargetG={activeProfile.fat_target_g}
+          onAddItem={addItem}
+          onRemoveItem={removeItem}
+          onChangeGrams={updateGrams}
+          onEditItem={(item) => setItemDrawer({ kind: "edit", item })}
+          onToggleFavorite={handleToggleFavorite}
+          favoriteMenuItemIds={favoriteMenuItemIds}
+          selectedRestaurant={selectedRestaurant}
+          confirmDeleteRestaurant={confirmDeleteRestaurant}
+          deletingRestaurant={deletingRestaurant}
+          onSetConfirmDeleteRestaurant={setConfirmDeleteRestaurant}
+          onOpenImportMenuItems={() => setShowImportMenuItems(true)}
+          onDeleteRestaurant={() => void handleDeleteRestaurant()}
+          onDownloadRestaurantJson={() => {
+            if (selectedRestaurant) {
+              downloadRestaurantJson(selectedRestaurant, menuItems);
+            }
+          }}
+        />
 
         {/* カート: sm+ は従来どおりインライン展開。未満は折りたたみバー＋展開時オーバーレイ（メニュー領域を確保） */}
         <CartPanel
@@ -3712,11 +3050,7 @@ export default function TodayClient({
       {restaurantAddSheet === "manual" && (
         <AddRestaurantDrawer
           onClose={() => setRestaurantAddSheet(null)}
-          onAdded={(r) => {
-            setRestaurants((prev) => sortRestaurants([...prev, r]));
-            setSelectedRestaurantId(r.id);
-            setRestaurantAddSheet(null);
-          }}
+          onAdded={registerManualRestaurant}
         />
       )}
 
@@ -3724,12 +3058,7 @@ export default function TodayClient({
       {restaurantAddSheet === "import" && (
         <ImportRestaurantDrawer
           onClose={() => setRestaurantAddSheet(null)}
-          onImported={(restaurant, items) => {
-            setRestaurants((prev) => sortRestaurants([...prev, restaurant]));
-            setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
-            setSelectedRestaurantId(restaurant.id);
-            setRestaurantAddSheet(null);
-          }}
+          onImported={registerImportedRestaurant}
         />
       )}
 
@@ -3738,12 +3067,7 @@ export default function TodayClient({
         <PresetSelectDrawer
           presets={presets}
           onClose={() => setRestaurantAddSheet(null)}
-          onImported={(restaurant, items) => {
-            setRestaurants((prev) => sortRestaurants([...prev, restaurant]));
-            setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
-            setSelectedRestaurantId(restaurant.id);
-            setRestaurantAddSheet(null);
-          }}
+          onImported={registerImportedRestaurant}
         />
       )}
 
@@ -3752,10 +3076,7 @@ export default function TodayClient({
         <ImportMenuItemsDrawer
           restaurant={selectedRestaurant}
           onClose={() => setShowImportMenuItems(false)}
-          onImported={(items) => {
-            setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
-            setShowImportMenuItems(false);
-          }}
+          onImported={registerAdditionalMenuItems}
         />
       )}
 

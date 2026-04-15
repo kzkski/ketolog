@@ -65,6 +65,10 @@ export type PfcHeaderProps = {
   headerHint: string | null;
   hintDialogOpen: boolean;
   onCloseHintDialog: () => void;
+  appUpdateDetail: string | null;
+  appUpdateDialogOpen: boolean;
+  onCloseAppUpdateDialog: () => void;
+  onApplyAppUpdate: () => void;
 };
 
 export function PfcHeader({
@@ -89,6 +93,10 @@ export function PfcHeader({
   headerHint,
   hintDialogOpen,
   onCloseHintDialog,
+  appUpdateDetail,
+  appUpdateDialogOpen,
+  onCloseAppUpdateDialog,
+  onApplyAppUpdate,
 }: PfcHeaderProps) {
   const changelogUrl = process.env.NEXT_PUBLIC_CHANGELOG_URL;
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION;
@@ -234,6 +242,50 @@ export function PfcHeader({
               >
                 閉じる
               </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {appUpdateDetail && appUpdateDialogOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 z-40"
+            onClick={onCloseAppUpdateDialog}
+            aria-hidden
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="app-update-dialog-title"
+            className="fixed inset-x-0 bottom-0 z-50 max-w-md mx-auto flex flex-col rounded-t-2xl border-x border-t border-gray-700 bg-gray-900 shadow-lg pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-gray-600 rounded-full" />
+            </div>
+            <div className="px-4 pt-2 pb-3 space-y-3">
+              <h2 id="app-update-dialog-title" className="text-center text-sm font-semibold text-white">
+                アップデート
+              </h2>
+              <p className="text-sm text-gray-300 whitespace-pre-wrap break-words max-h-[55svh] overflow-y-auto leading-relaxed">
+                {appUpdateDetail}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onCloseAppUpdateDialog}
+                  className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-xl transition-colors"
+                >
+                  閉じる
+                </button>
+                <button
+                  type="button"
+                  onClick={onApplyAppUpdate}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-xl transition-colors"
+                >
+                  更新する
+                </button>
+              </div>
             </div>
           </div>
         </>

@@ -8,6 +8,7 @@
     "analyze": "ANALYZE=true next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "db:dump-baseline": "supabase db dump --linked -s public -f supabase/migrations/20260211120000_baseline.sql",
     "db:dump-baseline:url": "supabase db dump --db-url \"$DATABASE_URL\" -s public -f supabase/migrations/20260211120000_baseline.sql",
     "etl:mext-ch2": "node scripts/etl-mext-ch2.mjs"
@@ -41,6 +42,7 @@
     "supabase": "^2.89.1",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vitest": "^3.2.4",
     "xlsx": "^0.18.5"
   }
 }

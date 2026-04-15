@@ -10,6 +10,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- **開発**: Vitest を導入し、`npm test` で `src/lib` のユニットテスト（日付・PFC・セマンティックバージョン比較・ダイエットフェーズ・食事区分・メニュー一覧ソートなど）を実行できるようにした（[#217](https://github.com/kzkski/ketolog/issues/217)）。
+- **開発**: GitHub Actions の CI で Pull Request と `main` への push 時に `npm test`（Vitest）を実行するようにした（[#217](https://github.com/kzkski/ketolog/issues/217)）。
+
 ### Changed
 
 - **内部**: PFC（g）の合算を `src/lib/pfc.ts` の `sumPfc()` に集約し、Today・食事ログ取得・分析集計の重複加算を整理した（[#216](https://github.com/kzkski/ketolog/issues/216)）。

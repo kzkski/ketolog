@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type {
@@ -267,45 +268,49 @@ export function useRestaurantState({
     let snapshotBefore: FavoriteGroupPayload[] | null = null;
     let removeFavorite = false;
 
-    setFavoriteGroups((prev) => {
-      snapshotBefore = prev;
-      const was = prev.some((g) =>
-        g.entries.some((e) => e.menu_item_id === id)
-      );
-      if (was) {
-        removeFavorite = true;
-        return prev
-          .map((g) => ({
-            ...g,
-            entries: g.entries.filter((e) => e.menu_item_id !== id),
-          }))
-          .filter((g) => g.entries.length > 0);
-      }
-      removeFavorite = false;
-      const restaurant = restaurants.find((r) => r.id === item.restaurant_id);
-      const groupName = restaurant?.name ?? "その他";
-      const existingGroup = prev.find((g) => g.name === groupName);
-      const tempEntry = {
-        id: `temp-${id}`,
-        favorite_group_id: existingGroup?.id ?? `temp-group-${id}`,
-        menu_item_id: id,
-        display_order: existingGroup ? existingGroup.entries.length : 0,
-        menu_item: item,
-      };
-      if (existingGroup) {
-        return prev.map((g) =>
-          g.id === existingGroup.id ? { ...g, entries: [...g.entries, tempEntry] } : g
+    // React 19 では setState の関数更新が直後の行より遅れることがあり、
+    // snapshotBefore が未設定のまま return するとサーバーへの保存がスキップされる。
+    flushSync(() => {
+      setFavoriteGroups((prev) => {
+        snapshotBefore = prev;
+        const was = prev.some((g) =>
+          g.entries.some((e) => e.menu_item_id === id)
         );
-      }
-      return [
-        ...prev,
-        {
-          id: `temp-group-${id}`,
-          name: groupName,
-          display_order: prev.length,
-          entries: [tempEntry],
-        },
-      ];
+        if (was) {
+          removeFavorite = true;
+          return prev
+            .map((g) => ({
+              ...g,
+              entries: g.entries.filter((e) => e.menu_item_id !== id),
+            }))
+            .filter((g) => g.entries.length > 0);
+        }
+        removeFavorite = false;
+        const restaurant = restaurants.find((r) => r.id === item.restaurant_id);
+        const groupName = restaurant?.name ?? "その他";
+        const existingGroup = prev.find((g) => g.name === groupName);
+        const tempEntry = {
+          id: `temp-${id}`,
+          favorite_group_id: existingGroup?.id ?? `temp-group-${id}`,
+          menu_item_id: id,
+          display_order: existingGroup ? existingGroup.entries.length : 0,
+          menu_item: item,
+        };
+        if (existingGroup) {
+          return prev.map((g) =>
+            g.id === existingGroup.id ? { ...g, entries: [...g.entries, tempEntry] } : g
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: `temp-group-${id}`,
+            name: groupName,
+            display_order: prev.length,
+            entries: [tempEntry],
+          },
+        ];
+      });
     });
 
     if (snapshotBefore === null) return;

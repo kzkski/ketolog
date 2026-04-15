@@ -15,6 +15,12 @@
 - **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 - **開発運用**: 通常マージ失敗時の待機手順（停止→ブロッカー確認→60〜120秒待機→再確認→通常マージ再試行）を追加し、待機前に `--admin` へ進まない運用を明文化した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 
+## [1.36.2] - 2026-04-15
+
+### Fixed
+
+- **Today**: お気に入り星の連打で、遅く返った非同期結果により表示が一瞬戻ったり星の状態が逆転する問題を修正した。同一メニュー項目ごとに世代管理とサーバー更新の直列化を行う（[#210](https://github.com/kzkski/ketolog/issues/210), [#204](https://github.com/kzkski/ketolog/issues/204)）。
+
 ## [1.36.1] - 2026-04-15
 
 ### Fixed

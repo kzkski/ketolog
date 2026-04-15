@@ -1,6 +1,6 @@
 # TodayClient 状態フロー設計（Issue #213 Ph-2 前）
 
-本書は [`issue-213-refactor-codebase.md`](./issue-213-refactor-codebase.md) の **Ph-2 設計** に沿い、`TodayClient.tsx` に集中しているクライアント状態の所有者・移管方針・props の流れを整理する。ここで合意したうえで **Ph-2a**（コンポーネント分割）に着手する。
+本書は [`issue-213-refactor-codebase.md`](./issue-213-refactor-codebase.md) の **Ph-2 設計** に沿い、`TodayClient.tsx` に集中しているクライアント状態の所有者・移管方針・props の流れを整理する。ここで合意したうえで **Ph-2a**（コンポーネント分割）に着手する。**Ph-2a〜2d の GitHub Issue（[#219](https://github.com/kzkski/ketolog/issues/219)〜[#222](https://github.com/kzkski/ketolog/issues/222)）では、本作業着手前に本書を参照する。**
 
 **正の実装**: 現行コードは `src/app/today/TodayClient.tsx` および `src/app/today/page.tsx`。本書と実装が食い違う場合は実装を正とし、本書を追随させる。
 
@@ -41,7 +41,7 @@ flowchart LR
 | `restaurants` | `restaurants` | 並び替え・追加・削除・リネームで更新 |
 | `menuItems` | `menuItems` | 追加・編集・削除・インポートで更新 |
 | `initialFavoriteGroups` | `favoriteGroups` | お気に入りトグル・店名変更連動で更新 |
-| `settings` | `currentSettings` | 設定ドロワー・ヘッダー快適切替で更新 |
+| `settings` | `currentSettings` | 設定ドロワー・ヘッダーからのダイエットフェーズ切替で更新 |
 | `todayConsumed` | `consumedForDate`（初期は当日） | 日付変更・ログ保存・削除で更新 |
 | `today` | 日付ナビの基準 | `selectedDate` の初期値・比較に使用 |
 | `initialLogEntries` | `logEntries` | 日付変更で差し替え |
@@ -252,7 +252,18 @@ type ItemDrawerProps = {
 
 ---
 
-## 8. 関連リンク
+## 8. Ph-2 実装イシュー（#219〜#222）との対応
+
+| GitHub Issue | 内容（概要） | 本書の主な参照箇所 |
+|--------------|--------------|-------------------|
+| [#219](https://github.com/kzkski/ketolog/issues/219) | Ph-2a: `PfcHeader` / `BarcodeScanner` | §3.4、§5、§6.1 |
+| [#220](https://github.com/kzkski/ketolog/issues/220) | Ph-2b: `CartPanel` / `useMealLog` | §3.2、§3.3、§5、§6.2 |
+| [#221](https://github.com/kzkski/ketolog/issues/221) | Ph-2c: `RestaurantPanel` / `MenuItemList` / `useRestaurantState` | §3.1、§5、§6.3 |
+| [#222](https://github.com/kzkski/ketolog/issues/222) | Ph-2d: `ItemDrawer` / `FavoritesPanel` | §3.1（お気に入り・タブ）、§4、§5、§6.4 |
+
+---
+
+## 9. 関連リンク
 
 - 親計画: [Issue #213](https://github.com/kzkski/ketolog/issues/213) / [`issue-213-refactor-codebase.md`](./issue-213-refactor-codebase.md)
 - 本設計 Issue: [#218](https://github.com/kzkski/ketolog/issues/218)

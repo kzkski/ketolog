@@ -31,6 +31,18 @@
 | Ph-3 | `refactor/performance` | next.config.ts 最適化・遅延化 |
 | Ph-4 | 別 Issue | コンポーネント・Server Actions テスト |
 
+### Ph-2 実装と GitHub Issue（設計書の必須参照）
+
+Ph-2a〜2d に着手する前に、TodayClient の状態・props 前提として [`issue-213-today-state-design.md`](./issue-213-today-state-design.md)（[#218](https://github.com/kzkski/ketolog/issues/218)）を確認すること。PR 本文にも設計書に沿っている旨を記載する。
+
+| Phase | GitHub Issue | 設計書の参照先（目安） |
+|-------|----------------|------------------------|
+| Ph-2 設計 | [#218](https://github.com/kzkski/ketolog/issues/218) | `issue-213-today-state-design.md` 全体 |
+| Ph-2a | [#219](https://github.com/kzkski/ketolog/issues/219) | §3.4、§5、§6.1（ほか BarcodeScanner 周辺） |
+| Ph-2b | [#220](https://github.com/kzkski/ketolog/issues/220) | §3.2、§3.3、§5、§6.2 |
+| Ph-2c | [#221](https://github.com/kzkski/ketolog/issues/221) | §3.1、§5、§6.3 |
+| Ph-2d | [#222](https://github.com/kzkski/ketolog/issues/222) | §3.1、§4、§5、§6.4 |
+
 > `refactor/` ・`docs/` ・`test/` ブランチは CONTRIBUTING.md 規約によりバージョン更新不要。
 
 ---

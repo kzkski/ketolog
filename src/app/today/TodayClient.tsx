@@ -804,6 +804,7 @@ function SettingsDrawer({
   const [selectedSlot, setSelectedSlot] = useState<DietPhase>(settings.diet_phase);
   const [saving, setSaving] = useState(false);
   const [slotSaving, setSlotSaving] = useState(false);
+  const [openingInsights, setOpeningInsights] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
   const [exportAllError, setExportAllError] = useState<string | null>(null);
@@ -1072,12 +1073,24 @@ function SettingsDrawer({
             <p className="text-xs text-gray-400 mb-3">
               過去7日・30日・カスタム期間（最大90日）の食事ログを、日次集計と一覧で確認できます。
             </p>
-            <a
+            <Link
               href="/insights"
-              className="block w-full rounded-xl bg-gray-700 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-gray-600"
+              aria-disabled={openingInsights}
+              onClick={(e) => {
+                if (openingInsights) {
+                  e.preventDefault();
+                  return;
+                }
+                setOpeningInsights(true);
+              }}
+              className={`block w-full rounded-xl py-2.5 text-center text-sm font-medium text-white transition-colors touch-manipulation ${
+                openingInsights
+                  ? "bg-gray-600 cursor-not-allowed"
+                  : "bg-gray-700 hover:bg-gray-600 active:bg-gray-500"
+              }`}
             >
-              分析画面を開く
-            </a>
+              {openingInsights ? "開いています..." : "分析画面を開く"}
+            </Link>
           </div>
 
           <div>

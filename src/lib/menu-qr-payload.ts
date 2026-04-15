@@ -1,4 +1,4 @@
-import type { ImportRestaurantItem } from "@/app/today/actions";
+import type { ImportRestaurantItem } from "@/app/today/actions/import-export";
 
 export const MENU_QR_PAYLOAD_VERSION = 1 as const;
 

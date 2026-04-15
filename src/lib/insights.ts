@@ -1,3 +1,6 @@
+import { addDaysJst, eachDate, toJstDateString } from "@/lib/date";
+export { addDaysJst };
+
 export type InsightFoodLogEntry = {
   id: string;
   date: string;
@@ -28,14 +31,7 @@ export type TopItem = {
 };
 
 export function getTodayJstDate(): string {
-  return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-}
-
-export function addDaysJst(dateStr: string, delta: number): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1));
-  date.setUTCDate(date.getUTCDate() + delta);
-  return date.toISOString().slice(0, 10);
+  return toJstDateString();
 }
 
 export function getPresetRange(today: string, days: 7 | 30): { start: string; end: string } {
@@ -51,16 +47,6 @@ function normalizeName(name: string): string {
 
 function toNum(v: number | null): number {
   return v ?? 0;
-}
-
-function eachDate(start: string, end: string): string[] {
-  const out: string[] = [];
-  let cursor = start;
-  while (cursor <= end) {
-    out.push(cursor);
-    cursor = addDaysJst(cursor, 1);
-  }
-  return out;
 }
 
 export function buildInsights(

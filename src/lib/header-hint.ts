@@ -1,3 +1,5 @@
+import { getTokyoHourMinute } from "@/lib/date";
+
 /**
  * 今日ページヘッダー用の時間帯ベース日次ヒント（純粋ロジック）。
  * Issue #70: Asia/Tokyo・3スロット・糖質優先分岐・PFC不足割合による主マクロ。
@@ -25,19 +27,7 @@ export const NEAR_CARB_ABS_G = 5;
 export const SHORTFALL_ATTENTION_RATIO = 0.3;
 
 export function getTokyoMinutesSinceMidnight(date: Date): number {
-  const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone: TOKYO_TZ,
-    hour: "numeric",
-    minute: "numeric",
-    hourCycle: "h23",
-  });
-  const parts = dtf.formatToParts(date);
-  let h = 0;
-  let m = 0;
-  for (const p of parts) {
-    if (p.type === "hour") h = parseInt(p.value, 10);
-    if (p.type === "minute") m = parseInt(p.value, 10);
-  }
+  const { hour: h, minute: m } = getTokyoHourMinute(date);
   return h * 60 + m;
 }
 

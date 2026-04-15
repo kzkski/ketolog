@@ -10,6 +10,8 @@ import {
   type InsightFoodLogEntry,
 } from "@/lib/insights";
 import { getInsightsFoodLogForDateRange } from "./actions";
+import { MEAL_LABELS } from "@/lib/constants/meal";
+import type { MealType } from "@/lib/meal-timezone";
 
 const InsightsChart = dynamic(() => import("./InsightsChart"), {
   ssr: false,
@@ -17,13 +19,6 @@ const InsightsChart = dynamic(() => import("./InsightsChart"), {
 });
 
 const CUSTOM_RANGE_MAX_DAYS = 90;
-
-const MEAL_LABEL: Record<string, string> = {
-  breakfast: "朝食",
-  lunch: "昼食",
-  dinner: "夕食",
-  snack: "間食",
-};
 
 type Preset = "7d" | "30d" | "custom";
 
@@ -297,7 +292,9 @@ export default function InsightsClient({
                         >
                           <div className="min-w-0 text-white">
                             <p className="truncate">
-                              <span className="text-gray-400">[{MEAL_LABEL[entry.meal_type] ?? entry.meal_type}]</span>{" "}
+                              <span className="text-gray-400">
+                                [{MEAL_LABELS[entry.meal_type as MealType] ?? entry.meal_type}]
+                              </span>{" "}
                               {entry.item_name}
                             </p>
                           </div>

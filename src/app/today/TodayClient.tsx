@@ -27,6 +27,7 @@ import {
   type PhaseProfiles,
 } from "@/lib/diet-phase";
 import type { MealType } from "@/lib/meal-timezone";
+import { sumPfc, type PfcGrams } from "@/lib/pfc";
 import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";
 import { sortMenuItemsForListOrder } from "@/lib/menu-item-sort";
@@ -3202,28 +3203,30 @@ export default function TodayClient({
 
   // ── カート計算 ──────────────────────────────────────────────────────────────
   const cartPFC = useMemo(() => {
-    let p = 0, f = 0, c = 0;
-    cart.forEach((entry) => {
+    let acc: PfcGrams = { p: 0, f: 0, c: 0 };
+    for (const entry of cart.values()) {
       const g = entry.gramsPerServing * entry.count;
-      if (entry.kind === "menu") {
-        p += (entry.item.protein_per_100g ?? 0) * g / 100;
-        f += (entry.item.fat_per_100g ?? 0) * g / 100;
-        c += (entry.item.carbs_per_100g ?? 0) * g / 100;
-      } else {
-        const v = pfcFromPer100(entry.protein_per_100g, entry.fat_per_100g, entry.carbs_per_100g, g);
-        p += v.p;
-        f += v.f;
-        c += v.c;
-      }
-    });
-    return { p, f, c };
+      const part: PfcGrams =
+        entry.kind === "menu"
+          ? {
+              p: ((entry.item.protein_per_100g ?? 0) * g) / 100,
+              f: ((entry.item.fat_per_100g ?? 0) * g) / 100,
+              c: ((entry.item.carbs_per_100g ?? 0) * g) / 100,
+            }
+          : pfcFromPer100(entry.protein_per_100g, entry.fat_per_100g, entry.carbs_per_100g, g);
+      acc = sumPfc(acc, part);
+    }
+    return acc;
   }, [cart]);
 
-  const totalPFC = {
-    p: consumedForDate.protein + cartPFC.p,
-    f: consumedForDate.fat + cartPFC.f,
-    c: consumedForDate.carbs + cartPFC.c,
-  };
+  const totalPFC = sumPfc(
+    {
+      p: consumedForDate.protein,
+      f: consumedForDate.fat,
+      c: consumedForDate.carbs,
+    },
+    cartPFC
+  );
 
   const [headerHintTimeTick, setHeaderHintTimeTick] = useState(0);
 

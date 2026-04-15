@@ -1,4 +1,5 @@
 import { addDaysJst, eachDate, toJstDateString } from "@/lib/date";
+import { sumPfc } from "@/lib/pfc";
 export { addDaysJst };
 
 export type InsightFoodLogEntry = {
@@ -68,9 +69,13 @@ export function buildInsights(
   for (const entry of entries) {
     const bucket = byDate.get(entry.date);
     if (!bucket) continue;
-    bucket.protein += toNum(entry.protein_g);
-    bucket.fat += toNum(entry.fat_g);
-    bucket.carbs += toNum(entry.carbs_g);
+    const merged = sumPfc(
+      { p: bucket.protein, f: bucket.fat, c: bucket.carbs },
+      { p: toNum(entry.protein_g), f: toNum(entry.fat_g), c: toNum(entry.carbs_g) }
+    );
+    bucket.protein = merged.p;
+    bucket.fat = merged.f;
+    bucket.carbs = merged.c;
     bucket.entries.push(entry);
   }
 
@@ -86,9 +91,13 @@ export function buildInsights(
   const dailyDesc = [...dailyAsc].reverse();
 
   const dayCount = dailyAsc.length || 1;
-  const sumProtein = dailyAsc.reduce((acc, d) => acc + d.protein, 0);
-  const sumFat = dailyAsc.reduce((acc, d) => acc + d.fat, 0);
-  const sumCarbs = dailyAsc.reduce((acc, d) => acc + d.carbs, 0);
+  const periodTotals = dailyAsc.reduce(
+    (acc, d) => sumPfc(acc, { p: d.protein, f: d.fat, c: d.carbs }),
+    { p: 0, f: 0, c: 0 }
+  );
+  const sumProtein = periodTotals.p;
+  const sumFat = periodTotals.f;
+  const sumCarbs = periodTotals.c;
 
   const topMap = new Map<string, TopItem>();
   for (const entry of entries) {

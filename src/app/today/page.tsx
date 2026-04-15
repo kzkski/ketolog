@@ -6,6 +6,7 @@ import { getOrCreateSnapshotRestaurant } from "./actions/restaurant";
 import { fetchFavoriteGroupsPayload } from "./actions/favorites";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 import { normalizeUserSettings } from "@/lib/diet-phase";
+import { sumPfc, type PfcGrams } from "@/lib/pfc";
 import { loadPresets } from "@/lib/presets-server";
 
 export type { PresetMeta } from "@/lib/presets-server";
@@ -63,14 +64,20 @@ export default async function TodayPage() {
   const menuItems: MenuItem[] = menuItemsRes.data ?? [];
 
   const logEntries: FoodLogEntry[] = (foodLogRes.data ?? []) as FoodLogEntry[];
-  const todayConsumed: TodayConsumed = logEntries.reduce(
-    (acc, row) => ({
-      protein: acc.protein + (row.protein_g ?? 0),
-      fat: acc.fat + (row.fat_g ?? 0),
-      carbs: acc.carbs + (row.carbs_g ?? 0),
-    }),
-    { protein: 0, fat: 0, carbs: 0 }
+  const summed = logEntries.reduce<PfcGrams>(
+    (acc, row) =>
+      sumPfc(acc, {
+        p: row.protein_g ?? 0,
+        f: row.fat_g ?? 0,
+        c: row.carbs_g ?? 0,
+      }),
+    { p: 0, f: 0, c: 0 }
   );
+  const todayConsumed: TodayConsumed = {
+    protein: summed.p,
+    fat: summed.f,
+    carbs: summed.c,
+  };
 
   const presets = loadPresets();
   const initialFavoriteGroups = favoritePayload.error ? [] : favoritePayload.data;

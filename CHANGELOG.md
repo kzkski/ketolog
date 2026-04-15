@@ -12,6 +12,7 @@
 
 ### Changed
 
+- **ROADMAP**: Phase 2-2 に、[Issue #54](https://github.com/kzkski/ketolog/issues/54)（最近スキャン・検索した市販品の一覧 UI）と既存の OFF／メニュー／お気に入りとの関係を追記した（[#212](https://github.com/kzkski/ketolog/pull/212)）。
 - **開発運用**: `CONTRIBUTING.md` / `AGENTS.md` / `.cursor/rules/github-flow.mdc` に、`gh pr merge --admin` などブランチ保護バイパス操作の原則禁止と、例外時の事前承認必須ルールを追加した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 - **開発運用**: 通常マージ失敗時の待機手順（停止→ブロッカー確認→60〜120秒待機→再確認→通常マージ再試行）を追加し、待機前に `--admin` へ進まない運用を明文化した（[#186](https://github.com/kzkski/ketolog/issues/186)）。
 

@@ -1,17 +1,22 @@
 # CI・テスト・品質保証
 
+## このドキュメントの使い方
+
+- 本書は **v2 の品質ゲート実行計画**を扱う。
+- 方針は本書に集約し、実装は Issue / PR で進める。
+
 ## コードベースに対する「追加実装」の見積もり
 
-機能面（ゲート緩和、法務ページ、アカウント削除など）は要件が明確で追いやすい一方、**品質基盤は現状ほぼ空**で、一般公開後のメンテで効いてくる。
+機能面（ゲート緩和、法務ページ、アカウント削除など）は要件が明確で追いやすい一方、品質基盤は段階整備中で、一般公開後のメンテでも継続投資が必要。
 
 | 領域 | 現状 | 追加で必要になりやすいこと | 工数感の目安 |
 |------|------|---------------------------|-------------|
-| **CI** | [`.github/workflows/pr-guardrails.yml`](../../.github/workflows/pr-guardrails.yml) は **PR タイトル規約・CHANGELOG のみ**。`npm run lint` / `npm run build` は **未実行** | **checkout → install → lint → build** を PR ごとに実行。Node キャッシュで高速化 | 小〜中 |
-| **自動テスト** | [`package.json`](../../package.json) に **test スクリプトなし**。`*.test.*` / Playwright 設定も **未配置**（Next が `@playwright/test` を optional peer で参照するだけ） | ユニット（純関数・`diet-phase` 等）→ 結合 → E2E | 中〜大 |
+| **CI** | [`.github/workflows/pr-guardrails.yml`](../../.github/workflows/pr-guardrails.yml) は **PR タイトル規約・CHANGELOG のみ**。一方で [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) は `npm test` を実行済み。`npm run lint` / `npm run build` / `typecheck` は **未実行** | `pull_request` で **test + lint + build + typecheck** を揃える。Node キャッシュで高速化 | 小〜中 |
+| **自動テスト** | [`package.json`](../../package.json) に `test`（`vitest run`）あり。`src/lib/*.test.ts` は導入済み。Playwright 設定は **未配置** | ユニット（純関数・`diet-phase` 等）拡張 → 結合 → E2E | 中〜大 |
 | **E2E** | [Issue #59](https://github.com/kzkski/ketolog/issues/59) で認証・テスト DB・viewport が整理済み。リポジトリ内の **E2E 完結は未達に近い** | テスト専用サインイン or モック、**本番と別 Supabase**、最小スモーク（`/today`） | 大 |
 | **手動検証** | [README.md](../../README.md) は実機・Playwright を「必要時に」 | **リリース前チェックリスト**（本ドキュメント末尾）で再現性を上げる | 小 |
 
-**方針**: プロダクト機能と **CI・テストの足場**は別レイヤー。最低でも **CI に build（と lint）** はベータ前後で入れる価値が高い。E2E は [#59](https://github.com/kzkski/ketolog/issues/59) の通りコストが高いので **段階導入**（スモーク 1 本から）。
+**方針**: プロダクト機能と **CI・テストの足場**は別レイヤー。既存の `npm test` に加えて、最低でも **CI に lint/build/typecheck** を入れる価値が高い。E2E は [#59](https://github.com/kzkski/ketolog/issues/59) の通りコストが高いので **段階導入**（スモーク 1 本から）。
 
 ## GitHub イシュー参照サマリ
 
@@ -52,7 +57,7 @@ DB を伴う処理は **ローカル `supabase start` + シード**、または�
 
 ## 現状のリスク（要約）
 
-CI が **CHANGELOG とタイトルしか検証していない**ため、**型・ESLint・本番ビルド失敗**は **マージ後のデプロイまで気づけない**。テストが無いため **リグレッションは手動とユーザー報告**に依存しやすい。
+CI で `npm test` は実行できているが、`lint` / `build` / `typecheck` が未導入のため、**型・ESLint・本番ビルド失敗**は **マージ後のデプロイまで気づけない**リスクが残る。E2E 不在の領域は引き続き手動検証依存になりやすい。
 
 メンテ時は「壊したくないパス」（認証、`/today` の食事記録、設定エクスポート）から **テストを逆算で載せる**と投資対効果が高い。
 
@@ -67,3 +72,11 @@ CI が **CHANGELOG とタイトルしか検証していない**ため、**型・
 - [ ] モバイル幅での主要画面（README の手順）
 - [ ] バーコード: **実機**でスキャン（E2E 対象外のとき）
 - [ ] PWA: 本番 HTTPS で manifest / SW（[README.md](../../README.md)）
+
+## Tracking
+
+- Status: Not started
+- Track: 共通
+- Tracking Issue: TBD
+- Owner: TBD
+- DoD: PR で `test` `lint` `build` `typecheck` が実行され、リリース前手動チェックの運用記録が残る。

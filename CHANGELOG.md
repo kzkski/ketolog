@@ -17,6 +17,7 @@
 
 ### Changed
 
+- **内部（Today）**: メニュー追加・編集ドロワーを `ItemDrawer.tsx`（`MenuItemDrawer`）に、お気に入りタブの空状態案内を `FavoritesPanel.tsx` に切り出した。メニュー PFC 換算は `src/lib/menu-item-pfc.ts` に集約。お気に入りの表示・トグル・ドロワー操作の挙動は従来どおり（[#222](https://github.com/kzkski/ketolog/issues/222)）。
 - **内部（Today）**: `TodayClient` からレストランタブ列を `RestaurantPanel` に、メニュー一覧・成分表パネル・店ごとの JSON 導線を `MenuItemList` に、店・メニュー・お気に入りタブ周りの状態と処理を `useRestaurantState` に切り出した。並び替え・編集・追加などの挙動は従来どおり（[#221](https://github.com/kzkski/ketolog/issues/221)）。
 - **内部（Today）**: `TodayClient` からカート UI（折りたたみバー・展開パネル・記録ボタン）を `CartPanel` に、日付切替・ログ一覧・削除・再取得の状態と処理を `useMealLog` に切り出した。画面の挙動は従来どおり（[#220](https://github.com/kzkski/ketolog/issues/220)）。
 - **内部（Today）**: `TodayClient` からブランド行・日付ナビ・ダイエットフェーズ・PFC バー・ヘッダーヒント全文ダイアログを `PfcHeader` に、メニュー追加ドロワー内のバーコード／QR 読み取りを `BarcodeScanner` に切り出した。見た目と挙動は従来どおりで、状態は親から props で渡す（[#219](https://github.com/kzkski/ketolog/issues/219)）。

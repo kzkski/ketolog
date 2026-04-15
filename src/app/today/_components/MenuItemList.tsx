@@ -8,6 +8,7 @@ import type { MenuGroup } from "../_hooks/useRestaurantState";
 import { FAVORITES_TAB_ID, MEXT_COMPOSITION_TAB_ID } from "../_hooks/useRestaurantState";
 import type { CartEntry } from "./CartPanel";
 import { MenuItemRow } from "./MenuItemRow";
+import { FavoritesPanel } from "./FavoritesPanel";
 
 export type MenuItemListProps = {
   selectedRestaurantIdResolved: string;
@@ -213,11 +214,7 @@ export function MenuItemList({
             )}
 
           {menuGroups.every((g) => g.items.length === 0) &&
-            selectedRestaurantIdResolved === FAVORITES_TAB_ID && (
-              <p className="text-center text-gray-500 text-base sm:text-sm py-8 px-4">
-                お気に入りはまだありません。各メニューの☆をタップすると、ここに集約されます。
-              </p>
-            )}
+            selectedRestaurantIdResolved === FAVORITES_TAB_ID && <FavoritesPanel />}
           {menuGroups.every((g) => g.items.length === 0) &&
             selectedRestaurantIdResolved &&
             selectedRestaurantIdResolved !== FAVORITES_TAB_ID && (

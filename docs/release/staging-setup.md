@@ -68,4 +68,4 @@
 ## Tracking（実装・インフラ作業）
 
 - **Tracking Issue**: [#250](https://github.com/kzkski/ketolog/issues/250)（インフラ・Vercel・Supabase ダッシュボード・任意 GHA）
-- ベータゲート全体は [beta-checklist.md](beta-checklist.md)。アクセス制御 [#251](https://github.com/kzkski/ketolog/issues/251)、認証・法務 [#252](https://github.com/kzkski/ketolog/issues/252)、CI 強化 [#253](https://github.com/kzkski/ketolog/issues/253)。
+- ベータゲート全体は [beta-checklist.md](beta-checklist.md)。アクセス制御 [#251](https://github.com/kzkski/ketolog/issues/251)、認証・法務 [#252](https://github.com/kzkski/ketolog/issues/252)、CI 強化 [#253](https://github.com/kzkski/ketolog/issues/253)、OFF 棚卸し [#255](https://github.com/kzkski/ketolog/issues/255)。

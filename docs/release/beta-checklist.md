@@ -96,7 +96,7 @@ flowchart LR
 **Tracking**
 - Status: Not started
 - Track: 共通
-- Tracking Issue: [#2](https://github.com/kzkski/ketolog/issues/2)（OFF・`shared_products`・第三者コンプライアンス全体）
+- Tracking Issue: [#255](https://github.com/kzkski/ketolog/issues/255)（ベータ前棚卸し）。方針の出自は完了済み [#2](https://github.com/kzkski/ketolog/issues/2)。
 - Owner: TBD
 - DoD: OFF 利用条件・連絡先・User-Agent 運用が現行実装と一致している。
 

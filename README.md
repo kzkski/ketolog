@@ -4,7 +4,7 @@
 
 外食・自炊・コンビニのPFC（タンパク質・脂質・糖質）をリアルタイムに記録・管理する。市販の汎用ダイエットアプリでは対応しにくい「外食メニューの登録」「PFC目標の柔軟な設定」「JSONプリセットによるデータ共有」に対応。
 
-**注意**: 現時点では **一般向けには公開していません**（テスト用途のデプロイ）。認証・公開範囲の詳細と今後の予定は [ROADMAP.md](ROADMAP.md) を参照。ベータ・一般公開に向けた運用チェックリストは [docs/release/README.md](docs/release/README.md)（開発者向け）。市場調査は公開サマリーを [docs/research/README.md](docs/research/README.md) に記載しています。
+**注意**: 現時点では **一般向けには公開していません**（テスト用途のデプロイ）。認証・公開範囲の詳細と今後の予定は [ROADMAP.md](ROADMAP.md) を参照。ベータ・一般公開に向けた運用チェックリストは [docs/release/README.md](docs/release/README.md)（開発者向け）。**ステージング Supabase と Vercel Preview** の準備手順は [docs/release/staging-setup.md](docs/release/staging-setup.md)。市場調査は公開サマリーを [docs/research/README.md](docs/research/README.md) に記載しています。
 
 ## 主な機能
 

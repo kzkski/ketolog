@@ -50,7 +50,8 @@
 - Ketolog単体の記録体験を磨きつつ、将来の Ketovisor 連携価値（分析支援）の前提データ品質を高める。
 
 ### 優先トラック
-- 品質ゲート強化（CI: lint/test/build/typecheck、回帰テスト拡張）
+- 品質ゲート強化（CI: lint/test/build/typecheck、回帰テスト拡張）— [#253](https://github.com/kzkski/ketolog/issues/253)
+- ステージング（本番と別 Supabase + Vercel Preview をステージング向け）— [docs/release/staging-setup.md](docs/release/staging-setup.md) / [#250](https://github.com/kzkski/ketolog/issues/250)
 - ベータ運用手順の固定（障害対応、ロールバック、サポート導線）
 - 公開チェックリスト整備（法務・コスト・コンプライアンス）
 - Ketovisor 連携向けデータ契約の固定（`contractVersion`・スキーマ・互換ポリシー）

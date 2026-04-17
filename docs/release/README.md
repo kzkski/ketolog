@@ -13,7 +13,7 @@
 
 | 状況 | 読む順 |
 |------|--------|
-| **ベータを切りたい** | [beta-checklist.md](beta-checklist.md) → [quality-and-ci.md](quality-and-ci.md)（CI 最低ライン）→ [sentry-alerts-slack.md](sentry-alerts-slack.md)（アラート）→ [sentry-operations-runbook.md](sentry-operations-runbook.md)（発報時 Runbook）→ 必要なら [third-party-compliance.md](third-party-compliance.md) |
+| **ベータを切りたい** | [staging-setup.md](staging-setup.md)（Preview + ステージング DB）→ [beta-checklist.md](beta-checklist.md) → [quality-and-ci.md](quality-and-ci.md)（CI 最低ライン）→ [sentry-alerts-slack.md](sentry-alerts-slack.md)（アラート）→ [sentry-operations-runbook.md](sentry-operations-runbook.md)（発報時 Runbook）→ 必要なら [third-party-compliance.md](third-party-compliance.md) |
 | **一般公開（GA）を切りたい** | [general-availability-checklist.md](general-availability-checklist.md) → [operations-and-costs.md](operations-and-costs.md) → [quality-and-ci.md](quality-and-ci.md) → [v3-native-feasibility.md](v3-native-feasibility.md)（事前検討） |
 | **課金・枠の見直しだけ** | [operations-and-costs.md](operations-and-costs.md)（表の数値は公式を再確認すること） |
 | **テスト・CI を整備する** | [quality-and-ci.md](quality-and-ci.md) |
@@ -24,6 +24,7 @@
 | ファイル | 内容 |
 |----------|------|
 | [beta-checklist.md](beta-checklist.md) | 限定的ユーザー増：アクセス制御、認証設定、ベータ法務、運用、Ketovisor 連携向けデータ契約。§9 は参考（非ブロッキング） |
+| [staging-setup.md](staging-setup.md) | ステージング Supabase + Vercel Preview（ステージング DB 向け）+ OAuth Redirect 手順、任意の staging 用 `db push` CI |
 | [general-availability-checklist.md](general-availability-checklist.md) | GA：アカウント削除、濫用対策、本番法務、コミュニケーション |
 | [operations-and-costs.md](operations-and-costs.md) | Vercel / Supabase の枠、課金検討の目安、信頼性 |
 | [quality-and-ci.md](quality-and-ci.md) | CI 現状、lint/build、テストの段階、E2E（Issue #59）、リリース前確認 |
@@ -48,6 +49,6 @@
 
 ## メンテナンス
 
-- **更新頻度が高い**: `beta-checklist.md`（ゲート方式）、`quality-and-ci.md`（CI 変更時）。
+- **更新頻度が高い**: `beta-checklist.md`（ゲート方式）、`staging-setup.md`（Preview・ステージング手順）、`quality-and-ci.md`（CI 変更時）。
 - **四半期やトラフィック変化時**: `operations-and-costs.md`（文内の「最終確認日」を更新）。
 - Cursor の計画ファイル（`.cursor/plans/` 等）は作業用。**確定した方針は本ディレクトリへ反映**し、リポジトリを正本とする。

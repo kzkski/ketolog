@@ -23,7 +23,7 @@
 - **ダウンタイム・ポーズを避けたい**、**PITR・長期バックアップ**、**サポート・ログ保持**を伸ばしたい。
 - **ステージング + 本番 +（E2E 用など）**で無料の **2 プロジェクト**を超える → 別オーガナイゼーション分離か有料化の判断。
 
-関連イシュー: [#72](https://github.com/kzkski/ketolog/issues/72)（マイグレーション／ベースライン・環境複製の文脈）。
+関連イシュー: [#72](https://github.com/kzkski/ketolog/issues/72)（マイグレーション／ベースライン・環境複製の文脈）。**本番 + ステージング**の2プロジェクト運用の手順は [staging-setup.md](staging-setup.md)（[#250](https://github.com/kzkski/ketolog/issues/250)）。
 
 ## Vercel（Hobby vs Pro）
 

@@ -12,6 +12,7 @@
 
 - **利用者制限**: [`src/proxy.ts`](../../src/proxy.ts) でログイン後メールが `@civictech.tv` でないユーザーは `signOut` し、[`src/app/login/page.tsx`](../../src/app/login/page.tsx) に専用エラーメッセージがある。**ベータ／一般開放の最優先はこのゲートの設計変更**。
 - **認証 UI**: メール／パスワードと Google OAuth は既に [`signup`](../../src/app/signup/page.tsx) / [`login`](../../src/app/login/page.tsx) にある。実際に誰が入れるかは **Supabase 側のプロバイダ設定** と **アプリ側の追加チェック** の組み合わせ。
+- **ステージング**: 本番とは別の Supabase にマイグレーションを当て、Vercel Preview をその DB に向ける手順は [staging-setup.md](staging-setup.md)（[#250](https://github.com/kzkski/ketolog/issues/250)）。OAuth は Supabase の Redirect URL に `https://*-.vercel.app/**` を含める等、[公式の Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls) に従う。
 - **データ削除**: `auth.users` 削除時にユーザー行は `ON DELETE CASCADE`（[`supabase/migrations/20260211120000_baseline.sql`](../../supabase/migrations/20260211120000_baseline.sql)）。**アプリから Auth ユーザーを削除するフローは別途 GA 向けに [general-availability-checklist.md](general-availability-checklist.md) を参照**。
 - **エクスポート**: 設定から全データ JSON ダウンロードあり（[`TodayClient.tsx`](../../src/app/today/TodayClient.tsx) 設定ドロワー）。持ち出しは可能だが「アカウント削除」とは別。
 - **共有キャッシュ**: `shared_products` の RLS は認証ユーザーがキャッシュ書き込み可能。OFF 未ヒット時の手動登録（[#191](https://github.com/kzkski/ketolog/issues/191)）を除き、**書き込みポリシー本格の見直しは [Issue #190](https://github.com/kzkski/ketolog/issues/190)**。利用者増に伴う論点は [general-availability-checklist.md](general-availability-checklist.md) と [Issue #2](https://github.com/kzkski/ketolog/issues/2)。
@@ -38,20 +39,20 @@ flowchart LR
 **Tracking**
 - Status: Not started
 - Track: v2-1
-- Tracking Issue: TBD
+- Tracking Issue: [#251](https://github.com/kzkski/ketolog/issues/251)
 - Owner: TBD
-- DoD: ドメイン固定（`@civictech.tv`）依存を外し、ベータ許可方式を1つに確定して本番で有効化できる。
+- DoD: ドメイン固定（`@civictech.tv`）依存を外し、ベータ許可方式を1つに確定して本番で有効化できる（許可リストと招待コードの併用などは #251 で決め、実装する）。
 
 ## 2. 登録・認証（実装＋ Supabase ダッシュボード）
 
-- **Redirect URL**: 本番 URL を Supabase Auth（Google 含む）の許可リストに登録。
+- **Redirect URL**: 本番 URL を Supabase Auth（Google 含む）の許可リストに登録。**Vercel Preview を使う場合**は `https://*-.vercel.app/**` を追加し、アプリの `redirectTo` を `VERCEL_URL` / `SITE_URL` で組み立てる（[staging-setup.md](staging-setup.md)、[Supabase Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)）。
 - **メール確認**: ベータでは「確認メール必須」にするとスパム登録が減りやすい。
 - **ログイン画面文言**: 「civictech 専用」から **ベータ参加者向け説明**へ差し替え（[`login/page.tsx`](../../src/app/login/page.tsx)）。
 
 **Tracking**
 - Status: Not started
 - Track: v2-1
-- Tracking Issue: TBD
+- Tracking Issue: [#252](https://github.com/kzkski/ketolog/issues/252)
 - Owner: TBD
 - DoD: メール/Google の導線と Supabase 設定が一致し、対象ユーザーが想定どおりログインできる。
 
@@ -63,7 +64,7 @@ flowchart LR
 **Tracking**
 - Status: Not started
 - Track: 共通
-- Tracking Issue: TBD
+- Tracking Issue: [#252](https://github.com/kzkski/ketolog/issues/252)（§2 と同一 Issue で進め、PR は分割してよい）
 - Owner: TBD
 - DoD: 規約/プライバシーのページとUI導線が実装され、同意の取得方式が明文化されている。
 
@@ -84,7 +85,7 @@ flowchart LR
 **Tracking**
 - Status: In progress
 - Track: 共通
-- Tracking Issue: TBD
+- Tracking Issue: [#166](https://github.com/kzkski/ketolog/issues/166)（Sentry・アラート・Slack）。ヘルスルート実装・経緯は [#170](https://github.com/kzkski/ketolog/issues/170)。
 - Owner: TBD
 - DoD: `/api/health`・定期監視・アラート運用・問い合わせ導線が本番前提で確認済みである。
 
@@ -95,7 +96,7 @@ flowchart LR
 **Tracking**
 - Status: Not started
 - Track: 共通
-- Tracking Issue: TBD
+- Tracking Issue: [#2](https://github.com/kzkski/ketolog/issues/2)（OFF・`shared_products`・第三者コンプライアンス全体）
 - Owner: TBD
 - DoD: OFF 利用条件・連絡先・User-Agent 運用が現行実装と一致している。
 
@@ -117,9 +118,9 @@ flowchart LR
 **Tracking**
 - Status: Not started
 - Track: 共通
-- Tracking Issue: TBD
+- Tracking Issue: [#253](https://github.com/kzkski/ketolog/issues/253)
 - Owner: TBD
-- DoD: PR で品質ゲート（最低 `lint` + `test` + `build`）が自動実行される。
+- DoD: PR で品質ゲート（最低 `lint` + `test` + `build` + `typecheck`）が自動実行される。
 
 ## 8. Ketovisor 連携向けデータ契約（実装）
 
@@ -152,6 +153,7 @@ v2-2（連携ベータ）で JSON エクスポートを分析に使う前提と�
 
 ## フェーズ横断（ベータ前後で進めてよいこと）
 
+- ステージング Supabase と Vercel Preview の向き先は [staging-setup.md](staging-setup.md)（[#250](https://github.com/kzkski/ketolog/issues/250)）。
 - 新設する `ALLOWED_*` や `BETA_MODE` を [`.env.example`](../../.env.example) と README に追記。
 - ROADMAP と README の Phase 2-2 表現の整合（[CONTRIBUTING.md](../../CONTRIBUTING.md) に従う）。
 

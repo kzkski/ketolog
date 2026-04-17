@@ -77,6 +77,6 @@ CI で `npm test` は実行できているが、`lint` / `build` / `typecheck` �
 
 - Status: Not started
 - Track: 共通
-- Tracking Issue: TBD
+- Tracking Issue: [#253](https://github.com/kzkski/ketolog/issues/253)
 - Owner: TBD
 - DoD: PR で `test` `lint` `build` `typecheck` が実行され、リリース前手動チェックの運用記録が残る。

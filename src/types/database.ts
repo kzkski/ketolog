@@ -39,7 +39,7 @@ export type FavoriteEntryPayload = {
   favorite_group_id: string;
   menu_item_id: string;
   display_order: number;
-  menu_item: MenuItem;
+  menu_item?: MenuItem;
 };
 
 /** ユーザー別お気に入りグループ（店名など任意のラベル） */

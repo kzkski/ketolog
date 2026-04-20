@@ -1400,6 +1400,9 @@ export default function TodayClient({
     selectedRestaurantMenuLoading,
     selectedRestaurantMenuError,
     retryLoadSelectedRestaurantMenu,
+    favoriteGroupsLoading,
+    favoriteGroupsError,
+    retryLoadFavoriteGroups,
   } = useRestaurantState({
     initialRestaurants,
     initialMenuItems,
@@ -2004,6 +2007,9 @@ export default function TodayClient({
           isSelectedRestaurantMenuLoading={selectedRestaurantMenuLoading}
           selectedRestaurantMenuError={selectedRestaurantMenuError}
           onRetryLoadSelectedRestaurantMenu={() => void retryLoadSelectedRestaurantMenu()}
+          favoriteGroupsLoading={favoriteGroupsLoading}
+          favoriteGroupsError={favoriteGroupsError}
+          onRetryLoadFavoriteGroups={() => void retryLoadFavoriteGroups()}
         />
 
         {/* カート: sm+ は従来どおりインライン展開。未満は折りたたみバー＋展開時オーバーレイ（メニュー領域を確保） */}

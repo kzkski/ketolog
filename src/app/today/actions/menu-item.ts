@@ -16,6 +16,10 @@ const OFF_USER_AGENT =
   process.env.OFF_USER_AGENT ??
   `Ketolog/${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"} (${OFF_DEFAULT_CONTACT})`;
 const SHARED_PRODUCT_TTL_MS = 1000 * 60 * 60 * 24 * 180; // 180日
+const MENU_ITEM_SELECT_WITH_STANDARD_FOOD_CODE =
+  "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, standard_food_code, created_at";
+const MENU_ITEM_SELECT_LEGACY =
+  "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, created_at";
 
 function normalizeBarcode(raw: string): string {
   return raw.replace(/[^\d]/g, "").trim();
@@ -38,11 +42,56 @@ function parseServingSizeGrams(servingSize: string | undefined): number | null {
   return Number.isFinite(grams) && grams > 0 ? grams : null;
 }
 
+function isMissingColumnError(error: { message?: string } | null | undefined): boolean {
+  if (!error?.message) return false;
+  const msg = error.message.toLowerCase();
+  return msg.includes("column") && msg.includes("does not exist");
+}
+
 export type BarcodeLookupResult = {
   status: "ok" | "not_found" | "error";
   product: SharedProduct | null;
   error: string | null;
 };
+
+export async function fetchMenuItemsForRestaurant(
+  restaurantId: string
+): Promise<{ data: MenuItem[]; error: string | null }> {
+  const { supabase, user } = await getSupabaseAuthForRequest();
+  if (!user) return { data: [], error: "認証が必要です" };
+
+  const primary = await supabase
+    .from("menu_items")
+    .select(MENU_ITEM_SELECT_WITH_STANDARD_FOOD_CODE)
+    .eq("user_id", user.id)
+    .eq("restaurant_id", restaurantId)
+    .order("rank")
+    .order("name")
+    .order("created_at", { ascending: true })
+    .order("id");
+
+  if (!isMissingColumnError(primary.error)) {
+    return {
+      data: (primary.data ?? []) as MenuItem[],
+      error: primary.error?.message ?? null,
+    };
+  }
+
+  const fallback = await supabase
+    .from("menu_items")
+    .select(MENU_ITEM_SELECT_LEGACY)
+    .eq("user_id", user.id)
+    .eq("restaurant_id", restaurantId)
+    .order("rank")
+    .order("name")
+    .order("created_at", { ascending: true })
+    .order("id");
+
+  return {
+    data: (fallback.data ?? []) as MenuItem[],
+    error: fallback.error?.message ?? null,
+  };
+}
 
 async function fetchOffProduct(barcode: string): Promise<SharedProduct | null> {
   const url = `${OFF_API_BASE}/api/v2/product/${barcode}.json?fields=code,product_name,brands,nutriments`;

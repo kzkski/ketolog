@@ -1313,6 +1313,7 @@ function RestaurantRenameSheet({
 interface Props {
   restaurants: Restaurant[];
   menuItems: MenuItem[];
+  initialLoadedRestaurantIds: string[];
   initialFavoriteGroups: FavoriteGroupPayload[];
   settings: UserSettings;
   todayConsumed: TodayConsumed;
@@ -1326,6 +1327,7 @@ interface Props {
 export default function TodayClient({
   restaurants: initialRestaurants,
   menuItems: initialMenuItems,
+  initialLoadedRestaurantIds,
   initialFavoriteGroups,
   settings,
   todayConsumed,
@@ -1395,10 +1397,14 @@ export default function TodayClient({
     registerManualRestaurant,
     registerImportedRestaurant,
     registerAdditionalMenuItems,
+    selectedRestaurantMenuLoading,
+    selectedRestaurantMenuError,
+    retryLoadSelectedRestaurantMenu,
   } = useRestaurantState({
     initialRestaurants,
     initialMenuItems,
     initialFavoriteGroups,
+    initialLoadedRestaurantIds,
   });
   const [cart, setCart]             = useState<Map<string, CartEntry>>(new Map());
   const [mealType, setMealType]     = useState<MealType>(initialMealType);
@@ -1734,8 +1740,11 @@ export default function TodayClient({
 
   useEffect(() => {
     if (headerCenterIsAppUpdate) return;
-    setAppUpdateDialogOpen(false);
-    setAppUpdateApplying(false);
+    const id = window.setTimeout(() => {
+      setAppUpdateDialogOpen(false);
+      setAppUpdateApplying(false);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [headerCenterIsAppUpdate]);
 
   return (
@@ -1992,6 +2001,9 @@ export default function TodayClient({
               downloadRestaurantJson(selectedRestaurant, menuItems);
             }
           }}
+          isSelectedRestaurantMenuLoading={selectedRestaurantMenuLoading}
+          selectedRestaurantMenuError={selectedRestaurantMenuError}
+          onRetryLoadSelectedRestaurantMenu={() => void retryLoadSelectedRestaurantMenu()}
         />
 
         {/* カート: sm+ は従来どおりインライン展開。未満は折りたたみバー＋展開時オーバーレイ（メニュー領域を確保） */}

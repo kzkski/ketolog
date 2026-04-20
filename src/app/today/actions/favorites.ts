@@ -5,12 +5,28 @@ import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type {
   FavoriteEntryPayload,
   FavoriteGroupPayload,
+  MenuItem,
 } from "@/types/database";
+
+const FAVORITE_MENU_ITEM_SELECT_WITH_STANDARD_FOOD_CODE =
+  "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, standard_food_code, created_at";
+const FAVORITE_MENU_ITEM_SELECT_LEGACY =
+  "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, created_at";
+
+function isMissingColumnError(error: { message?: string } | null | undefined): boolean {
+  if (!error?.message) return false;
+  const msg = error.message.toLowerCase();
+  return msg.includes("column") && msg.includes("does not exist");
+}
 
 async function fetchFavoriteGroupsPayloadInternal(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string
+  userId: string,
+  includeStandardFoodCode: boolean
 ): Promise<{ data: FavoriteGroupPayload[]; error: string | null }> {
+  const nestedMenuItemSelect = includeStandardFoodCode
+    ? FAVORITE_MENU_ITEM_SELECT_WITH_STANDARD_FOOD_CODE
+    : FAVORITE_MENU_ITEM_SELECT_LEGACY;
   const { data: rows, error } = await supabase
     .from("favorite_groups")
     .select(
@@ -22,7 +38,10 @@ async function fetchFavoriteGroupsPayloadInternal(
         id,
         favorite_group_id,
         menu_item_id,
-        display_order
+        display_order,
+        menu_item:menu_items (
+          ${nestedMenuItemSelect}
+        )
       )
     `
     )
@@ -35,12 +54,19 @@ async function fetchFavoriteGroupsPayloadInternal(
     const rawEntries =
       (g.favorite_entries as Array<Record<string, unknown>> | null) ?? [];
     const entries: FavoriteEntryPayload[] = rawEntries
-      .map((e) => ({
-        id: e.id as string,
-        favorite_group_id: e.favorite_group_id as string,
-        menu_item_id: e.menu_item_id as string,
-        display_order: e.display_order as number,
-      }))
+      .map((e) => {
+        const rawMenuItem = e.menu_item as Record<string, unknown> | null | undefined;
+        return {
+          id: e.id as string,
+          favorite_group_id: e.favorite_group_id as string,
+          menu_item_id: e.menu_item_id as string,
+          display_order: e.display_order as number,
+          menu_item:
+            rawMenuItem && typeof rawMenuItem.id === "string"
+              ? (rawMenuItem as unknown as MenuItem)
+              : undefined,
+        };
+      })
       .sort((a, b) => a.display_order - b.display_order);
     return {
       id: g.id as string,
@@ -59,7 +85,9 @@ export async function fetchFavoriteGroupsPayload(): Promise<{
 }> {
   const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { data: [], error: "認証が必要です" };
-  return fetchFavoriteGroupsPayloadInternal(supabase, user.id);
+  const primary = await fetchFavoriteGroupsPayloadInternal(supabase, user.id, true);
+  if (!isMissingColumnError(primary.error ? { message: primary.error } : null)) return primary;
+  return fetchFavoriteGroupsPayloadInternal(supabase, user.id, false);
 }
 
 async function getOrCreateFavoriteGroupByName(
@@ -170,7 +198,7 @@ export async function addMenuItemToFavorites(
   );
   if (addErr.error) return { data: null, error: addErr.error };
 
-  const payload = await fetchFavoriteGroupsPayloadInternal(supabase, user.id);
+  const payload = await fetchFavoriteGroupsPayload();
   return { data: payload.data, error: payload.error };
 }
 
@@ -183,6 +211,6 @@ export async function removeMenuItemFromFavorites(
   const { error } = await supabase.from("favorite_entries").delete().eq("menu_item_id", menuItemId);
   if (error) return { data: null, error: error.message };
 
-  const payload = await fetchFavoriteGroupsPayloadInternal(supabase, user.id);
+  const payload = await fetchFavoriteGroupsPayload();
   return { data: payload.data, error: payload.error };
 }

@@ -17,6 +17,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.38.7] - 2026-04-20
+
+### Fixed
+
+- **Today / 本番互換性**: `/today` の初期取得クエリで、古いスキーマに `display_order` / `standard_food_code` が存在しない場合のフォールバックを追加した。列限定のまま互換運用できるようにし、本番でメニュー一覧が空になる回帰を防止した。
+
 ## [1.38.6] - 2026-04-20
 
 ### Fixed

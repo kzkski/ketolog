@@ -11,6 +11,55 @@ import { loadPresets } from "@/lib/presets-server";
 
 export type { PresetMeta } from "@/lib/presets-server";
 
+function isMissingColumnError(error: { message?: string } | null | undefined): boolean {
+  if (!error?.message) return false;
+  const msg = error.message.toLowerCase();
+  return msg.includes("column") && msg.includes("does not exist");
+}
+
+async function fetchRestaurantsForToday(
+  supabase: Awaited<ReturnType<typeof getSupabaseAuthForRequest>>["supabase"],
+  userId: string
+) {
+  const primary = await supabase
+    .from("restaurants")
+    .select("id, name, category, order_count, display_order")
+    .eq("user_id", userId);
+  if (!isMissingColumnError(primary.error)) return primary;
+
+  // Older schema fallback: display_order is unavailable.
+  return supabase.from("restaurants").select("id, name, category, order_count").eq("user_id", userId);
+}
+
+async function fetchMenuItemsForToday(
+  supabase: Awaited<ReturnType<typeof getSupabaseAuthForRequest>>["supabase"],
+  userId: string
+) {
+  const primary = await supabase
+    .from("menu_items")
+    .select(
+      "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, standard_food_code, created_at"
+    )
+    .eq("user_id", userId)
+    .order("rank")
+    .order("name")
+    .order("created_at", { ascending: true })
+    .order("id");
+  if (!isMissingColumnError(primary.error)) return primary;
+
+  // Older schema fallback: standard_food_code is unavailable.
+  return supabase
+    .from("menu_items")
+    .select(
+      "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, created_at"
+    )
+    .eq("user_id", userId)
+    .order("rank")
+    .order("name")
+    .order("created_at", { ascending: true })
+    .order("id");
+}
+
 export default async function TodayPage() {
   const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) redirect("/login");
@@ -24,20 +73,8 @@ export default async function TodayPage() {
         .select("diet_phase, phase_profiles")
         .eq("user_id", user.id)
         .maybeSingle(),
-      supabase
-        .from("restaurants")
-        .select("id, name, category, order_count, display_order")
-        .eq("user_id", user.id),
-      supabase
-        .from("menu_items")
-        .select(
-          "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, standard_food_code, created_at"
-        )
-        .eq("user_id", user.id)
-        .order("rank")
-        .order("name")
-        .order("created_at", { ascending: true })
-        .order("id"),
+      fetchRestaurantsForToday(supabase, user.id),
+      fetchMenuItemsForToday(supabase, user.id),
       supabase
         .from("food_log")
         .select("id, date, meal_type, item_name, grams, protein_g, fat_g, carbs_g, source, menu_item_id")

@@ -40,6 +40,9 @@ export type MenuItemListProps = {
   isSelectedRestaurantMenuLoading: boolean;
   selectedRestaurantMenuError: string | null;
   onRetryLoadSelectedRestaurantMenu: () => void;
+  favoriteGroupsLoading: boolean;
+  favoriteGroupsError: string | null;
+  onRetryLoadFavoriteGroups: () => void;
 };
 
 export function MenuItemList({
@@ -72,6 +75,9 @@ export function MenuItemList({
   isSelectedRestaurantMenuLoading,
   selectedRestaurantMenuError,
   onRetryLoadSelectedRestaurantMenu,
+  favoriteGroupsLoading,
+  favoriteGroupsError,
+  onRetryLoadFavoriteGroups,
 }: MenuItemListProps) {
   const isNormalRestaurantTab =
     Boolean(selectedRestaurantIdResolved) &&
@@ -242,7 +248,13 @@ export function MenuItemList({
             )}
 
           {menuGroups.every((g) => g.items.length === 0) &&
-            selectedRestaurantIdResolved === FAVORITES_TAB_ID && <FavoritesPanel />}
+            selectedRestaurantIdResolved === FAVORITES_TAB_ID && (
+              <FavoritesPanel
+                loading={favoriteGroupsLoading}
+                error={favoriteGroupsError}
+                onRetry={onRetryLoadFavoriteGroups}
+              />
+            )}
           {menuGroups.every((g) => g.items.length === 0) &&
             selectedRestaurantIdResolved &&
             selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&

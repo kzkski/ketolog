@@ -13,6 +13,7 @@ import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { sortMenuItemsForListOrder } from "@/lib/menu-item-sort";
 import {
   addMenuItemToFavorites,
+  fetchFavoriteGroupsPayload,
   removeMenuItemFromFavorites,
 } from "../actions/favorites";
 import { fetchMenuItemsForRestaurant } from "../actions/menu-item";
@@ -28,15 +29,6 @@ export const FAVORITES_TAB_ID = "__ketolog_favorites__";
 
 /** 文科省標準成分表検索パネル（仮想タブ） */
 export const MEXT_COMPOSITION_TAB_ID = "__ketolog_mext_std__";
-
-function firstTabRestaurantId(restaurants: Restaurant[]): string {
-  const visible = restaurants.filter((r) => !isSnapshotRestaurant(r));
-  return visible[0]?.id ?? "";
-}
-
-function hasFavoriteEntries(groups: FavoriteGroupPayload[]): boolean {
-  return groups.some((g) => g.entries.length > 0);
-}
 
 /** タブ並びの先頭から、お気に入りメニューが1件でもある店を探す */
 function firstRestaurantIdWithFavoriteMenu(
@@ -93,17 +85,17 @@ export function useRestaurantState({
   const [loadingRestaurantIds, setLoadingRestaurantIds] = useState<Record<string, boolean>>({});
   const [favoriteGroups, setFavoriteGroups] =
     useState<FavoriteGroupPayload[]>(initialFavoriteGroups);
+  const [favoriteGroupsLoading, setFavoriteGroupsLoading] = useState<boolean>(true);
+  const [favoriteGroupsLoaded, setFavoriteGroupsLoaded] = useState<boolean>(false);
+  const [favoriteGroupsError, setFavoriteGroupsError] = useState<string | null>(null);
+  const favoriteGroupsLoadingRef = useRef(false);
   const [, setMenuLoadTick] = useState(0);
   const [menuLoadErrorByRestaurantId, setMenuLoadErrorByRestaurantId] = useState<Record<string, string>>({});
   /** お気に入りトグルごとの世代。古い非同期結果で state を上書きしない。 */
   const favoriteToggleGenRef = useRef<Map<string, number>>(new Map());
   /** 同一 menu_item_id のサーバー更新を直列化（前段の失敗で後段を止めない）。 */
   const favoriteToggleChainRef = useRef<Map<string, Promise<void>>>(new Map());
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState(() =>
-    hasFavoriteEntries(initialFavoriteGroups)
-      ? FAVORITES_TAB_ID
-      : firstTabRestaurantId(initialRestaurants)
-  );
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>(FAVORITES_TAB_ID);
   const [compositionTargetRestaurantId, setCompositionTargetRestaurantId] =
     useState("");
   const lastRealRestaurantTabIdRef = useRef<string>("");
@@ -289,6 +281,39 @@ export function useRestaurantState({
     });
     setMenuLoadTick((n) => n + 1);
   }, []);
+
+  const loadFavoriteGroups = useCallback(async ({ force }: { force: boolean }) => {
+    if (favoriteGroupsLoadingRef.current) return;
+    if (!force && favoriteGroupsLoaded) return;
+    favoriteGroupsLoadingRef.current = true;
+    setFavoriteGroupsLoading(true);
+    setFavoriteGroupsError(null);
+
+    const result = await fetchFavoriteGroupsPayload();
+
+    favoriteGroupsLoadingRef.current = false;
+    if (result.error) {
+      setFavoriteGroupsLoading(false);
+      setFavoriteGroupsError(result.error);
+      return;
+    }
+
+    setFavoriteGroups(result.data);
+    setFavoriteGroupsLoaded(true);
+    setFavoriteGroupsLoading(false);
+    setFavoriteGroupsError(null);
+  }, [favoriteGroupsLoaded]);
+
+  const retryLoadFavoriteGroups = useCallback(async () => {
+    await loadFavoriteGroups({ force: true });
+  }, [loadFavoriteGroups]);
+
+  useEffect(() => {
+    const tid = window.setTimeout(() => {
+      void loadFavoriteGroups({ force: false });
+    }, 0);
+    return () => window.clearTimeout(tid);
+  }, [loadFavoriteGroups]);
 
   const retryLoadSelectedRestaurantMenu = useCallback(async () => {
     if (
@@ -616,6 +641,9 @@ export function useRestaurantState({
     selectedRestaurantMenuLoading,
     selectedRestaurantMenuError,
     retryLoadSelectedRestaurantMenu,
+    favoriteGroupsLoading,
+    favoriteGroupsError,
+    retryLoadFavoriteGroups,
     restaurantNameById,
     favoriteMenuItemIds,
     openRestaurantTabMenu,

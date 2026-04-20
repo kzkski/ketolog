@@ -3,9 +3,15 @@ import { getMealTypeForTimeZone } from "@/lib/meal-timezone";
 import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
 import { getOrCreateSnapshotRestaurant } from "./actions/restaurant";
-import { fetchFavoriteGroupsPayload } from "./actions/favorites";
 import { fetchMenuItemsForRestaurant } from "./actions/menu-item";
-import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
+import type {
+  FavoriteGroupPayload,
+  FoodLogEntry,
+  MenuItem,
+  Restaurant,
+  UserSettings,
+  TodayConsumed,
+} from "@/types/database";
 import { normalizeUserSettings } from "@/lib/diet-phase";
 import { sumPfc, type PfcGrams } from "@/lib/pfc";
 import { loadPresets } from "@/lib/presets-server";
@@ -38,7 +44,7 @@ export default async function TodayPage() {
 
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
 
-  const [settingsRes, restaurantsRes, foodLogRes, favoritePayload, snapshotRestaurant] =
+  const [settingsRes, restaurantsRes, foodLogRes, snapshotRestaurant] =
     await Promise.all([
       supabase
         .from("user_settings")
@@ -52,7 +58,6 @@ export default async function TodayPage() {
         .eq("user_id", user.id)
         .eq("date", today)
         .order("created_at", { ascending: true }),
-      fetchFavoriteGroupsPayload(),
       getOrCreateSnapshotRestaurant(),
     ]);
 
@@ -77,12 +82,11 @@ export default async function TodayPage() {
   });
 
   const initialMealType = getMealTypeForTimeZone(new Date(), "Asia/Tokyo");
-  const initialFavoriteGroups = favoritePayload.error ? [] : favoritePayload.data;
-  const hasFavoriteEntries = initialFavoriteGroups.some((group) => group.entries.length > 0);
+  const initialFavoriteGroups: FavoriteGroupPayload[] = [];
   const snapshotRestaurantId = snapshotRestaurant.data?.id ?? "";
   const firstVisibleRestaurantId =
     restaurants.find((restaurant) => restaurant.id !== snapshotRestaurantId)?.id ?? "";
-  const initialMenuRestaurantId = hasFavoriteEntries ? "" : firstVisibleRestaurantId;
+  const initialMenuRestaurantId = firstVisibleRestaurantId;
   const initialMenuItemsRes = initialMenuRestaurantId
     ? await fetchMenuItemsForRestaurant(initialMenuRestaurantId)
     : { data: [] as MenuItem[], error: null };

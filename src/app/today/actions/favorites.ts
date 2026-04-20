@@ -5,7 +5,6 @@ import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type {
   FavoriteEntryPayload,
   FavoriteGroupPayload,
-  MenuItem,
 } from "@/types/database";
 
 async function fetchFavoriteGroupsPayloadInternal(
@@ -23,8 +22,7 @@ async function fetchFavoriteGroupsPayloadInternal(
         id,
         favorite_group_id,
         menu_item_id,
-        display_order,
-        menu_items (*)
+        display_order
       )
     `
     )
@@ -42,7 +40,6 @@ async function fetchFavoriteGroupsPayloadInternal(
         favorite_group_id: e.favorite_group_id as string,
         menu_item_id: e.menu_item_id as string,
         display_order: e.display_order as number,
-        menu_item: e.menu_items as MenuItem,
       }))
       .sort((a, b) => a.display_order - b.display_order);
     return {

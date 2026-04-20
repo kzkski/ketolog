@@ -19,11 +19,20 @@ export default async function TodayPage() {
 
   const [settingsRes, restaurantsRes, menuItemsRes, foodLogRes, favoritePayload, snapshotRestaurant] =
     await Promise.all([
-      supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("restaurants").select("*").eq("user_id", user.id),
+      supabase
+        .from("user_settings")
+        .select("diet_phase, phase_profiles")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("restaurants")
+        .select("id, name, category, order_count, display_order")
+        .eq("user_id", user.id),
       supabase
         .from("menu_items")
-        .select("*")
+        .select(
+          "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, standard_food_code, created_at"
+        )
         .eq("user_id", user.id)
         .order("rank")
         .order("name")
@@ -31,7 +40,7 @@ export default async function TodayPage() {
         .order("id"),
       supabase
         .from("food_log")
-        .select("*")
+        .select("id, date, meal_type, item_name, grams, protein_g, fat_g, carbs_g, source, menu_item_id")
         .eq("user_id", user.id)
         .eq("date", today)
         .order("created_at", { ascending: true }),

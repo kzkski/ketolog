@@ -46,7 +46,7 @@ function firstRestaurantIdWithFavoriteMenu(
   const withFavorite = new Set<string>();
   for (const g of groups) {
     for (const e of g.entries) {
-      withFavorite.add(e.menu_item.restaurant_id);
+      if (e.menu_item) withFavorite.add(e.menu_item.restaurant_id);
     }
   }
   return tabRestaurants.find((r) => withFavorite.has(r.id))?.id;
@@ -355,11 +355,13 @@ export function useRestaurantState({
             .sort((x, y) => x.display_order - y.display_order)
             .map((e) => {
               const live = menuItems.find((m) => m.id === e.menu_item_id) ?? e.menu_item;
+              if (!live) return null;
               const rname = restaurantNameById.get(live.restaurant_id) ?? "お店";
               const gn = live.group_name?.trim();
               originByItemId[live.id] = gn ? `${rname} · ${gn}` : rname;
               return live;
-            });
+            })
+            .filter((item): item is MenuItem => item !== null);
           return {
             sectionKey: `favg:${g.id}`,
             groupName: g.name,
@@ -450,6 +452,7 @@ export function useRestaurantState({
           ...g,
           entries: g.entries.filter((e) => {
             const it = menuItems.find((m) => m.id === e.menu_item_id) ?? e.menu_item;
+            if (!it) return false;
             return it.restaurant_id !== rid;
           }),
         }))

@@ -4,7 +4,14 @@ import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
 import { getOrCreateSnapshotRestaurant } from "./actions/restaurant";
 import { fetchMenuItemsForRestaurant } from "./actions/menu-item";
-import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
+import type {
+  FavoriteGroupPayload,
+  FoodLogEntry,
+  MenuItem,
+  Restaurant,
+  UserSettings,
+  TodayConsumed,
+} from "@/types/database";
 import { normalizeUserSettings } from "@/lib/diet-phase";
 import { sumPfc, type PfcGrams } from "@/lib/pfc";
 import { loadPresets } from "@/lib/presets-server";
@@ -75,7 +82,7 @@ export default async function TodayPage() {
   });
 
   const initialMealType = getMealTypeForTimeZone(new Date(), "Asia/Tokyo");
-  const initialFavoriteGroups: [] = [];
+  const initialFavoriteGroups: FavoriteGroupPayload[] = [];
   const snapshotRestaurantId = snapshotRestaurant.data?.id ?? "";
   const firstVisibleRestaurantId =
     restaurants.find((restaurant) => restaurant.id !== snapshotRestaurantId)?.id ?? "";

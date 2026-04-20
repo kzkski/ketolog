@@ -37,6 +37,9 @@ export type MenuItemListProps = {
   onOpenImportMenuItems: () => void;
   onDeleteRestaurant: () => void;
   onDownloadRestaurantJson: () => void;
+  isSelectedRestaurantMenuLoading: boolean;
+  selectedRestaurantMenuError: string | null;
+  onRetryLoadSelectedRestaurantMenu: () => void;
 };
 
 export function MenuItemList({
@@ -66,7 +69,15 @@ export function MenuItemList({
   onOpenImportMenuItems,
   onDeleteRestaurant,
   onDownloadRestaurantJson,
+  isSelectedRestaurantMenuLoading,
+  selectedRestaurantMenuError,
+  onRetryLoadSelectedRestaurantMenu,
 }: MenuItemListProps) {
+  const isNormalRestaurantTab =
+    Boolean(selectedRestaurantIdResolved) &&
+    selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
+    selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID;
+
   return (
     <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
       {selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID ? (
@@ -79,6 +90,23 @@ export function MenuItemList({
         />
       ) : (
         <>
+          {isNormalRestaurantTab && selectedRestaurantMenuError && (
+            <div className="mx-4 mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+              <p className="text-xs text-amber-200">{selectedRestaurantMenuError}</p>
+              <button
+                type="button"
+                onClick={onRetryLoadSelectedRestaurantMenu}
+                className="mt-2 rounded-md border border-amber-300/50 px-2.5 py-1 text-xs text-amber-100 hover:bg-amber-500/20"
+              >
+                再試行
+              </button>
+            </div>
+          )}
+          {isNormalRestaurantTab && isSelectedRestaurantMenuLoading && menuGroups.every((g) => g.items.length === 0) && (
+            <p className="text-center text-gray-500 text-base sm:text-sm py-8">
+              メニューを読み込み中...
+            </p>
+          )}
           <MenuGroupCollapseSession
             key={menuGroupCollapseSessionKey}
             selectedRestaurantIdResolved={selectedRestaurantIdResolved}
@@ -217,7 +245,9 @@ export function MenuItemList({
             selectedRestaurantIdResolved === FAVORITES_TAB_ID && <FavoritesPanel />}
           {menuGroups.every((g) => g.items.length === 0) &&
             selectedRestaurantIdResolved &&
-            selectedRestaurantIdResolved !== FAVORITES_TAB_ID && (
+            selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
+            !isSelectedRestaurantMenuLoading &&
+            !selectedRestaurantMenuError && (
               <p className="text-center text-gray-500 text-base sm:text-sm py-8">
                 メニューがまだありません
               </p>

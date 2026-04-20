@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
 import { getOrCreateSnapshotRestaurant } from "./actions/restaurant";
 import { fetchFavoriteGroupsPayload } from "./actions/favorites";
+import { fetchMenuItemsForRestaurant } from "./actions/menu-item";
 import type { FoodLogEntry, MenuItem, Restaurant, UserSettings, TodayConsumed } from "@/types/database";
 import { normalizeUserSettings } from "@/lib/diet-phase";
 import { sumPfc, type PfcGrams } from "@/lib/pfc";
@@ -31,42 +32,13 @@ async function fetchRestaurantsForToday(
   return supabase.from("restaurants").select("id, name, category, order_count").eq("user_id", userId);
 }
 
-async function fetchMenuItemsForToday(
-  supabase: Awaited<ReturnType<typeof getSupabaseAuthForRequest>>["supabase"],
-  userId: string
-) {
-  const primary = await supabase
-    .from("menu_items")
-    .select(
-      "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, standard_food_code, created_at"
-    )
-    .eq("user_id", userId)
-    .order("rank")
-    .order("name")
-    .order("created_at", { ascending: true })
-    .order("id");
-  if (!isMissingColumnError(primary.error)) return primary;
-
-  // Older schema fallback: standard_food_code is unavailable.
-  return supabase
-    .from("menu_items")
-    .select(
-      "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, created_at"
-    )
-    .eq("user_id", userId)
-    .order("rank")
-    .order("name")
-    .order("created_at", { ascending: true })
-    .order("id");
-}
-
 export default async function TodayPage() {
   const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) redirect("/login");
 
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
 
-  const [settingsRes, restaurantsRes, menuItemsRes, foodLogRes, favoritePayload, snapshotRestaurant] =
+  const [settingsRes, restaurantsRes, foodLogRes, favoritePayload, snapshotRestaurant] =
     await Promise.all([
       supabase
         .from("user_settings")
@@ -74,7 +46,6 @@ export default async function TodayPage() {
         .eq("user_id", user.id)
         .maybeSingle(),
       fetchRestaurantsForToday(supabase, user.id),
-      fetchMenuItemsForToday(supabase, user.id),
       supabase
         .from("food_log")
         .select("id, date, meal_type, item_name, grams, protein_g, fat_g, carbs_g, source, menu_item_id")
@@ -106,8 +77,17 @@ export default async function TodayPage() {
   });
 
   const initialMealType = getMealTypeForTimeZone(new Date(), "Asia/Tokyo");
-
-  const menuItems: MenuItem[] = menuItemsRes.data ?? [];
+  const initialFavoriteGroups = favoritePayload.error ? [] : favoritePayload.data;
+  const hasFavoriteEntries = initialFavoriteGroups.some((group) => group.entries.length > 0);
+  const snapshotRestaurantId = snapshotRestaurant.data?.id ?? "";
+  const firstVisibleRestaurantId =
+    restaurants.find((restaurant) => restaurant.id !== snapshotRestaurantId)?.id ?? "";
+  const initialMenuRestaurantId = hasFavoriteEntries ? "" : firstVisibleRestaurantId;
+  const initialMenuItemsRes = initialMenuRestaurantId
+    ? await fetchMenuItemsForRestaurant(initialMenuRestaurantId)
+    : { data: [] as MenuItem[], error: null };
+  const menuItems: MenuItem[] = initialMenuItemsRes.data ?? [];
+  const initialLoadedRestaurantIds = initialMenuRestaurantId ? [initialMenuRestaurantId] : [];
 
   const logEntries: FoodLogEntry[] = (foodLogRes.data ?? []) as FoodLogEntry[];
   const summed = logEntries.reduce<PfcGrams>(
@@ -126,13 +106,13 @@ export default async function TodayPage() {
   };
 
   const presets = loadPresets();
-  const initialFavoriteGroups = favoritePayload.error ? [] : favoritePayload.data;
 
   return (
     <div className="flex flex-col min-h-dvh h-dvh bg-gray-950 w-full">
       <TodayClient
         restaurants={restaurants}
         menuItems={menuItems}
+        initialLoadedRestaurantIds={initialLoadedRestaurantIds}
         initialFavoriteGroups={initialFavoriteGroups}
         settings={settings}
         todayConsumed={todayConsumed}
@@ -140,7 +120,7 @@ export default async function TodayPage() {
         initialLogEntries={logEntries}
         presets={presets}
         initialMealType={initialMealType}
-        snapshotRestaurantId={snapshotRestaurant.data?.id ?? ""}
+        snapshotRestaurantId={snapshotRestaurantId}
       />
     </div>
   );

@@ -15,6 +15,7 @@ import {
   addMenuItemToFavorites,
   removeMenuItemFromFavorites,
 } from "../actions/favorites";
+import { fetchMenuItemsForRestaurant } from "../actions/menu-item";
 import {
   deleteRestaurant,
   reorderRestaurants,
@@ -76,17 +77,24 @@ type UseRestaurantStateParams = {
   initialRestaurants: Restaurant[];
   initialMenuItems: MenuItem[];
   initialFavoriteGroups: FavoriteGroupPayload[];
+  initialLoadedRestaurantIds: string[];
 };
 
 export function useRestaurantState({
   initialRestaurants,
   initialMenuItems,
   initialFavoriteGroups,
+  initialLoadedRestaurantIds,
 }: UseRestaurantStateParams) {
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
   const [menuItems, setMenuItems] = useState<MenuItem[]>(initialMenuItems);
+  const loadedRestaurantIdsRef = useRef<Set<string>>(new Set(initialLoadedRestaurantIds));
+  const loadingRestaurantIdsRef = useRef<Set<string>>(new Set());
+  const [loadingRestaurantIds, setLoadingRestaurantIds] = useState<Record<string, boolean>>({});
   const [favoriteGroups, setFavoriteGroups] =
     useState<FavoriteGroupPayload[]>(initialFavoriteGroups);
+  const [, setMenuLoadTick] = useState(0);
+  const [menuLoadErrorByRestaurantId, setMenuLoadErrorByRestaurantId] = useState<Record<string, string>>({});
   /** お気に入りトグルごとの世代。古い非同期結果で state を上書きしない。 */
   const favoriteToggleGenRef = useRef<Map<string, number>>(new Map());
   /** 同一 menu_item_id のサーバー更新を直列化（前段の失敗で後段を止めない）。 */
@@ -217,6 +225,18 @@ export function useRestaurantState({
   const selectedRestaurant = restaurants.find(
     (r) => r.id === selectedRestaurantIdResolved
   );
+  const selectedRestaurantMenuLoading = Boolean(
+    selectedRestaurantIdResolved &&
+      selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
+      selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID &&
+      loadingRestaurantIds[selectedRestaurantIdResolved]
+  );
+  const selectedRestaurantMenuError =
+    selectedRestaurantIdResolved &&
+    selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
+    selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID
+      ? menuLoadErrorByRestaurantId[selectedRestaurantIdResolved] ?? null
+      : null;
 
   const tabRestaurantIds = useMemo(
     () => tabRestaurants.map((r) => r.id),
@@ -228,6 +248,73 @@ export function useRestaurantState({
     for (const r of restaurants) m.set(r.id, r.name);
     return m;
   }, [restaurants]);
+
+  const ensureRestaurantMenuLoaded = useCallback(async (restaurantId: string) => {
+    if (!restaurantId) return;
+    if (loadingRestaurantIdsRef.current.has(restaurantId)) return;
+    if (loadedRestaurantIdsRef.current.has(restaurantId)) return;
+
+    loadingRestaurantIdsRef.current.add(restaurantId);
+    setLoadingRestaurantIds((prev) => ({ ...prev, [restaurantId]: true }));
+    setMenuLoadErrorByRestaurantId((prev) => {
+      if (!prev[restaurantId]) return prev;
+      const next = { ...prev };
+      delete next[restaurantId];
+      return next;
+    });
+    setMenuLoadTick((n) => n + 1);
+
+    const result = await fetchMenuItemsForRestaurant(restaurantId);
+    loadingRestaurantIdsRef.current.delete(restaurantId);
+    setLoadingRestaurantIds((prev) => {
+      if (!prev[restaurantId]) return prev;
+      const next = { ...prev };
+      delete next[restaurantId];
+      return next;
+    });
+
+    if (result.error) {
+      setMenuLoadErrorByRestaurantId((prev) => ({
+        ...prev,
+        [restaurantId]: result.error ?? "メニューの取得に失敗しました",
+      }));
+      setMenuLoadTick((n) => n + 1);
+      return;
+    }
+
+    loadedRestaurantIdsRef.current.add(restaurantId);
+    setMenuItems((prev) => {
+      const others = prev.filter((item) => item.restaurant_id !== restaurantId);
+      return sortMenuItemsForListOrder([...others, ...(result.data ?? [])]);
+    });
+    setMenuLoadTick((n) => n + 1);
+  }, []);
+
+  const retryLoadSelectedRestaurantMenu = useCallback(async () => {
+    if (
+      !selectedRestaurantIdResolved ||
+      selectedRestaurantIdResolved === FAVORITES_TAB_ID ||
+      selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID
+    ) {
+      return;
+    }
+    loadedRestaurantIdsRef.current.delete(selectedRestaurantIdResolved);
+    await ensureRestaurantMenuLoaded(selectedRestaurantIdResolved);
+  }, [ensureRestaurantMenuLoaded, selectedRestaurantIdResolved]);
+
+  useEffect(() => {
+    if (
+      !selectedRestaurantIdResolved ||
+      selectedRestaurantIdResolved === FAVORITES_TAB_ID ||
+      selectedRestaurantIdResolved === MEXT_COMPOSITION_TAB_ID
+    ) {
+      return;
+    }
+    const tid = window.setTimeout(() => {
+      void ensureRestaurantMenuLoaded(selectedRestaurantIdResolved);
+    }, 0);
+    return () => window.clearTimeout(tid);
+  }, [selectedRestaurantIdResolved, ensureRestaurantMenuLoaded]);
 
   const favoriteMenuItemIds = useMemo(() => {
     const s = new Set<string>();
@@ -405,6 +492,7 @@ export function useRestaurantState({
   const menuGroupCollapseSessionKey = `${selectedRestaurantIdResolved}\0${collapsibleMenuSectionKeys.join("\0")}`;
 
   const applyMenuItemSaved = useCallback((saved: MenuItem) => {
+    loadedRestaurantIdsRef.current.add(saved.restaurant_id);
     setMenuItems((prev) => {
       const idx = prev.findIndex((m) => m.id === saved.id);
       const next =
@@ -443,6 +531,20 @@ export function useRestaurantState({
       return;
     }
     const rid = selectedRestaurant.id;
+    loadedRestaurantIdsRef.current.delete(rid);
+    loadingRestaurantIdsRef.current.delete(rid);
+    setLoadingRestaurantIds((prev) => {
+      if (!prev[rid]) return prev;
+      const next = { ...prev };
+      delete next[rid];
+      return next;
+    });
+    setMenuLoadErrorByRestaurantId((prev) => {
+      if (!prev[rid]) return prev;
+      const next = { ...prev };
+      delete next[rid];
+      return next;
+    });
     const next = restaurants.filter((r) => r.id !== rid);
     setRestaurants(next);
     setMenuItems((prev) => prev.filter((m) => m.restaurant_id !== rid));
@@ -470,6 +572,7 @@ export function useRestaurantState({
   }, []);
 
   const registerImportedRestaurant = useCallback((restaurant: Restaurant, items: MenuItem[]) => {
+    loadedRestaurantIdsRef.current.add(restaurant.id);
     setRestaurants((prev) => sortRestaurants([...prev, restaurant]));
     setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
     setSelectedRestaurantId(restaurant.id);
@@ -477,6 +580,9 @@ export function useRestaurantState({
   }, []);
 
   const registerAdditionalMenuItems = useCallback((items: MenuItem[]) => {
+    for (const item of items) {
+      loadedRestaurantIdsRef.current.add(item.restaurant_id);
+    }
     setMenuItems((prev) => sortMenuItemsForListOrder([...prev, ...items]));
     setShowImportMenuItems(false);
   }, []);
@@ -507,6 +613,9 @@ export function useRestaurantState({
     resolvedCompositionTargetId,
     menuAddRestaurantId,
     selectedRestaurant,
+    selectedRestaurantMenuLoading,
+    selectedRestaurantMenuError,
+    retryLoadSelectedRestaurantMenu,
     restaurantNameById,
     favoriteMenuItemIds,
     openRestaurantTabMenu,

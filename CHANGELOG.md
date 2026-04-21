@@ -18,6 +18,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.41.0] - 2026-04-21
+
+### Added
+
+- **Mobile PoC / Expo**: `apps/mobile` に Expo（TypeScript）アプリを初期追加し、ルートからの起動コマンド（`mobile:start` / `mobile:ios`）と最小チェック（`mobile:typecheck`）を整備した。あわせて `apps/mobile/README.md` に再現可能なセットアップ手順を追加し、mobile 変更時のみ走る GitHub Actions（typecheck）を新設した（[#264](https://github.com/kzkski/ketolog/issues/264)）。
+
 ## [1.40.0] - 2026-04-20
 
 ### Changed

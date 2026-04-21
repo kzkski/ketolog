@@ -43,6 +43,22 @@
 - `Owner`: 任意（未定なら `TBD`）
 - `DoD`: 完了判定を1-3行で定義
 
+### Issue ラベル（v2/v3 運用向け）
+
+リリース系の実務 Issue は、最低でも次を付与する。
+
+- `platform:*`（`platform:web` / `platform:mobile` / `platform:shared`）
+- `type:*`（`type:feature` / `type:fix` / `type:perf` / `type:docs` / `type:ops`）
+- `priority:*`（`priority:p0` / `priority:p1` / `priority:p2`）
+
+トラック運用時は `track:*` を追加する。
+
+- v2-1: `track:v2-1`
+- v2-2: `track:v2-2`
+- v3: `track:v3`
+
+親子Issueで管理するテーマ（例: ネイティブ化実証）は `epic:*` を親子で共通付与する。
+
 ## 関連（戦略・市場）
 
 - [docs/research/README.md](../research/README.md) … 市場調査の公開サマリー（参考）。公開ゲート本体ではない。

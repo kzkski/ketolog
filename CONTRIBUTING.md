@@ -126,6 +126,20 @@ git branch -d feat/your-feature-name
 - PR は対応する Issue を `closes #<番号>` で参照する
 - Issue がない緊急バグ修正は PR 作成時に説明を記載する
 
+### Issue ラベル運用（管理しやすさのための最小ルール）
+
+- 新規 Issue 作成時は、原則として **`platform` / `type` / `priority`** の3系統を付ける
+- 親子構造で進めるテーマ（例: ネイティブ化 PoC）は、親・子ともに同じ `epic:*` を付ける
+- PR 作成時は、対応 Issue と同じラベル群を最低1系統以上引き継ぐ
+
+| 系統 | 必須度 | 例 |
+|---|---|---|
+| `epic:*` | 親子Issueで推奨 | `epic:native-poc` |
+| `platform:*` | 必須 | `platform:web` / `platform:mobile` / `platform:shared` |
+| `type:*` | 必須 | `type:feature` / `type:fix` / `type:perf` / `type:docs` / `type:ops` |
+| `priority:*` | 必須 | `priority:p0` / `priority:p1` / `priority:p2` |
+| `track:*` | リリース運用で推奨 | `track:v2-1` / `track:v2-2` / `track:v3` |
+
 ---
 
 ## マージ運用（ブランチ保護）

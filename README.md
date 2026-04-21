@@ -94,6 +94,20 @@ DDL の正は `supabase/migrations/` とする。[`src/types/database.ts`](src/t
 npm run dev
 ```
 
+## Mobile PoC (Expo)
+
+Native PoC 用の Expo アプリは `apps/mobile` に配置している。セットアップと起動手順は次を参照。
+
+- [apps/mobile/README.md](apps/mobile/README.md)
+
+ルートから直接実行できるコマンド:
+
+```bash
+npm run mobile:start
+npm run mobile:ios
+npm run mobile:typecheck
+```
+
 ### バンドル分析（Bundle Analyzer）
 
 Next.js 16 の既定の本番ビルドは Turbopack のため、[@next/bundle-analyzer](https://www.npmjs.com/package/@next/bundle-analyzer) 用に **`next build --webpack`** で走らせる（`npm run analyze` に含まれる）。**上記と同様に `.env.local`（`NEXT_PUBLIC_SUPABASE_*`）が必要**。

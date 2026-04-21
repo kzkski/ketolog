@@ -2,6 +2,9 @@
   "name": "ketolog",
   "version": "1.40.0",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,7 +14,10 @@
     "test": "vitest run",
     "db:dump-baseline": "supabase db dump --linked -s public -f supabase/migrations/20260211120000_baseline.sql",
     "db:dump-baseline:url": "supabase db dump --db-url \"$DATABASE_URL\" -s public -f supabase/migrations/20260211120000_baseline.sql",
-    "etl:mext-ch2": "node scripts/etl-mext-ch2.mjs"
+    "etl:mext-ch2": "node scripts/etl-mext-ch2.mjs",
+    "mobile:start": "npm --prefix apps/mobile run start",
+    "mobile:ios": "npm --prefix apps/mobile run ios",
+    "mobile:typecheck": "npm --prefix apps/mobile run typecheck"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

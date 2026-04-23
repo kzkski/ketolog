@@ -12,6 +12,8 @@
 
 ### Changed
 
+- **ドキュメント / Native PoC**: `docs/release/v3-native-feasibility.md` に #272 向けの実証 KPI（体感速度・操作完了率・クラッシュ・開発効率）と固定計測手順、暫定評価、Go/No-Go の記録枠を追加した。
+- **ドキュメント / Native PoC**: 実証完了に伴い Go を **継続** とし、**デスクトップは Web（ネイティブ対象外）・モバイルは Expo ネイティブ前提**の製品方針を `v3-native-feasibility.md` に追記した（[#263](https://github.com/kzkski/ketolog/issues/263) / [#272](https://github.com/kzkski/ketolog/issues/272)）。
 - **ドキュメント / 開発運用**: `CONTRIBUTING.md` と `docs/release/README.md` に Issue ラベル運用の最小ルール（`platform` / `type` / `priority` の必須系統、`epic:*` / `track:*` の推奨運用）を追加した（[#274](https://github.com/kzkski/ketolog/issues/274)）。
 - **ドキュメント / リリース運用**: ステージング環境（Supabase + Vercel Preview + OAuth Redirect）の手順を `docs/release/staging-setup.md` に追加し、`docs/release/README.md`・`beta-checklist.md`・`operations-and-costs.md`・`quality-and-ci.md`・`ROADMAP.md`・`README.md` と GitHub Issue [#250](https://github.com/kzkski/ketolog/issues/250)〜[#253](https://github.com/kzkski/ketolog/issues/253)・[#255](https://github.com/kzkski/ketolog/issues/255) を整合させた。
 - **ドキュメント**: `ROADMAP.md` を公開向けのマイルストーン構成（v1/v2/v3）へ再編し、市場調査は公開サマリー中心に整理した。詳細な戦略レポートは公開リポジトリ管理の対象外にした。

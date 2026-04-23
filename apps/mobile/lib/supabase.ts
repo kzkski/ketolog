@@ -1,34 +1,22 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import Constants from "expo-constants";
-
 let client: SupabaseClient | null = null;
 
 /**
- * 実機（物理デバイス）では本番 Supabase、シミュレータ / エミュレータではローカル用の
- * `EXPO_PUBLIC_SUPABASE_*` を使う（`Constants.isDevice` は Expo が提供する判別）。
+ * Prefer production keys first, then fall back to legacy/local keys.
+ * Do not branch on device detection because runtime flags can differ
+ * between Expo Go / dev build / TestFlight.
  */
 function resolveSupabaseEnv(): { url: string; key: string } | null {
-  const onPhysicalDevice = Constants.isDevice === true;
-  if (onPhysicalDevice) {
-    // Prefer dedicated production keys for physical devices, but keep backward
-    // compatibility with EXPO_PUBLIC_SUPABASE_* so TestFlight builds don't break
-    // when only legacy keys are configured on EAS.
-    const productionUrl =
-      process.env.EXPO_PUBLIC_SUPABASE_PRODUCTION_URL?.trim();
-    const productionKey =
-      process.env.EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY?.trim();
-    if (productionUrl && productionKey) {
-      return { url: productionUrl, key: productionKey };
-    }
-    const fallbackUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
-    const fallbackKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
-    if (fallbackUrl && fallbackKey) return { url: fallbackUrl, key: fallbackKey };
-    return null;
+  const productionUrl = process.env.EXPO_PUBLIC_SUPABASE_PRODUCTION_URL?.trim();
+  const productionKey =
+    process.env.EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY?.trim();
+  if (productionUrl && productionKey) {
+    return { url: productionUrl, key: productionKey };
   }
-  const url = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (url && key) return { url, key };
+  const fallbackUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+  const fallbackKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (fallbackUrl && fallbackKey) return { url: fallbackUrl, key: fallbackKey };
   return null;
 }
 
@@ -39,11 +27,8 @@ export function isSupabaseConfigured(): boolean {
 export function getSupabase(): SupabaseClient {
   const resolved = resolveSupabaseEnv();
   if (!resolved) {
-    const onPhysicalDevice = Constants.isDevice === true;
     throw new Error(
-      onPhysicalDevice
-        ? "実機用の `EXPO_PUBLIC_SUPABASE_PRODUCTION_URL` / `EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY`（またはフォールバックの `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`）が未設定、または空です。"
-        : "シミュレータ用の `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` が未設定、または空です。"
+      "`EXPO_PUBLIC_SUPABASE_PRODUCTION_URL` / `EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY` または `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` が未設定、または空です。"
     );
   }
   if (!client) {

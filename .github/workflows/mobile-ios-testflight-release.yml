@@ -48,5 +48,13 @@ jobs:
       - name: Typecheck mobile app
         run: npm run mobile:typecheck
 
+      - name: Sync required EAS production env vars
+        run: |
+          npx --yes eas-cli env:create --non-interactive --force --environment production --name EXPO_PUBLIC_SUPABASE_PRODUCTION_URL --value "$EXPO_PUBLIC_SUPABASE_PRODUCTION_URL" --visibility sensitive
+          npx --yes eas-cli env:create --non-interactive --force --environment production --name EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY --value "$EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY" --visibility sensitive
+          npx --yes eas-cli env:create --non-interactive --force --environment production --name EXPO_PUBLIC_SUPABASE_URL --value "$EXPO_PUBLIC_SUPABASE_PRODUCTION_URL" --visibility sensitive
+          npx --yes eas-cli env:create --non-interactive --force --environment production --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "$EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY" --visibility sensitive
+        working-directory: apps/mobile
+
       - name: Build iOS and auto-submit to TestFlight
         run: npm --prefix apps/mobile run eas:build:ios:production -- --non-interactive --auto-submit

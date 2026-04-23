@@ -18,6 +18,13 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.49.1] - 2026-04-23
+
+### Fixed
+
+- **Mobile / Supabase 設定**: TestFlight 実機で `Supabase 未設定` になる問題を修正。接続先解決をデバイス判定依存から外し、`EXPO_PUBLIC_SUPABASE_PRODUCTION_*` 優先 + `EXPO_PUBLIC_SUPABASE_*` フォールバックで安定化した（[#271](https://github.com/kzkski/ketolog/issues/271)）。
+- **CI / iOS 配布自動化**: `Mobile iOS TestFlight Release` 実行時に required な Supabase env を EAS production 環境へ同期してから build するようにし、Actions 経由でも起動設定が欠けないようにした（[#271](https://github.com/kzkski/ketolog/issues/271)）。
+
 ## [1.49.0] - 2026-04-23
 
 ### Added

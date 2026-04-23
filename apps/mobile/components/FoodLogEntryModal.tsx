@@ -71,7 +71,7 @@ type Props = {
   supabase: SupabaseClient;
   userId: string;
   date: string;
-  /** 手入力時の `food_log.source`（Web と同じスナップショット店 UUID）。メニュー経路では未使用。 */
+  /** 手入力時の `food_log.source`（スナップショット店 UUID）。メニュー経路では未使用。 */
   snapshotRestaurantId: string | null;
   entry: FoodLogRow | null;
   /** メニューから開いたときのプリフィル。手入力のときは null。 */
@@ -140,7 +140,7 @@ export function FoodLogEntryModal({
     }
   }, [visible, mode, entry, menuPrefill, resetAddForm]);
 
-  const runSaveAdd = useCallback(async () => {
+  const runSaveLogOnly = useCallback(async () => {
     const name = itemName.trim();
     if (!name) {
       setFormError("品目名を入力してください");
@@ -294,9 +294,13 @@ export function FoodLogEntryModal({
     await onSaved();
   }, [entry, gramsStr, meal, supabase, userId, onClose, onSaved, onToast]);
 
-  const onSubmit = useCallback(() => {
-    void (mode === "add" ? runSaveAdd() : runSaveEdit());
-  }, [mode, runSaveAdd, runSaveEdit]);
+  const onSubmitLogOnly = useCallback(() => {
+    void runSaveLogOnly();
+  }, [runSaveLogOnly]);
+
+  const onSubmitEdit = useCallback(() => {
+    void runSaveEdit();
+  }, [runSaveEdit]);
 
   return (
     <Modal
@@ -327,7 +331,7 @@ export function FoodLogEntryModal({
                 <Text style={styles.label}>品目</Text>
                 <Text style={styles.readonly}>{itemName}</Text>
                 <Text style={styles.hint}>
-                  名称の変更は Web 版から行うか、いったん削除して追加してください。
+                  名称の変更はメニュー編集から行うか、いったん削除して追加してください。
                 </Text>
               </View>
             ) : (
@@ -343,7 +347,7 @@ export function FoodLogEntryModal({
                 />
                 {menuPrefill ? (
                   <Text style={styles.hint}>
-                    メニューから読み込みました。名称の変更は Web 版のメニュー編集で行ってください。
+                    メニューから読み込みました。名称の変更はメニュー編集で行ってください。
                   </Text>
                 ) : null}
               </View>
@@ -428,8 +432,7 @@ export function FoodLogEntryModal({
               </>
             ) : (
               <Text style={styles.sectionHint}>
-                分量を変えると、もとの記録の PFC 比率に応じて再計算されます（Web
-                版と同じ）。
+                分量を変えると、もとの記録の PFC 比率に応じて再計算されます。
               </Text>
             )}
 
@@ -444,7 +447,7 @@ export function FoodLogEntryModal({
                 <Text style={styles.btnGhostText}>キャンセル</Text>
               </Pressable>
               <Pressable
-                onPress={onSubmit}
+                onPress={mode === "add" ? onSubmitLogOnly : onSubmitEdit}
                 disabled={busy}
                 style={[styles.btnPrimary, busy && { opacity: 0.6 }]}
               >
@@ -459,7 +462,7 @@ export function FoodLogEntryModal({
             </View>
             {formError ? (
               <Pressable
-                onPress={onSubmit}
+                onPress={mode === "edit" ? onSubmitEdit : onSubmitLogOnly}
                 disabled={busy}
                 style={styles.retry}
               >

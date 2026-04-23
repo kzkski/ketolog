@@ -6,6 +6,10 @@
     "apps/*",
     "packages/*"
   ],
+  "overrides": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -16,8 +20,9 @@
     "db:dump-baseline": "supabase db dump --linked -s public -f supabase/migrations/20260211120000_baseline.sql",
     "db:dump-baseline:url": "supabase db dump --db-url \"$DATABASE_URL\" -s public -f supabase/migrations/20260211120000_baseline.sql",
     "etl:mext-ch2": "node scripts/etl-mext-ch2.mjs",
-    "mobile:start": "npm --prefix apps/mobile run start",
-    "mobile:ios": "npm --prefix apps/mobile run ios",
+    "mobile:start": "npx expo start apps/mobile",
+    "mobile:ios": "npx expo start apps/mobile --ios",
+    "mobile:android": "npx expo start apps/mobile --android",
     "mobile:typecheck": "npm --prefix apps/mobile run typecheck"
   },
   "dependencies": {

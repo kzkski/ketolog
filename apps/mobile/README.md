@@ -30,7 +30,7 @@ npm install
 
 ## 起動
 
-リポジトリのルートで次を実行します。
+**リポジトリのルート**で次を実行します（`apps/mobile` を対象にした Expo です）。
 
 ```bash
 # Expo Dev Server 起動
@@ -39,6 +39,12 @@ npm run mobile:start
 # iOS シミュレータで起動
 npm run mobile:ios
 ```
+
+`react-native` / Expo の解決上、**リポジトリ直下で `npx expo start` だけ**を実行すると、ルートに `App.tsx` が無いため `Unable to resolve module ../../App` になります。上記 `npm run` か、**必ず** `npx expo start apps/mobile`（第1引数に `apps/mobile`）を使ってください。
+
+### Metro / React が混ざるとき
+
+Next（ルート）と Expo で **別バージョンの `react` が併存**すると「`Cannot read property 'useState' of null`」等になる。リポジトリルートの `package.json` に **`overrides` で `react` / `react-dom` を 1 本化**し、`apps/mobile` の `react` も **19.2.4**（ルートと同じ）に揃えている。`metro.config.js` の `extraNodeModules` は hoisted 先の実パスを `require.resolve` している。まだ出る場合は `npx expo start apps/mobile -c` でキャッシュを消して再試行する。
 
 ## 最小チェック
 

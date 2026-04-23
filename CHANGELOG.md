@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Mobile / Expo（モノレプ）**: リポジトリルートで誤った `App` 解決になる起動手順を `npx expo start apps/mobile` に揃え、Web と別バージョンの `react` が混在する問題を `overrides` および Metro の `extraNodeModules` 解消で直した。トップ `README` と `apps/mobile/README` に注意を追記（[#266](https://github.com/kzkski/ketolog/issues/266)）。
+
 ### Changed
 
 - **ドキュメント / 開発運用**: `CONTRIBUTING.md` と `docs/release/README.md` に Issue ラベル運用の最小ルール（`platform` / `type` / `priority` の必須系統、`epic:*` / `track:*` の推奨運用）を追加した（[#274](https://github.com/kzkski/ketolog/issues/274)）。

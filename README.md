@@ -108,6 +108,8 @@ npm run mobile:ios
 npm run mobile:typecheck
 ```
 
+**注意:** リポジトリ直下で `npx expo start` だけを実行すると `App` が解決できない。上記 `npm run` か `npx expo start apps/mobile` を使うこと（詳細は [apps/mobile/README.md](apps/mobile/README.md)）。
+
 ### バンドル分析（Bundle Analyzer）
 
 Next.js 16 の既定の本番ビルドは Turbopack のため、[@next/bundle-analyzer](https://www.npmjs.com/package/@next/bundle-analyzer) 用に **`next build --webpack`** で走らせる（`npm run analyze` に含まれる）。**上記と同様に `.env.local`（`NEXT_PUBLIC_SUPABASE_*`）が必要**。

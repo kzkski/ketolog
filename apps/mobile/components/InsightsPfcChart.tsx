@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
+import type { LayoutChangeEvent } from "react-native";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Line, Polyline, Text as SvgText } from "react-native-svg";
 
@@ -10,9 +11,11 @@ type Point = {
 };
 
 const CHART_LEFT = 44;
-const CHART_RIGHT = 10;
+const CHART_RIGHT = 12;
 const CHART_TOP = 10;
 const CHART_BOTTOM = 30;
+/** 折れ線・X 目盛りの左右余白（ラベルが SVG 外にはみ出さないようにする） */
+const PLOT_PAD_X = 14;
 const SVG_H = 196;
 const LEGEND_ROW_H = 26;
 
@@ -24,7 +27,6 @@ function dateTickLabel(date: string): string {
   return date.slice(5);
 }
 
-/** 上端を「きりの良い」最大値にそろえて Y 軸と折れ線のスケールを一致させる */
 function niceYMax(raw: number): number {
   if (raw <= 0) return 1;
   const exp = Math.floor(Math.log10(raw));
@@ -53,8 +55,18 @@ function xTickIndices(len: number): number[] {
 
 export function InsightsPfcChart({ data }: Props) {
   const { width: winW } = useWindowDimensions();
-  const chartW = Math.max(200, winW - 32);
+  const [measuredW, setMeasuredW] = useState(0);
+
+  const onWrapLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = Math.floor(e.nativeEvent.layout.width);
+    if (w > 0) setMeasuredW((prev) => (prev === w ? prev : w));
+  }, []);
+
+  const fallbackW = Math.max(160, winW - 56);
+  const chartW = measuredW > 0 ? measuredW : fallbackW;
   const innerW = chartW - CHART_LEFT - CHART_RIGHT;
+  const plotW = Math.max(1, innerW - 2 * PLOT_PAD_X);
+  const plotLeft = CHART_LEFT + PLOT_PAD_X;
   const innerH = SVG_H - CHART_TOP - CHART_BOTTOM;
 
   const layout = useMemo(() => {
@@ -74,7 +86,7 @@ export function InsightsPfcChart({ data }: Props) {
     const yMax = niceYMax(rawMax);
     const yTicks = yTickValues(yMax);
     const xAt = (i: number) =>
-      n <= 1 ? CHART_LEFT + innerW / 2 : CHART_LEFT + (innerW * i) / (n - 1);
+      n <= 1 ? plotLeft + plotW / 2 : plotLeft + (plotW * i) / (n - 1);
     const yAt = (v: number) => CHART_TOP + innerH - (v / yMax) * innerH;
     const mk = (key: "protein" | "fat" | "carbs") =>
       data.map((d, i) => `${xAt(i)},${yAt(d[key])}`).join(" ");
@@ -94,23 +106,24 @@ export function InsightsPfcChart({ data }: Props) {
       xTicks,
       gridYs,
     };
-  }, [data, innerH, innerW]);
+  }, [data, innerH, plotLeft, plotW]);
 
   if (data.length === 0) {
     return <View style={{ minHeight: SVG_H + LEGEND_ROW_H }} />;
   }
 
   const baseY = CHART_TOP + innerH;
+  const axisRight = CHART_LEFT + innerW;
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.wrap} onLayout={onWrapLayout}>
       <Svg width={chartW} height={SVG_H}>
         {layout.gridYs.map((gy, idx) => (
           <Line
             key={`h-${idx}`}
-            x1={CHART_LEFT}
+            x1={plotLeft}
             y1={gy}
-            x2={CHART_LEFT + innerW}
+            x2={plotLeft + plotW}
             y2={gy}
             stroke="#374151"
             strokeWidth={1}
@@ -128,7 +141,7 @@ export function InsightsPfcChart({ data }: Props) {
         <Line
           x1={CHART_LEFT}
           y1={baseY}
-          x2={CHART_LEFT + innerW}
+          x2={axisRight}
           y2={baseY}
           stroke="#6b7280"
           strokeWidth={1}
@@ -200,7 +213,7 @@ export function InsightsPfcChart({ data }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignSelf: "stretch" },
+  wrap: { width: "100%", maxWidth: "100%", alignSelf: "stretch" },
   legendRow: {
     flexDirection: "row",
     alignItems: "center",

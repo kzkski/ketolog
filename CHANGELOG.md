@@ -10,10 +10,6 @@
 
 ## [Unreleased]
 
-### Added
-
-- **Mobile PoC / 認証**: `apps/mobile` に Supabase Auth（Email+Password、Google OAuth、PKCE + in-app ブラウザ、AsyncStorage でのセッション永続化、未ログインはログイン画面）を追加した。`app.config.ts` で `scheme: ketolog`、`.env.example`・`README` に Redirect URL と Web 共存の注意を記載した（[#266](https://github.com/kzkski/ketolog/issues/266)）。
-
 ### Changed
 
 - **ドキュメント / 開発運用**: `CONTRIBUTING.md` と `docs/release/README.md` に Issue ラベル運用の最小ルール（`platform` / `type` / `priority` の必須系統、`epic:*` / `track:*` の推奨運用）を追加した（[#274](https://github.com/kzkski/ketolog/issues/274)）。
@@ -21,6 +17,12 @@
 - **ドキュメント**: `ROADMAP.md` を公開向けのマイルストーン構成（v1/v2/v3）へ再編し、市場調査は公開サマリー中心に整理した。詳細な戦略レポートは公開リポジトリ管理の対象外にした。
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
+
+## [1.43.0] - 2026-04-23
+
+### Added
+
+- **Mobile PoC / 認証**: `apps/mobile` に Supabase Auth（Email+Password、Google OAuth、PKCE + in-app ブラウザ、AsyncStorage でのセッション永続化、未ログインはログイン画面）を追加した。`app.config.ts` で `scheme: ketolog`、`.env.example`・`README` に Redirect URL と Web 共存の注意を記載した（[#266](https://github.com/kzkski/ketolog/issues/266)）。
 
 ## [1.42.0] - 2026-04-23
 

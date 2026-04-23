@@ -20,6 +20,20 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.51.0] - 2026-04-23
+
+### Added
+
+- **Mobile / Today（#287 子）**: JST の日付ナビ（未来日不可）、選択日の `food_log` 取得、手入力時の `source` を Web と同じスナップショット店 UUID に統一（`getOrCreateSnapshotRestaurant` 相当）。過去日表示時は「今日」チップで当日へ戻れるようにした（[#289](https://github.com/kzkski/ketolog/issues/289)）。
+
+### Fixed
+
+- **Mobile / Today**: Hermes / iOS で日付ナビの曜日が「？」になる問題を、`Intl` の曜日表記に依存しない暦計算へ切り替えて解消した（[#289](https://github.com/kzkski/ketolog/issues/289)）。
+
+### Changed
+
+- **Shared / domain**: Today 向けに `formatNavDate` を追加し、モバイルの日付ラベルで利用するようにした（[#289](https://github.com/kzkski/ketolog/issues/289)）。
+
 ## [1.50.0] - 2026-04-23
 
 ### Added

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { sumPfc, type PfcGrams } from "@ketolog/domain/pfc";
-import { toJstDateString } from "@ketolog/domain/date";
+import {
+  addDaysJst,
+  formatNavDate,
+  toJstDateString,
+} from "@ketolog/domain/date";
 import {
   type DietPhase,
   type PhaseProfiles,
@@ -38,6 +42,7 @@ import {
   type FoodLogOutboxDraft,
 } from "../lib/food-log-outbox";
 import { getIsOnline } from "../lib/network";
+import { getOrCreateSnapshotRestaurant } from "../lib/get-or-create-snapshot-restaurant";
 
 type UserSettingsState = {
   diet_phase: DietPhase;
@@ -120,7 +125,11 @@ export function TodayScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settings, setSettings] = useState<UserSettingsState | null>(null);
   const [consumed, setConsumed] = useState<PfcGrams>({ p: 0, f: 0, c: 0 });
-  const [jstDate, setJstDate] = useState(() => toJstDateString());
+  const [selectedDate, setSelectedDate] = useState(() => toJstDateString());
+  const [snapshotRestaurantId, setSnapshotRestaurantId] = useState<
+    string | null
+  >(null);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [phaseSaving, setPhaseSaving] = useState(false);
   const [logEntries, setLogEntries] = useState<FoodLogRow[]>([]);
@@ -132,8 +141,12 @@ export function TodayScreen() {
   const [toast, setToast] = useState<string | null>(null);
   const [outbox, setOutbox] = useState<FoodLogOutboxDraft[]>([]);
   const [resendingDraftId, setResendingDraftId] = useState<string | null>(null);
+  const [loadingDate, setLoadingDate] = useState(false);
+  const initialLoadDoneForUser = useRef(false);
+  const prevUserIdForDate = useRef<string | null>(null);
 
   const appVersion = Constants.expoConfig?.version ?? "—";
+  const todayJst = toJstDateString();
 
   const refreshOutbox = useCallback(async () => {
     if (!userId) return;
@@ -153,10 +166,8 @@ export function TodayScreen() {
   const load = useCallback(async () => {
     if (!userId) return;
     setLoadError(null);
-    const today = toJstDateString();
-    setJstDate(today);
 
-    const [settingsRes, logRes] = await Promise.all([
+    const [settingsRes, logRes, snapRes] = await Promise.all([
       supabase
         .from("user_settings")
         .select("diet_phase, phase_profiles")
@@ -168,8 +179,9 @@ export function TodayScreen() {
           "id, date, meal_type, item_name, grams, protein_g, fat_g, carbs_g"
         )
         .eq("user_id", userId)
-        .eq("date", today)
+        .eq("date", selectedDate)
         .order("created_at", { ascending: true }),
+      getOrCreateSnapshotRestaurant(supabase, userId),
     ]);
 
     if (settingsRes.error) {
@@ -179,6 +191,13 @@ export function TodayScreen() {
     if (logRes.error) {
       setLoadError(logRes.error.message);
       return;
+    }
+    if (snapRes.error) {
+      setSnapshotError(snapRes.error);
+      setSnapshotRestaurantId(null);
+    } else {
+      setSnapshotError(null);
+      setSnapshotRestaurantId(snapRes.data?.id ?? null);
     }
 
     setSettings(normalizeUserSettings(settingsRes.data));
@@ -204,13 +223,36 @@ export function TodayScreen() {
         }))
       )
     );
-  }, [supabase, userId]);
+  }, [supabase, userId, selectedDate]);
 
   const openAddEntry = useCallback(() => {
+    if (!snapshotRestaurantId) {
+      showToast(
+        snapshotError ??
+          "手入力の準備ができていません。通信を確認してから再度お試しください。"
+      );
+      return;
+    }
     setMenuPrefill(null);
     setEditingEntry(null);
     setEntryModalMode("add");
     setEntryModalOpen(true);
+  }, [showToast, snapshotError, snapshotRestaurantId]);
+
+  const goPrevDate = useCallback(() => {
+    setSelectedDate((d) => addDaysJst(d, -1));
+  }, []);
+
+  const goNextDate = useCallback(() => {
+    setSelectedDate((d) => {
+      const n = addDaysJst(d, 1);
+      if (n > toJstDateString()) return d;
+      return n;
+    });
+  }, []);
+
+  const goToday = useCallback(() => {
+    setSelectedDate(toJstDateString());
   }, []);
 
   const openMenuPick = useCallback(() => {
@@ -266,17 +308,35 @@ export function TodayScreen() {
   );
 
   useEffect(() => {
+    initialLoadDoneForUser.current = false;
+    if (userId && prevUserIdForDate.current !== userId) {
+      queueMicrotask(() => {
+        setSelectedDate(toJstDateString());
+      });
+    }
+    prevUserIdForDate.current = userId || null;
+  }, [userId]);
+
+  useEffect(() => {
     if (!userId) return;
     let cancelled = false;
+    const isFirstForUser = !initialLoadDoneForUser.current;
     (async () => {
-      setLoading(true);
+      if (isFirstForUser) setLoading(true);
+      else setLoadingDate(true);
       await Promise.all([load(), refreshOutbox()]);
-      if (!cancelled) setLoading(false);
+      if (cancelled) return;
+      if (isFirstForUser) {
+        setLoading(false);
+        initialLoadDoneForUser.current = true;
+      } else {
+        setLoadingDate(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [load, refreshOutbox, userId]);
+  }, [load, refreshOutbox, userId, selectedDate]);
 
   const onRefresh = useCallback(async () => {
     if (!userId) return;
@@ -402,7 +462,7 @@ export function TodayScreen() {
             </View>
             <View>
               <Text style={styles.brandName}>Ketolog</Text>
-              <Text style={styles.brandSub}>v{appVersion} · 記録（JST {jstDate}）</Text>
+              <Text style={styles.brandSub}>v{appVersion}</Text>
             </View>
           </View>
           <Pressable
@@ -415,6 +475,56 @@ export function TodayScreen() {
           </Pressable>
         </View>
 
+        <View style={styles.dateNav}>
+          <Pressable
+            onPress={goPrevDate}
+            disabled={loadingDate}
+            style={({ pressed }) => [
+              styles.dateNavBtn,
+              (loadingDate || pressed) && { opacity: 0.65 },
+            ]}
+            accessibilityLabel="前の日"
+          >
+            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+          </Pressable>
+          <View style={styles.dateNavCenter}>
+            {loadingDate ? (
+              <ActivityIndicator size="small" color={COLORS.c} />
+            ) : (
+              <Text style={styles.dateNavLabel} numberOfLines={1}>
+                {formatNavDate(selectedDate, todayJst)}
+              </Text>
+            )}
+          </View>
+          {selectedDate !== todayJst ? (
+            <Pressable
+              onPress={goToday}
+              disabled={loadingDate}
+              style={({ pressed }) => [
+                styles.todayChip,
+                (loadingDate || pressed) && { opacity: 0.75 },
+              ]}
+              accessibilityLabel="今日に戻る"
+              accessibilityRole="button"
+            >
+              <Text style={styles.todayChipText}>今日</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={goNextDate}
+            disabled={selectedDate >= todayJst || loadingDate}
+            style={({ pressed }) => [
+              styles.dateNavBtn,
+              (selectedDate >= todayJst || loadingDate || pressed) && {
+                opacity: 0.35,
+              },
+            ]}
+            accessibilityLabel="次の日"
+          >
+            <Ionicons name="chevron-forward" size={22} color={COLORS.text} />
+          </Pressable>
+        </View>
+
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -423,6 +533,12 @@ export function TodayScreen() {
           }
         >
           {loadError ? <Text style={styles.inlineError}>{loadError}</Text> : null}
+          {snapshotError && !snapshotRestaurantId ? (
+            <Text style={styles.inlineWarn}>
+              手入力用の店舗データを読み込めませんでした（{snapshotError}
+              ）。メニューからの追加は利用できます。
+            </Text>
+          ) : null}
 
           <View style={styles.phaseRow}>
             {DIET_PHASES.map((ph) => {
@@ -533,7 +649,9 @@ export function TodayScreen() {
               </View>
             ) : null}
             <View style={styles.logSectionHeader}>
-              <Text style={styles.logSectionTitle}>今日の記録</Text>
+              <Text style={styles.logSectionTitle}>
+                {selectedDate === todayJst ? "今日の記録" : "この日の記録"}
+              </Text>
               <View style={styles.logActions}>
                 <Pressable
                   onPress={openMenuPick}
@@ -563,7 +681,7 @@ export function TodayScreen() {
               <Text style={styles.logEmpty}>
                 まだ記録がありません。「メニュー」で Web
                 に登録した店のメニューから、「追加」から手入力で登録できます（Web
-                での記録もここに表示されます）。
+                での記録もここに表示されます）。過去の日付は上の矢印で切り替えられます。
               </Text>
             ) : (
               logEntries.map((e) => (
@@ -628,7 +746,8 @@ export function TodayScreen() {
         mode={entryModalMode}
         supabase={supabase}
         userId={userId}
-        date={jstDate}
+        date={selectedDate}
+        snapshotRestaurantId={snapshotRestaurantId}
         entry={editingEntry}
         menuPrefill={entryModalMode === "add" ? menuPrefill : null}
         onClose={() => {
@@ -741,6 +860,50 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 11,
     marginTop: 2,
+  },
+  dateNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: COLORS.sectionBg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.headerBorder,
+  },
+  dateNavBtn: {
+    minWidth: 44,
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dateNavCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    minHeight: 40,
+    minWidth: 0,
+  },
+  dateNavLabel: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  todayChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.c,
+    backgroundColor: "rgba(16, 185, 129, 0.18)",
+    marginRight: 2,
+  },
+  todayChipText: {
+    color: "#a7f3d0",
+    fontSize: 13,
+    fontWeight: "700",
   },
   iconBtn: {
     minWidth: 40,
@@ -973,6 +1136,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginHorizontal: 12,
     marginTop: 8,
+  },
+  inlineWarn: {
+    color: "#fde68a",
+    fontSize: 12,
+    marginHorizontal: 12,
+    marginTop: 8,
+    lineHeight: 18,
   },
   errorTitle: { color: "#fecaca", fontSize: 16, fontWeight: "600" },
   errorMsg: { color: COLORS.text, marginTop: 8, textAlign: "center" },

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { addDaysJst, eachDate, getTokyoHourMinute, toJstDateString } from "./date";
+import {
+  addDaysJst,
+  eachDate,
+  formatNavDate,
+  getTokyoHourMinute,
+  toJstDateString,
+} from "./date";
 
 describe("addDaysJst", () => {
   it("翌日へ進む", () => {
@@ -36,5 +42,22 @@ describe("toJstDateString", () => {
 describe("getTokyoHourMinute", () => {
   it("東京の時分を返す", () => {
     expect(getTokyoHourMinute(new Date("2024-06-01T10:30:00.000Z"))).toEqual({ hour: 19, minute: 30 });
+  });
+});
+
+describe("formatNavDate", () => {
+  it("今日と一致するとプレフィックスが付く", () => {
+    expect(formatNavDate("2024-06-15", "2024-06-15")).toMatch(/^今日 /);
+  });
+
+  it("別日では今日プレフィックスが付かない", () => {
+    expect(formatNavDate("2024-06-15", "2024-06-16")).not.toMatch(/^今日 /);
+    expect(formatNavDate("2024-06-15", "2024-06-16")).toContain("6/15");
+    expect(formatNavDate("2024-06-15", "2024-06-16")).toContain("（");
+  });
+
+  it("曜日はロケールに依存せず日本語1文字になる", () => {
+    // 2026-04-23 は木曜
+    expect(formatNavDate("2026-04-23", "2026-04-24")).toContain("（木）");
   });
 });

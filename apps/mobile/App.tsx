@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
+import Constants from "expo-constants";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { isSupabaseConfigured } from "./lib/supabase";
@@ -9,14 +10,14 @@ import { TodayScreen } from "./screens/TodayScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 
 function MissingSupabaseConfigScreen() {
+  const onDevice = Constants.isDevice === true;
   return (
     <View style={styles.centered}>
       <Text style={styles.errorTitle}>Supabase 未設定</Text>
       <Text style={styles.hint}>
-        `apps/mobile/.env` に次を定義し、Expo（Metro）を再起動してください。{"\n\n"}
-        EXPO_PUBLIC_SUPABASE_URL{"\n"}
-        EXPO_PUBLIC_SUPABASE_ANON_KEY{"\n\n"}
-        雛形は `apps/mobile/.env.example` をコピーして使えます。
+        {onDevice
+          ? "実機では本番接続用の変数が必要です。`apps/mobile/.env` に次を定義し、**実機向けに再ビルド**（または EAS の env 注入）してください。\n\nEXPO_PUBLIC_SUPABASE_PRODUCTION_URL\nEXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY\n\nシミュレータ用の EXPO_PUBLIC_SUPABASE_URL は実機では使われません。"
+          : "シミュレータではローカル Supabase 用に次を定義し、Expo（Metro）を再起動してください。\n\nEXPO_PUBLIC_SUPABASE_URL\nEXPO_PUBLIC_SUPABASE_ANON_KEY\n\n雛形は `apps/mobile/.env.example` を参照。"}
       </Text>
       <StatusBar style="light" />
     </View>

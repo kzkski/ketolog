@@ -15,6 +15,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
 import type { MealType } from "@ketolog/types";
 
+import type { MenuPrefill } from "../lib/menu-prefill";
+
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 
 const MEAL_LABEL: Record<MealType, string> = {
@@ -51,6 +53,11 @@ function parseNum(s: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function per100FieldString(n: number | null): string {
+  if (n == null || !Number.isFinite(n)) return "";
+  return String(n);
+}
+
 type Props = {
   visible: boolean;
   mode: "add" | "edit";
@@ -58,6 +65,8 @@ type Props = {
   userId: string;
   date: string;
   entry: FoodLogRow | null;
+  /** メニューから開いたときのプリフィル。手入力のときは null。 */
+  menuPrefill: MenuPrefill | null;
   onClose: () => void;
   onSaved: () => Promise<void>;
   onToast: (message: string) => void;
@@ -70,6 +79,7 @@ export function FoodLogEntryModal({
   userId,
   date,
   entry,
+  menuPrefill,
   onClose,
   onSaved,
   onToast,
@@ -104,9 +114,18 @@ export function FoodLogEntryModal({
       setItemName(entry.item_name);
       setGramsStr(String(entry.grams));
     } else if (mode === "add") {
-      resetAddForm();
+      if (menuPrefill) {
+        setMeal("lunch");
+        setItemName(menuPrefill.itemName);
+        setGramsStr(String(menuPrefill.defaultGrams));
+        setP100(per100FieldString(menuPrefill.proteinPer100));
+        setF100(per100FieldString(menuPrefill.fatPer100));
+        setC100(per100FieldString(menuPrefill.carbsPer100));
+      } else {
+        resetAddForm();
+      }
     }
-  }, [visible, mode, entry, resetAddForm]);
+  }, [visible, mode, entry, menuPrefill, resetAddForm]);
 
   const runSaveAdd = useCallback(async () => {
     const name = itemName.trim();
@@ -134,8 +153,8 @@ export function FoodLogEntryModal({
       protein_g: v.p,
       fat_g: v.f,
       carbs_g: v.c,
-      source: "manual",
-      menu_item_id: null,
+      source: menuPrefill?.restaurantId ?? "manual",
+      menu_item_id: menuPrefill?.menuItemId ?? null,
     });
     setBusy(false);
     if (error) {
@@ -156,6 +175,7 @@ export function FoodLogEntryModal({
     userId,
     date,
     meal,
+    menuPrefill,
     onClose,
     onSaved,
     onToast,
@@ -232,7 +252,11 @@ export function FoodLogEntryModal({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.card}>
           <Text style={styles.title}>
-            {mode === "add" ? "食事を追加（手入力）" : "記録を編集"}
+            {mode === "add"
+              ? menuPrefill
+                ? "食事を追加（メニュー）"
+                : "食事を追加（手入力）"
+              : "記録を編集"}
           </Text>
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -255,8 +279,13 @@ export function FoodLogEntryModal({
                   placeholder="例: ささみソテー"
                   placeholderTextColor={COLORS.textMuted}
                   style={styles.input}
-                  editable={!busy}
+                  editable={!busy && !menuPrefill}
                 />
+                {menuPrefill ? (
+                  <Text style={styles.hint}>
+                    メニューから読み込みました。名称の変更は Web 版のメニュー編集で行ってください。
+                  </Text>
+                ) : null}
               </View>
             )}
 

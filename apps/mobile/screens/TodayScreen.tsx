@@ -28,6 +28,8 @@ import {
   FoodLogEntryModal,
   type FoodLogRow,
 } from "../components/FoodLogEntryModal";
+import { MenuPickModal } from "../components/MenuPickModal";
+import type { MenuPrefill } from "../lib/menu-prefill";
 
 type UserSettingsState = {
   diet_phase: DietPhase;
@@ -121,6 +123,8 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [entryModalMode, setEntryModalMode] = useState<"add" | "edit">("add");
   const [editingEntry, setEditingEntry] = useState<FoodLogRow | null>(null);
+  const [menuPrefill, setMenuPrefill] = useState<MenuPrefill | null>(null);
+  const [menuPickOpen, setMenuPickOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const appVersion = Constants.expoConfig?.version ?? "—";
@@ -191,12 +195,26 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
   }, [supabase, userId]);
 
   const openAddEntry = useCallback(() => {
+    setMenuPrefill(null);
     setEditingEntry(null);
     setEntryModalMode("add");
     setEntryModalOpen(true);
   }, []);
 
+  const openMenuPick = useCallback(() => {
+    setMenuPickOpen(true);
+  }, []);
+
+  const onMenuPicked = useCallback((prefill: MenuPrefill) => {
+    setMenuPrefill(prefill);
+    setEditingEntry(null);
+    setEntryModalMode("add");
+    setMenuPickOpen(false);
+    setEntryModalOpen(true);
+  }, []);
+
   const openEditEntry = useCallback((e: FoodLogRow) => {
+    setMenuPrefill(null);
     setEditingEntry(e);
     setEntryModalMode("edit");
     setEntryModalOpen(true);
@@ -392,21 +410,35 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
           <View style={styles.logSection}>
             <View style={styles.logSectionHeader}>
               <Text style={styles.logSectionTitle}>今日の記録</Text>
-              <Pressable
-                onPress={openAddEntry}
-                style={({ pressed }) => [
-                  styles.addChip,
-                  pressed && { opacity: 0.85 },
-                ]}
-                accessibilityLabel="食事を追加"
-              >
-                <Ionicons name="add" size={18} color="#022c22" />
-                <Text style={styles.addChipText}>追加</Text>
-              </Pressable>
+              <View style={styles.logActions}>
+                <Pressable
+                  onPress={openMenuPick}
+                  style={({ pressed }) => [
+                    styles.menuChip,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                  accessibilityLabel="登録メニューから追加"
+                >
+                  <Ionicons name="restaurant-outline" size={16} color="#e5e7eb" />
+                  <Text style={styles.menuChipText}>メニュー</Text>
+                </Pressable>
+                <Pressable
+                  onPress={openAddEntry}
+                  style={({ pressed }) => [
+                    styles.addChip,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                  accessibilityLabel="食事を手入力で追加"
+                >
+                  <Ionicons name="add" size={18} color="#022c22" />
+                  <Text style={styles.addChipText}>追加</Text>
+                </Pressable>
+              </View>
             </View>
             {logEntries.length === 0 ? (
               <Text style={styles.logEmpty}>
-                まだ記録がありません。「追加」から手入力で登録できます（Web
+                まだ記録がありません。「メニュー」で Web
+                に登録した店のメニューから、「追加」から手入力で登録できます（Web
                 での記録もここに表示されます）。
               </Text>
             ) : (
@@ -459,6 +491,14 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
         </ScrollView>
       </View>
 
+      <MenuPickModal
+        visible={menuPickOpen}
+        supabase={supabase}
+        userId={userId}
+        onClose={() => setMenuPickOpen(false)}
+        onPick={onMenuPicked}
+      />
+
       <FoodLogEntryModal
         visible={entryModalOpen}
         mode={entryModalMode}
@@ -466,9 +506,11 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
         userId={userId}
         date={jstDate}
         entry={editingEntry}
+        menuPrefill={entryModalMode === "add" ? menuPrefill : null}
         onClose={() => {
           setEntryModalOpen(false);
           setEditingEntry(null);
+          setMenuPrefill(null);
         }}
         onSaved={load}
         onToast={showToast}
@@ -654,11 +696,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
+  logActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   logSectionTitle: {
     color: COLORS.text,
     fontSize: 15,
     fontWeight: "600",
   },
+  menuChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#1f2937",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.headerBorder,
+  },
+  menuChipText: { color: COLORS.text, fontWeight: "600", fontSize: 13 },
   addChip: {
     flexDirection: "row",
     alignItems: "center",

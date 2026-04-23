@@ -18,6 +18,16 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.47.0] - 2026-04-23
+
+### Added
+
+- **Mobile / Today**: 「メニュー」から Web で登録した店舗・メニューを選び、品目名・標準分量・100g あたり PFC を反映した状態で食事を追加できるようにした。保存時は Web と同様に `menu_item_id` と店舗 UUID を `source` に付与する（[#269](https://github.com/kzkski/ketolog/issues/269)）。
+
+### Fixed
+
+- **Mobile / メニュー選択**: `restaurants.display_order` 列が無いデータベースでも店舗一覧が取得できるよう、取得列と並び替えを見直した（[#269](https://github.com/kzkski/ketolog/issues/269)）。
+
 ## [1.46.0] - 2026-04-23
 
 ### Changed

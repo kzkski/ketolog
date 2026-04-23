@@ -11,7 +11,7 @@ import {
 } from "@/lib/insights";
 import { getInsightsFoodLogForDateRange } from "./actions";
 import { MEAL_LABELS } from "@/lib/constants/meal";
-import type { MealType } from "@/lib/meal-timezone";
+import type { MealType } from "@ketolog/types";
 
 const InsightsChart = dynamic(() => import("./InsightsChart"), {
   ssr: false,

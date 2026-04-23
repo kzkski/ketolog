@@ -1,6 +1,7 @@
 "use server";
 
-import { sumPfc, type PfcGrams } from "@/lib/pfc";
+import { sumPfc } from "@ketolog/domain/pfc";
+import type { PfcGrams } from "@ketolog/types";
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type { FoodLogEntry, TodayConsumed } from "@/types/database";
 

@@ -1,0 +1,12 @@
+{
+  "name": "@ketolog/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./pfc": "./src/pfc.ts",
+    "./date": "./src/date.ts",
+    "./meal-timezone": "./src/meal-timezone.ts"
+  }
+}

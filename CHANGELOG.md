@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Mobile PoC / 共有パッケージ**: `packages/domain`（`pfc` / `date` / `meal-timezone`）と `packages/types`（共有型の再エクスポート）を追加し、Web の import を切り替えた。Expo 側は Metro のモノレポ設定と `App.tsx` からの import で同パッケージを参照できるようにした。import ルールを `AGENTS.md` と `CONTRIBUTING.md` に追記（[#265](https://github.com/kzkski/ketolog/issues/265)）。
+
 ### Changed
 
 - **ドキュメント / 開発運用**: `CONTRIBUTING.md` と `docs/release/README.md` に Issue ラベル運用の最小ルール（`platform` / `type` / `priority` の必須系統、`epic:*` / `track:*` の推奨運用）を追加した（[#274](https://github.com/kzkski/ketolog/issues/274)）。

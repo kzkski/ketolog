@@ -1,5 +1,5 @@
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
-import { getMealTypeForTimeZone } from "@/lib/meal-timezone";
+import { getMealTypeForTimeZone } from "@ketolog/domain/meal-timezone";
 import { redirect } from "next/navigation";
 import TodayClient from "./TodayClient";
 import { getOrCreateSnapshotRestaurant } from "./actions/restaurant";
@@ -13,7 +13,8 @@ import type {
   TodayConsumed,
 } from "@/types/database";
 import { normalizeUserSettings } from "@/lib/diet-phase";
-import { sumPfc, type PfcGrams } from "@/lib/pfc";
+import { sumPfc } from "@ketolog/domain/pfc";
+import type { PfcGrams } from "@ketolog/types";
 import { loadPresets } from "@/lib/presets-server";
 
 export type { PresetMeta } from "@/lib/presets-server";

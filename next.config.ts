@@ -10,6 +10,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 const { version } = require("./package.json") as { version: string };
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@ketolog/domain", "@ketolog/types"],
   experimental: {
     optimizePackageImports: [
       "recharts",

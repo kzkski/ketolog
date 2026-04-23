@@ -1,8 +1,7 @@
 "use client";
 
 import type { MenuItem } from "@/types/database";
-import type { MealType } from "@/lib/meal-timezone";
-import type { PfcGrams } from "@/lib/pfc";
+import type { MealType, PfcGrams } from "@ketolog/types";
 import { MEAL_LABELS, MEAL_TAB_STYLES } from "@/lib/constants/meal";
 
 /** カート内「記録する食事」セグメントの選択中スタイル（タブと同色） */

@@ -33,3 +33,9 @@ npm run mobile:ios
 ```bash
 npm run mobile:typecheck
 ```
+
+## 共有パッケージ（`@ketolog/domain` / `@ketolog/types`）
+
+モノレポ直下の `packages/` を `package.json` の workspaces から参照する。`App.tsx` で共有ロジックの import を確認できる。
+
+import ルールの詳細はリポジトリ直下の [AGENTS.md](../../AGENTS.md)（「Monorepo 共有パッケージ」）を参照。

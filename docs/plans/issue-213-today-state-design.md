@@ -180,7 +180,7 @@ flowchart TB
 
 ```typescript
 type PfcHeaderProps = {
-  totalConsumed: import("@/lib/pfc").PfcGrams; // 確定 + カート
+  totalConsumed: import("@ketolog/types").PfcGrams; // 確定 + カート
   targets: { p: number; f: number; c: number };
   headerHint: string | null;
   headerHintFullOpen: boolean;
@@ -197,12 +197,12 @@ type PfcHeaderProps = {
 
 ```typescript
 type CartPanelProps = {
-  mealType: import("@/lib/meal-timezone").MealType;
-  onMealTypeChange: (m: import("@/lib/meal-timezone").MealType) => void;
+  mealType: import("@ketolog/types").MealType;
+  onMealTypeChange: (m: import("@ketolog/types").MealType) => void;
   cartExpanded: boolean;
   onCartExpandedChange: (open: boolean) => void;
   cartEntries: CartEntry[]; // ルートの Map から配列化したもの
-  cartPfc: import("@/lib/pfc").PfcGrams;
+  cartPfc: import("@ketolog/types").PfcGrams;
   saving: boolean;
   onSave: () => void;
   onAddFromMenu: (item: import("@/types/database").MenuItem, grams: number) => void;

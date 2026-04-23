@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { AriaAttributes, ReactNode } from "react";
 import type { DietPhase, PhaseProfiles } from "@/lib/diet-phase";
-import type { PfcGrams } from "@/lib/pfc";
+import type { PfcGrams } from "@ketolog/types";
 import { MACRO_BAR_BG } from "@/lib/macroHighlights";
 
 function fmtMacroGrams(n: number) {

@@ -1,4 +1,4 @@
-import { getTokyoHourMinute } from "@/lib/date";
+import { getTokyoHourMinute } from "@ketolog/domain/date";
 
 /**
  * 今日ページヘッダー用の時間帯ベース日次ヒント（純粋ロジック）。

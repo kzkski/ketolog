@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -41,6 +40,7 @@ import {
 } from "../components/MenuItemEditorModal";
 import type { StandardFoodSearchRow } from "../lib/search-standard-foods-mobile";
 import { AddRestaurantModal } from "../components/AddRestaurantModal";
+import { TodaySettingsModal } from "../components/TodaySettingsModal";
 import {
   TodayCartDock,
   type CartLineState,
@@ -396,6 +396,16 @@ export function TodayScreen() {
       const cur = next.get(menuItemId);
       if (!cur) return prev;
       next.set(menuItemId, { ...cur, gramsPerServing: grams });
+      return next;
+    });
+  }, []);
+
+  const clearCartForRestaurant = useCallback((restaurantId: string) => {
+    setCart((prev) => {
+      const next = new Map(prev);
+      for (const [k, line] of next) {
+        if (line.restaurantId === restaurantId) next.delete(k);
+      }
       return next;
     });
   }, []);
@@ -1035,6 +1045,7 @@ export function TodayScreen() {
             onBrowseTabRequestConsumed={onBrowseTabRequestConsumed}
             onPickStandardFoodForMenu={openMenuEditorFromStandardFood}
             onToast={showToast}
+            onRestaurantDeleted={clearCartForRestaurant}
           />
         </ScrollView>
 
@@ -1111,44 +1122,22 @@ export function TodayScreen() {
         </View>
       ) : null}
 
-      <Modal
+      <TodaySettingsModal
         visible={settingsOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSettingsOpen(false)}
-      >
-        <View style={styles.modalRoot}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setSettingsOpen(false)}
-            accessibilityLabel="閉じる"
-          />
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>設定</Text>
-              <Pressable
-                onPress={() => setSettingsOpen(false)}
-                hitSlop={8}
-                style={({ pressed }) => [pressed && { opacity: 0.75 }]}
-              >
-                <Text style={styles.modalCloseText}>閉じる</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.modalBody}>
-              PFC 目標の編集・データのエクスポート・全データ管理は、Web 版の Ketolog を開いて行ってください。
-            </Text>
-            <Pressable
-              onPress={() => {
-                setSettingsOpen(false);
-                void signOut();
-              }}
-              style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.9 }]}
-            >
-              <Text style={styles.dangerBtnText}>ログアウト</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setSettingsOpen(false)}
+        supabase={supabase}
+        userId={userId}
+        settings={settings}
+        onSettingsUpdated={(next) => {
+          setSettings(next);
+          setDataNonce((n) => n + 1);
+        }}
+        onToast={showToast}
+        onSignOut={() => {
+          setSettingsOpen(false);
+          void signOut();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -1547,43 +1536,4 @@ const styles = StyleSheet.create({
   },
   errorTitle: { color: "#fecaca", fontSize: 16, fontWeight: "600" },
   errorMsg: { color: COLORS.text, marginTop: 8, textAlign: "center" },
-  modalRoot: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    padding: 20,
-  },
-  modalCard: {
-    backgroundColor: "#1f2937",
-    borderRadius: 12,
-    padding: 20,
-  },
-  modalHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  modalTitle: {
-    flex: 1,
-    minWidth: 0,
-    color: COLORS.text,
-    fontSize: 17,
-    fontWeight: "600",
-  },
-  modalCloseText: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    paddingTop: 2,
-    fontWeight: "500",
-  },
-  modalBody: { color: COLORS.textMuted, fontSize: 13, marginTop: 10, lineHeight: 20 },
-  dangerBtn: {
-    marginTop: 18,
-    backgroundColor: "#7f1d1d",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  dangerBtnText: { color: "#fecaca", fontWeight: "600" },
 });

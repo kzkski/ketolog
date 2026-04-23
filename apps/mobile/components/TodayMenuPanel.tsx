@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
+import { buildRestaurantExportDocument } from "@ketolog/domain/restaurant-json-v1";
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -45,7 +46,10 @@ import {
 import type { StandardFoodSearchRow } from "../lib/search-standard-foods-mobile";
 import { RenameRestaurantModal } from "./RenameRestaurantModal";
 import { StandardFoodCompositionPanel } from "./StandardFoodCompositionPanel";
+import { ImportMenuItemsModal } from "./ImportMenuItemsModal";
+import { deleteRestaurantMobile } from "../lib/delete-restaurant-mobile";
 import { reorderRestaurantsMobile } from "../lib/reorder-restaurants-mobile";
+import { shareUtf8JsonFile } from "../lib/share-json-mobile";
 
 type BrowseTab = "favorites" | "shops" | "composition";
 
@@ -66,6 +70,8 @@ function normalizeMenuGroupKey(raw: string | null | undefined): string | null {
 type RestaurantRow = {
   id: string;
   name: string;
+  /** 旧行に無い場合は `loadRestaurants` 側で `other` を補う */
+  category: string;
   order_count: number;
   display_order?: number | null;
   created_at: string | null;
@@ -155,6 +161,8 @@ type Props = {
   /** 文科省検索からメニュー追加モーダルを開く（登録先ヒントは null 可） */
   onPickStandardFoodForMenu?: (row: StandardFoodSearchRow, registerRestaurantIdHint: string | null) => void;
   onToast?: (message: string) => void;
+  /** 店舗削除後（カートの該当行除去など） */
+  onRestaurantDeleted?: (restaurantId: string) => void;
 };
 
 /** Web `compareMenuItemsForListOrder` / `sortMenuItemsForListOrder` と同順 */
@@ -326,6 +334,7 @@ export function TodayMenuPanel({
   onBrowseTabRequestConsumed,
   onPickStandardFoodForMenu,
   onToast,
+  onRestaurantDeleted,
 }: Props) {
   const [tab, setTab] = useState<BrowseTab>("favorites");
   const [restaurants, setRestaurants] = useState<RestaurantRow[]>([]);
@@ -339,6 +348,9 @@ export function TodayMenuPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renameRestaurantTarget, setRenameRestaurantTarget] = useState<RestaurantRow | null>(null);
+  const [confirmDeleteRestaurant, setConfirmDeleteRestaurant] = useState(false);
+  const [deletingRestaurant, setDeletingRestaurant] = useState(false);
+  const [importMenuOpen, setImportMenuOpen] = useState(false);
 
   const refreshFavoritedIds = useCallback(async () => {
     const r = await fetchFavoritedMenuItemIds(supabase, userId);
@@ -359,7 +371,7 @@ export function TodayMenuPanel({
     let data: unknown[] | null = null;
     const primary = await supabase
       .from("restaurants")
-      .select("id, name, order_count, display_order, created_at")
+      .select("id, name, category, order_count, display_order, created_at")
       .eq("user_id", userId);
     if (primary.error) {
       const missingDisplayOrder =
@@ -372,7 +384,7 @@ export function TodayMenuPanel({
       }
       const fallback = await supabase
         .from("restaurants")
-        .select("id, name, order_count, created_at")
+        .select("id, name, category, order_count, created_at")
         .eq("user_id", userId);
       if (fallback.error) {
         setError(fallback.error.message);
@@ -384,7 +396,17 @@ export function TodayMenuPanel({
       data = primary.data as unknown[] | null;
     }
     const rows = sortRestaurants(
-      ((data ?? []) as RestaurantRow[]).filter((r) => !isSnapshotRestaurant(r))
+      ((data ?? []) as Record<string, unknown>[])
+        .map((r) => ({
+          id: String(r.id),
+          name: String(r.name),
+          category:
+            typeof r.category === "string" && r.category.trim() !== "" ? r.category : "other",
+          order_count: Number(r.order_count) || 0,
+          display_order: r.display_order != null ? Number(r.display_order) : undefined,
+          created_at: r.created_at != null ? String(r.created_at) : null,
+        }))
+        .filter((r) => !isSnapshotRestaurant(r))
     );
     setRestaurants(rows);
     setSelectedRestaurantId((prev) =>
@@ -647,6 +669,77 @@ export function TodayMenuPanel({
     [favoritedMenuItemIds, supabase, userId, refreshFavoritedIds, loadFavorites]
   );
 
+  const selectedShop = useMemo(() => {
+    if (!selectedRestaurantId) return null;
+    return restaurants.find((r) => r.id === selectedRestaurantId) ?? null;
+  }, [restaurants, selectedRestaurantId]);
+
+  useEffect(() => {
+    setConfirmDeleteRestaurant(false);
+  }, [selectedRestaurantId]);
+
+  const handleDownloadRestaurantJson = useCallback(async () => {
+    if (!selectedShop) return;
+    const payload = buildRestaurantExportDocument(
+      {
+        id: selectedShop.id,
+        name: selectedShop.name,
+        category: selectedShop.category || "other",
+      },
+      menuItems.map((m) => ({
+        restaurant_id: m.restaurant_id,
+        name: m.name,
+        protein_per_100g: m.protein_per_100g != null ? Number(m.protein_per_100g) : null,
+        fat_per_100g: m.fat_per_100g != null ? Number(m.fat_per_100g) : null,
+        carbs_per_100g: m.carbs_per_100g != null ? Number(m.carbs_per_100g) : null,
+        shared_barcode: m.shared_barcode != null ? String(m.shared_barcode) : null,
+        standard_food_code: m.standard_food_code != null ? String(m.standard_food_code) : null,
+        default_grams: Number(m.default_grams) || 100,
+        rank: Number(m.rank) || 2,
+        notes: m.notes != null ? String(m.notes) : null,
+        group_name: normalizeMenuGroupKey(m.group_name),
+      }))
+    );
+    const date = new Date().toISOString().split("T")[0];
+    const slug = selectedShop.name.replace(/\s+/g, "-");
+    const fname = `ketolog-${slug}-${date}.json`;
+    const share = await shareUtf8JsonFile(fname, JSON.stringify(payload, null, 2));
+    if (share.error) {
+      onToast?.(share.error);
+      return;
+    }
+    onToast?.("共有シートから保存できます");
+  }, [selectedShop, menuItems, onToast]);
+
+  const handleDeleteRestaurant = useCallback(async () => {
+    if (!selectedShop) return;
+    setDeletingRestaurant(true);
+    const res = await deleteRestaurantMobile(supabase, userId, selectedShop.id);
+    if (res.error) {
+      onToast?.(res.error);
+      setDeletingRestaurant(false);
+      return;
+    }
+    const rid = selectedShop.id;
+    const next = restaurants.filter((r) => r.id !== rid);
+    setRestaurants(next);
+    setMenuItems((prev) => prev.filter((m) => m.restaurant_id !== rid));
+    setSelectedRestaurantId(next[0]?.id ?? null);
+    setConfirmDeleteRestaurant(false);
+    setDeletingRestaurant(false);
+    onRestaurantDeleted?.(rid);
+    await Promise.all([loadFavorites(), refreshFavoritedIds()]);
+  }, [
+    selectedShop,
+    supabase,
+    userId,
+    restaurants,
+    onToast,
+    onRestaurantDeleted,
+    loadFavorites,
+    refreshFavoritedIds,
+  ]);
+
   return (
     <View style={styles.wrap}>
       <View style={styles.switchRow}>
@@ -823,6 +916,58 @@ export function TodayMenuPanel({
               <Text style={styles.addMenuItemText}>＋ メニューを追加</Text>
             </Pressable>
           ) : null}
+          {tab === "shops" && selectedShop && restaurants.length > 0 ? (
+            <View style={styles.shopActionsBlock}>
+              <View style={styles.jsonBtnRow}>
+                <Pressable
+                  onPress={() => {
+                    void handleDownloadRestaurantJson();
+                  }}
+                  style={({ pressed }) => [styles.jsonBtn, pressed && { opacity: 0.88 }]}
+                >
+                  <Text style={styles.jsonBtnText}>JSONでエクスポート</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setImportMenuOpen(true)}
+                  style={({ pressed }) => [styles.jsonBtn, pressed && { opacity: 0.88 }]}
+                >
+                  <Text style={styles.jsonBtnText}>JSONでメニューを追加</Text>
+                </Pressable>
+              </View>
+              {confirmDeleteRestaurant ? (
+                <View style={styles.delConfirmRow}>
+                  <Pressable
+                    onPress={() => setConfirmDeleteRestaurant(false)}
+                    style={({ pressed }) => [styles.delCancelBtn, pressed && { opacity: 0.9 }]}
+                  >
+                    <Text style={styles.delCancelText}>キャンセル</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      void handleDeleteRestaurant();
+                    }}
+                    disabled={deletingRestaurant}
+                    style={({ pressed }) => [
+                      styles.delGoBtn,
+                      (deletingRestaurant || pressed) && { opacity: 0.85 },
+                      deletingRestaurant && { opacity: 0.5 },
+                    ]}
+                  >
+                    <Text style={styles.delGoText}>
+                      {deletingRestaurant ? "削除中..." : "削除する"}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => setConfirmDeleteRestaurant(true)}
+                  style={({ pressed }) => [styles.delHintBtn, pressed && { opacity: 0.88 }]}
+                >
+                  <Text style={styles.delHintText}>このお店を削除</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : null}
           {tab === "favorites" && menuGroups.length === 0 ? (
             <Text style={styles.empty}>お気に入りがありません</Text>
           ) : null}
@@ -843,6 +988,21 @@ export function TodayMenuPanel({
         initialName={renameRestaurantTarget?.name ?? ""}
         onClose={() => setRenameRestaurantTarget(null)}
         onRenamed={handleRestaurantRenamed}
+        onToast={onToast}
+      />
+
+      <ImportMenuItemsModal
+        visible={importMenuOpen}
+        supabase={supabase}
+        userId={userId}
+        restaurantId={selectedShop?.id ?? null}
+        restaurantName={selectedShop?.name ?? ""}
+        onClose={() => setImportMenuOpen(false)}
+        onImported={() => {
+          void loadMenus();
+          void loadFavorites();
+          void refreshFavoritedIds();
+        }}
         onToast={onToast}
       />
     </View>
@@ -931,6 +1091,43 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addMenuItemText: { color: "#9ca3af", fontSize: 14, fontWeight: "500" },
+  shopActionsBlock: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(31, 41, 55, 0.65)",
+    gap: 8,
+  },
+  jsonBtnRow: { flexDirection: "row", gap: 8 },
+  jsonBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#1f2937",
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "rgba(17, 24, 39, 0.4)",
+  },
+  jsonBtnText: { color: "#6b7280", fontSize: 11, fontWeight: "500" },
+  delConfirmRow: { flexDirection: "row", gap: 8, marginTop: 2 },
+  delCancelBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#1f2937",
+    alignItems: "center",
+  },
+  delCancelText: { color: "#d1d5db", fontSize: 13, fontWeight: "500" },
+  delGoBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#dc2626",
+    alignItems: "center",
+  },
+  delGoText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  delHintBtn: { paddingVertical: 6, alignItems: "center" },
+  delHintText: { color: "#f87171", fontSize: 11, fontWeight: "500" },
   restaurantScroll: { flex: 1 },
   /** Web `SortableRestaurantTabs` に近い: 下線で選択、左に並べ替え用ハンドル */
   restaurantTabRowContent: {

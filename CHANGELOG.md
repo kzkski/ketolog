@@ -20,6 +20,19 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.54.0] - 2026-04-24
+
+### Added
+
+- **Mobile / 設定（[#292](https://github.com/kzkski/ketolog/issues/292)）**: Web の設定ドロワー相当として、PFC 目標セット（セット名の直編集・ラジオで表示中セット切替・保存）、全期間の食事ログを含む全データ JSON の共有エクスポート、データソース（Open Food Facts）リンク、ログアウトを `TodaySettingsModal` に実装した。
+- **Mobile / Today（[#292](https://github.com/kzkski/ketolog/issues/292)）**: 店舗メニュー一覧下に Web `MenuItemList` と同様の「JSONでエクスポート」「JSONでメニューを追加」「このお店を削除」を追加した（`expo-document-picker` / `expo-sharing` / `expo-file-system`）。削除時はカート内の当該店舗行も除去する。
+- **Shared / domain**: 単一店舗 JSON v1 のエクスポート組み立て・テンプレート・パースを `@ketolog/domain/restaurant-json-v1` に切り出した。
+
+### Changed
+
+- **Web / Today**: `TodayClient` の単一店舗 JSON 周りを上記ドメインモジュールの利用に差し替えた（挙動は従来と同一）。
+- **Mobile / Today**: 設定は「Web で行ってください」案内から、上記ネイティブ設定モーダルに差し替えた。
+
 ## [1.53.0] - 2026-04-23
 
 ### Added

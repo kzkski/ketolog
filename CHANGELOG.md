@@ -20,6 +20,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.50.0] - 2026-04-23
+
+### Added
+
+- **Mobile / アプリ骨格（#287 子）**: Expo Router による `(auth)` / `(app)` グループ、ログイン・新規登録（メール・Google）、深いリンク用 `auth/callback`、セッション共有の `AuthSessionProvider` を追加した（[#288](https://github.com/kzkski/ketolog/issues/288)）。
+
 ## [1.49.1] - 2026-04-23
 
 ### Fixed

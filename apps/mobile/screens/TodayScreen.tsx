@@ -11,9 +11,9 @@ import {
   Text,
   View,
 } from "react-native";
+import brandHeaderImage from "../assets/brand-header.png";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import type { Session } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 import { sumPfc, type PfcGrams } from "@ketolog/domain/pfc";
 import { toJstDateString } from "@ketolog/domain/date";
@@ -23,6 +23,7 @@ import {
   activePhaseProfile,
   normalizeUserSettings,
 } from "@ketolog/domain/diet-phase";
+import { useAuthSessionContext } from "../contexts/AuthSessionContext";
 import { getSupabase } from "../lib/supabase";
 import {
   FoodLogEntryModal,
@@ -109,13 +110,9 @@ function PfcBarRow({
   );
 }
 
-type TodayScreenProps = {
-  session: Session;
-  onSignOut: () => Promise<void>;
-};
-
-export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
-  const userId = session.user.id;
+export function TodayScreen() {
+  const { session, signOut } = useAuthSessionContext();
+  const userId = session?.user.id ?? "";
   const supabase = getSupabase();
 
   const [loading, setLoading] = useState(true);
@@ -139,6 +136,7 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
   const appVersion = Constants.expoConfig?.version ?? "—";
 
   const refreshOutbox = useCallback(async () => {
+    if (!userId) return;
     setOutbox(await loadFoodLogOutbox(userId));
   }, [userId]);
 
@@ -153,6 +151,7 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
   }, [toast]);
 
   const load = useCallback(async () => {
+    if (!userId) return;
     setLoadError(null);
     const today = toJstDateString();
     setJstDate(today);
@@ -267,6 +266,7 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
   );
 
   useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -276,16 +276,18 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
     return () => {
       cancelled = true;
     };
-  }, [load, refreshOutbox]);
+  }, [load, refreshOutbox, userId]);
 
   const onRefresh = useCallback(async () => {
+    if (!userId) return;
     setRefreshing(true);
     await Promise.all([load(), refreshOutbox()]);
     setRefreshing(false);
-  }, [load, refreshOutbox]);
+  }, [load, refreshOutbox, userId]);
 
   const resendDraft = useCallback(
     async (d: FoodLogOutboxDraft) => {
+      if (!userId) return;
       if (!(await getIsOnline())) {
         showToast("オフラインです。通信が戻ってから再送してください。");
         return;
@@ -332,7 +334,7 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
 
   const onSelectPhase = useCallback(
     async (ph: DietPhase) => {
-      if (!settings || ph === settings.diet_phase) return;
+      if (!userId || !settings || ph === settings.diet_phase) return;
       setPhaseSaving(true);
       setLoadError(null);
       const { error } = await supabase.from("user_settings").upsert(
@@ -356,6 +358,10 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
   const activeProfile = settings
     ? activePhaseProfile(settings)
     : null;
+
+  if (!session) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -386,9 +392,11 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
           <View style={styles.brandBlock}>
             <View style={styles.brandIconWrap} accessibilityLabel="Ketolog">
               <Image
-                source={require("../assets/brand-header.png")}
+                alt="Ketolog"
+                source={brandHeaderImage}
                 style={styles.brandIconImage}
                 resizeMode="cover"
+                accessibilityLabel="Ketolog"
                 accessibilityIgnoresInvertColors
               />
             </View>
@@ -659,7 +667,7 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
             <Pressable
               onPress={() => {
                 setSettingsOpen(false);
-                void onSignOut();
+                void signOut();
               }}
               style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.9 }]}
             >

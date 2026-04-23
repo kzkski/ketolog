@@ -12,6 +12,7 @@
     "./open-food-facts": "./src/open-food-facts.ts",
     "./shared-product-source": "./src/shared-product-source.ts",
     "./standard-food-meta": "./src/standard-food-meta.ts",
-    "./menu-share-qr": "./src/menu-share-qr.ts"
+    "./menu-share-qr": "./src/menu-share-qr.ts",
+    "./restaurant-json-v1": "./src/restaurant-json-v1.ts"
   }
 }

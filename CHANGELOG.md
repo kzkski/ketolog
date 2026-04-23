@@ -20,6 +20,23 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.52.0] - 2026-04-23
+
+### Added
+
+- **Mobile / Today**: Web のメニュー項目ドロワー相当の `MenuItemEditorModal`（メニュー追加・編集・削除、栄養素の表示単位、登録先・今すぐ記録・カート・メニューに登録）。
+- **Mobile / Today**: 店舗タブ行末尾の「＋」で `AddRestaurantModal` から店舗を追加し、追加直後にその店タブへ切り替え（Web `RestaurantPanel` と同様の配置）。
+- **Mobile / Today**: メニュー一覧下の破線「＋ メニューを追加」（Web `MenuItemList` と同様）。
+- **Mobile / Today**: カートの未登録行用 `snapshotDraft` と、記録時の `menu_item_id: null` 付与。
+
+### Changed
+
+- **Mobile / Today**: 記録パネルの「手入力」からも `MenuItemEditorModal` を開き、Web の食事区分横「＋」と同じ導線に統一した。
+- **Mobile / Today**: メニュー行の編集は品名・PFC ブロックのタップのみ（Web `MenuItemRow` と同等）。専用「編集」ボタンを廃止した。
+- **Mobile / Today**: 記録ヘッダーは「手入力」のみに整理した。
+- **Mobile / Today**: 食事ログの追加（プリフィル）・記録の編集は `FoodLogEntryModal`、メニュー CRUD は `MenuItemEditorModal` に分離した。
+- **Mobile / MenuPickModal**: お気に入りタブ・星トグル・店舗並び（`display_order`）を Today 周りと揃えた。
+
 ## [1.51.0] - 2026-04-23
 
 ### Added

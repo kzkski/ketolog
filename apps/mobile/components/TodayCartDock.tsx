@@ -22,6 +22,8 @@ export type CartLineState = {
   carbs_per_100g: number | null;
   /** メニュー未登録の下書き行。記録時は `menu_item_id` を null にする */
   snapshotDraft?: boolean;
+  /** スナップショット由来の市販品バーコード（表示用・Web `CartPanel` に相当） */
+  shared_barcode?: string | null;
 };
 
 export const CART_MEAL_ORDER: MealType[] = ["breakfast", "lunch", "dinner", "snack"];

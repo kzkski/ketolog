@@ -7,8 +7,8 @@
     "packages/*"
   ],
   "overrides": {
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   },
   "scripts": {
     "dev": "next dev",
@@ -23,6 +23,7 @@
     "mobile:start": "npx expo start apps/mobile",
     "mobile:ios": "npx expo start apps/mobile --ios",
     "mobile:ios:run": "npm --prefix apps/mobile run run:ios",
+    "mobile:ios:run:clean": "npm --prefix apps/mobile run run:ios:clean",
     "mobile:android:run": "npm --prefix apps/mobile run run:android",
     "mobile:android": "npx expo start apps/mobile --android",
     "mobile:typecheck": "npm --prefix apps/mobile run typecheck"
@@ -42,8 +43,8 @@
     "@zxing/library": "^0.21.3",
     "next": "16.2.3",
     "qrcode": "^1.5.4",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "recharts": "^3.8.1",
     "expo": "~54.0.33",
     "react-native": "0.81.5"

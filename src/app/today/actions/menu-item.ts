@@ -3,44 +3,26 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type { MenuItem, SharedProduct } from "@/types/database";
-import { STANDARD_FOOD_SEARCH_PAGE_SIZE } from "@/lib/standard-food-search";
+import {
+  fetchOpenFoodFactsProduct,
+  getDefaultOffUserAgent,
+  normalizeBarcode,
+} from "@ketolog/domain/open-food-facts";
+import { STANDARD_FOOD_SEARCH_PAGE_SIZE } from "@ketolog/domain/standard-food-meta";
 import {
   MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
   SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
   SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS,
-} from "@/lib/shared-product-source";
+} from "@ketolog/domain/shared-product-source";
 
-const OFF_API_BASE = process.env.OFF_API_BASE ?? "https://world.openfoodfacts.org";
-const OFF_DEFAULT_CONTACT = "info@civictech.tv";
 const OFF_USER_AGENT =
   process.env.OFF_USER_AGENT ??
-  `Ketolog/${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"} (${OFF_DEFAULT_CONTACT})`;
+  getDefaultOffUserAgent(process.env.NEXT_PUBLIC_APP_VERSION ?? "dev");
 const SHARED_PRODUCT_TTL_MS = 1000 * 60 * 60 * 24 * 180; // 180日
 const MENU_ITEM_SELECT_WITH_STANDARD_FOOD_CODE =
   "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, standard_food_code, created_at";
 const MENU_ITEM_SELECT_LEGACY =
   "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, created_at";
-
-function normalizeBarcode(raw: string): string {
-  return raw.replace(/[^\d]/g, "").trim();
-}
-
-function parseOffNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim() !== "") {
-    const n = Number(value);
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
-}
-
-function parseServingSizeGrams(servingSize: string | undefined): number | null {
-  if (!servingSize) return null;
-  const m = servingSize.match(/(\d+(?:\.\d+)?)\s*g/i);
-  if (!m) return null;
-  const grams = Number(m[1]);
-  return Number.isFinite(grams) && grams > 0 ? grams : null;
-}
 
 function isMissingColumnError(error: { message?: string } | null | undefined): boolean {
   if (!error?.message) return false;
@@ -93,47 +75,6 @@ export async function fetchMenuItemsForRestaurant(
   };
 }
 
-async function fetchOffProduct(barcode: string): Promise<SharedProduct | null> {
-  const url = `${OFF_API_BASE}/api/v2/product/${barcode}.json?fields=code,product_name,brands,nutriments`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: { "User-Agent": OFF_USER_AGENT },
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  const json = (await res.json()) as {
-    status?: number;
-    product?: {
-      product_name?: string;
-      brands?: string;
-      serving_size?: string;
-      nutriments?: Record<string, unknown>;
-    };
-  };
-  if (json.status !== 1 || !json.product) return null;
-
-  const name = json.product.product_name?.trim();
-  if (!name) return null;
-  const nutriments = json.product.nutriments ?? {};
-  const protein = parseOffNumber(nutriments.proteins_100g);
-  const fat = parseOffNumber(nutriments.fat_100g);
-  const carbs = parseOffNumber(
-    nutriments.carbohydrates_100g ?? nutriments.carbohydrates
-  );
-
-  return {
-    barcode,
-    product_name: name,
-    brand: json.product.brands?.trim() || null,
-    protein_per_100g: protein,
-    fat_per_100g: fat,
-    carbs_per_100g: carbs,
-    serving_size: json.product.serving_size?.trim() || null,
-    serving_size_grams: parseServingSizeGrams(json.product.serving_size),
-    last_checked_at: new Date().toISOString(),
-  };
-}
-
 async function upsertSharedProduct(
   supabase: Awaited<ReturnType<typeof createClient>>,
   product: SharedProduct
@@ -181,7 +122,10 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
     const stale = Date.now() - new Date(cached.last_checked_at).getTime() > SHARED_PRODUCT_TTL_MS;
     if (stale && source === SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS) {
       void (async () => {
-        const refreshed = await fetchOffProduct(barcode);
+        const refreshed = await fetchOpenFoodFactsProduct(barcode, {
+          apiBase: process.env.OFF_API_BASE,
+          userAgent: OFF_USER_AGENT,
+        });
         if (refreshed) {
           await upsertSharedProduct(supabase, refreshed);
         }
@@ -191,7 +135,10 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
   }
 
   try {
-    const fetched = await fetchOffProduct(barcode);
+    const fetched = await fetchOpenFoodFactsProduct(barcode, {
+      apiBase: process.env.OFF_API_BASE,
+      userAgent: OFF_USER_AGENT,
+    });
     if (!fetched) return { status: "not_found", product: null, error: null };
     const { error: upsertError } = await upsertSharedProduct(supabase, fetched);
     if (upsertError) {

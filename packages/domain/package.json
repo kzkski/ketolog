@@ -8,6 +8,10 @@
     "./pfc": "./src/pfc.ts",
     "./date": "./src/date.ts",
     "./diet-phase": "./src/diet-phase.ts",
-    "./meal-timezone": "./src/meal-timezone.ts"
+    "./meal-timezone": "./src/meal-timezone.ts",
+    "./open-food-facts": "./src/open-food-facts.ts",
+    "./shared-product-source": "./src/shared-product-source.ts",
+    "./standard-food-meta": "./src/standard-food-meta.ts",
+    "./menu-share-qr": "./src/menu-share-qr.ts"
   }
 }

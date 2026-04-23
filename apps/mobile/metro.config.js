@@ -4,6 +4,10 @@ const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
 
 const projectRoot = __dirname;
+// Metro の Babel caller.projectRoot / EXPO_PROJECT_ROOT のフォールバック（モノレポ・ルートからの起動時）
+if (!process.env.EXPO_PROJECT_ROOT) {
+  process.env.EXPO_PROJECT_ROOT = projectRoot;
+}
 const monorepoRoot = path.resolve(projectRoot, "../..");
 const mobileNodeModules = path.resolve(projectRoot, "node_modules");
 const rootNodeModules = path.resolve(monorepoRoot, "node_modules");

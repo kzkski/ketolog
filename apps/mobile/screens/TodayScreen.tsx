@@ -39,6 +39,7 @@ import {
   MenuItemEditorModal,
   type MenuItemEditorState,
 } from "../components/MenuItemEditorModal";
+import type { StandardFoodSearchRow } from "../lib/search-standard-foods-mobile";
 import { AddRestaurantModal } from "../components/AddRestaurantModal";
 import {
   TodayCartDock,
@@ -162,6 +163,7 @@ export function TodayScreen() {
   const [menuPrefill, setMenuPrefill] = useState<MenuPrefill | null>(null);
   const [menuEditorOpen, setMenuEditorOpen] = useState(false);
   const [menuEditorState, setMenuEditorState] = useState<MenuItemEditorState | null>(null);
+  const [menuBrowseTabRequest, setMenuBrowseTabRequest] = useState<"composition" | null>(null);
   const [restaurantAddOpen, setRestaurantAddOpen] = useState(false);
   const [selectRestaurantIdAfterAdd, setSelectRestaurantIdAfterAdd] = useState<string | null>(
     null
@@ -284,6 +286,9 @@ export function TodayScreen() {
     );
   }, [cartLinesSorted]);
 
+  /** バー表示は「本日の記録」＋「カート内」を合算（カート投入で即反映） */
+  const pfcBarCurrent = useMemo(() => sumPfc(consumed, cartPfcTotal), [consumed, cartPfcTotal]);
+
   const mergeCartLine = useCallback(
     (line: CartLineState) => {
       setCart((prev) => {
@@ -296,7 +301,6 @@ export function TodayScreen() {
         }
         return next;
       });
-      setCartExpanded(true);
     },
     []
   );
@@ -320,37 +324,43 @@ export function TodayScreen() {
     [mergeCartLine]
   );
 
-  const addSnapshotDraftToCart = useCallback(
-    (draft: {
-      name: string;
-      protein_per_100g: number | null;
-      fat_per_100g: number | null;
-      carbs_per_100g: number | null;
-      grams: number;
-    }) => {
-      if (!snapshotRestaurantId) return;
-      const g = Number.isFinite(draft.grams) && draft.grams > 0 ? draft.grams : 100;
-      mergeCartLine({
-        menuItemId: newClientRowId(),
-        restaurantId: snapshotRestaurantId,
-        name: draft.name,
-        gramsPerServing: g,
-        count: 1,
-        protein_per_100g: draft.protein_per_100g,
-        fat_per_100g: draft.fat_per_100g,
-        carbs_per_100g: draft.carbs_per_100g,
-        snapshotDraft: true,
-      });
-    },
-    [mergeCartLine, snapshotRestaurantId]
-  );
-
   const openMenuEditorAdd = useCallback((registerRestaurantIdHint?: string | null) => {
     setMenuEditorState({
       kind: "add",
       registerRestaurantIdHint: registerRestaurantIdHint ?? null,
     });
     setMenuEditorOpen(true);
+  }, []);
+
+  const openMenuEditorFromStandardFood = useCallback(
+    (row: StandardFoodSearchRow, registerRestaurantIdHint: string | null) => {
+      setMenuEditorState({
+        kind: "add",
+        registerRestaurantIdHint,
+        standardFoodDraft: {
+          food_code: row.food_code,
+          name: row.name,
+          protein_per_100g:
+            row.protein_per_100g != null && Number.isFinite(Number(row.protein_per_100g))
+              ? Number(row.protein_per_100g)
+              : null,
+          fat_per_100g:
+            row.fat_per_100g != null && Number.isFinite(Number(row.fat_per_100g))
+              ? Number(row.fat_per_100g)
+              : null,
+          carbs_per_100g:
+            row.carbs_per_100g != null && Number.isFinite(Number(row.carbs_per_100g))
+              ? Number(row.carbs_per_100g)
+              : null,
+        },
+      });
+      setMenuEditorOpen(true);
+    },
+    []
+  );
+
+  const onBrowseTabRequestConsumed = useCallback(() => {
+    setMenuBrowseTabRequest(null);
   }, []);
 
   const openMenuEditorEdit = useCallback((item: FavoriteMenuItemPayload) => {
@@ -815,22 +825,29 @@ export function TodayScreen() {
             })}
           </View>
 
-          <View style={styles.pfcBlock}>
+          <View
+            style={styles.pfcBlock}
+            accessibilityLabel={
+              cartLinesSorted.length > 0
+                ? "PFC（記録済みとカート内の合計）"
+                : "PFC（記録済み）"
+            }
+          >
             <PfcBarRow
               label="P"
-              current={consumed.p}
+              current={pfcBarCurrent.p}
               target={activeProfile.protein_target_g}
               color={COLORS.p}
             />
             <PfcBarRow
               label="F"
-              current={consumed.f}
+              current={pfcBarCurrent.f}
               target={activeProfile.fat_target_g}
               color={COLORS.f}
             />
             <PfcBarRow
               label="C"
-              current={consumed.c}
+              current={pfcBarCurrent.c}
               target={activeProfile.carbs_target_g}
               color={COLORS.c}
             />
@@ -1014,6 +1031,10 @@ export function TodayScreen() {
               protein_target_g: activeProfile.protein_target_g,
               fat_target_g: activeProfile.fat_target_g,
             }}
+            browseTabRequest={menuBrowseTabRequest}
+            onBrowseTabRequestConsumed={onBrowseTabRequestConsumed}
+            onPickStandardFoodForMenu={openMenuEditorFromStandardFood}
+            onToast={showToast}
           />
         </ScrollView>
 
@@ -1067,8 +1088,12 @@ export function TodayScreen() {
         }}
         onSaved={handleMenuEditorSaved}
         onToast={showToast}
-        onAddSnapshotDraftToCart={addSnapshotDraftToCart}
         onOutboxChanged={refreshOutbox}
+        onRequestOpenStandardFoodComposition={() => {
+          setMenuEditorOpen(false);
+          setMenuEditorState(null);
+          setMenuBrowseTabRequest("composition");
+        }}
       />
 
       <AddRestaurantModal
@@ -1099,7 +1124,16 @@ export function TodayScreen() {
             accessibilityLabel="閉じる"
           />
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>設定</Text>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>設定</Text>
+              <Pressable
+                onPress={() => setSettingsOpen(false)}
+                hitSlop={8}
+                style={({ pressed }) => [pressed && { opacity: 0.75 }]}
+              >
+                <Text style={styles.modalCloseText}>閉じる</Text>
+              </Pressable>
+            </View>
             <Text style={styles.modalBody}>
               PFC 目標の編集・データのエクスポート・全データ管理は、Web 版の Ketolog を開いて行ってください。
             </Text>
@@ -1111,12 +1145,6 @@ export function TodayScreen() {
               style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.9 }]}
             >
               <Text style={styles.dangerBtnText}>ログアウト</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setSettingsOpen(false)}
-              style={({ pressed }) => [styles.outlineBtn, pressed && { opacity: 0.8 }]}
-            >
-              <Text style={styles.outlineBtnText}>閉じる</Text>
             </Pressable>
           </View>
         </View>
@@ -1436,17 +1464,18 @@ const styles = StyleSheet.create({
   },
   logMealSectionLabel: {
     paddingHorizontal: 14,
-    paddingVertical: 4,
+    paddingVertical: 1,
     fontSize: 11,
+    lineHeight: 12,
     color: "#6b7280",
     backgroundColor: "rgba(17, 24, 39, 0.5)",
   },
   logEntryRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 1,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(31, 41, 55, 0.4)",
   },
@@ -1455,11 +1484,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
     color: "#ffffff",
     fontSize: 13,
+    lineHeight: 15,
     fontWeight: "400",
   },
   logEntryGrams: {
     width: 44,
     fontSize: 11,
+    lineHeight: 12,
     color: "#9ca3af",
     textAlign: "right",
     fontVariant: ["tabular-nums"],
@@ -1467,24 +1498,25 @@ const styles = StyleSheet.create({
   logEntryPfc: {
     width: 108,
     fontSize: 11,
+    lineHeight: 12,
     color: "#6b7280",
     textAlign: "right",
     fontVariant: ["tabular-nums"],
   },
   logEntryIconBtn: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
   },
   logEntryEditGlyph: {
     color: "#9ca3af",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
   },
   logEntryDeleteGlyph: {
     color: "#f87171",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
   },
   toast: {
@@ -1526,7 +1558,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
   },
-  modalTitle: { color: COLORS.text, fontSize: 17, fontWeight: "600" },
+  modalHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  modalTitle: {
+    flex: 1,
+    minWidth: 0,
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "600",
+  },
+  modalCloseText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    paddingTop: 2,
+    fontWeight: "500",
+  },
   modalBody: { color: COLORS.textMuted, fontSize: 13, marginTop: 10, lineHeight: 20 },
   dangerBtn: {
     marginTop: 18,
@@ -1536,13 +1586,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   dangerBtnText: { color: "#fecaca", fontWeight: "600" },
-  outlineBtn: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: COLORS.headerBorder,
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  outlineBtnText: { color: COLORS.text, fontWeight: "500" },
 });

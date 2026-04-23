@@ -2,22 +2,11 @@
 
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type { MenuItem, Restaurant } from "@/types/database";
+import type { MenuShareImportItem } from "@ketolog/domain/menu-share-qr";
 import { ensureFavoriteEntryForMenuItem } from "./favorites";
 import { nextRestaurantDisplayOrder } from "./restaurant";
 
-export type ImportRestaurantItem = {
-  name: string;
-  protein_per_100g: number | null;
-  fat_per_100g: number | null;
-  carbs_per_100g: number | null;
-  shared_barcode?: string | null;
-  standard_food_code?: string | null;
-  default_grams: number;
-  rank: number;
-  notes: string | null;
-  group?: string | null;
-  is_favorite?: boolean;
-};
+export type ImportRestaurantItem = MenuShareImportItem;
 
 export type ImportRestaurantEntry = {
   name: string;

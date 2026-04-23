@@ -7,6 +7,13 @@ const rootPackageJson = JSON.parse(
 ) as { version?: string };
 const appVersion = rootPackageJson.version ?? "1.0.0";
 
+/** iOS は Info.plist の NSCameraUsageDescription が無いとカメラ起動時に即クラッシュする（開発ビルドの取り込み漏れ対策で infoPlist にも明示） */
+const cameraUsageDescription =
+  "バーコードと共有メニューQRを読み取るためにカメラを使用します。";
+
+/** `assets/icon.png` 外周の実測に合わせる（#0d2344 だとスプラッシュ全面との境がわずかに浮く） */
+const brandBackgroundNavy = "#122a4b";
+
 const config: ExpoConfig = {
   name: "Ketolog",
   slug: "mobile",
@@ -16,11 +23,11 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   newArchEnabled: true,
-  /** ロゴ外周の紺（`public/icons/icon-512.png` と揃える） */
+  /** `splash-icon.png` は円＋白角のためスプラッシュに不向き。紺ベタの正方形 `icon.png` を使用 */
   splash: {
-    image: "./assets/splash-icon.png",
+    image: "./assets/icon.png",
     resizeMode: "contain",
-    backgroundColor: "#0d2344",
+    backgroundColor: brandBackgroundNavy,
   },
   ios: {
     supportsTablet: true,
@@ -28,13 +35,14 @@ const config: ExpoConfig = {
     bundleIdentifier: "com.ketolog.mobile",
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      NSCameraUsageDescription: cameraUsageDescription,
     },
   },
   android: {
     package: "com.ketolog.mobile",
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#0d2344",
+      backgroundColor: brandBackgroundNavy,
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
@@ -57,13 +65,20 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-web-browser",
     [
-      "expo-splash-screen",
+      "expo-camera",
       {
-        image: "./assets/splash-icon.png",
-        resizeMode: "contain",
-        backgroundColor: "#0d2344",
+        cameraPermission: cameraUsageDescription,
       },
     ],
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/icon.png",
+        resizeMode: "contain",
+        backgroundColor: brandBackgroundNavy,
+      },
+    ],
+    ["./plugins/withIosCameraUsageDescription", { description: cameraUsageDescription }],
   ],
 };
 

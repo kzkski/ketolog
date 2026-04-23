@@ -71,6 +71,8 @@ type Props = {
   supabase: SupabaseClient;
   userId: string;
   date: string;
+  /** 手入力時の `food_log.source`（Web と同じスナップショット店 UUID）。メニュー経路では未使用。 */
+  snapshotRestaurantId: string | null;
   entry: FoodLogRow | null;
   /** メニューから開いたときのプリフィル。手入力のときは null。 */
   menuPrefill: MenuPrefill | null;
@@ -87,6 +89,7 @@ export function FoodLogEntryModal({
   supabase,
   userId,
   date,
+  snapshotRestaurantId,
   entry,
   menuPrefill,
   onClose,
@@ -143,6 +146,17 @@ export function FoodLogEntryModal({
       setFormError("品目名を入力してください");
       return;
     }
+    if (!menuPrefill && !snapshotRestaurantId) {
+      setFormError(
+        "手入力の店舗情報を取得できませんでした。通信を確認してから再度お試しください。"
+      );
+      return;
+    }
+    const sourceId = menuPrefill?.restaurantId ?? snapshotRestaurantId;
+    if (!sourceId) {
+      setFormError("保存できませんでした。しばらくしてから再度お試しください。");
+      return;
+    }
     const grams = parseNum(gramsStr);
     if (grams == null || grams <= 0) {
       setFormError("分量（g）は正の数で入力してください");
@@ -162,7 +176,7 @@ export function FoodLogEntryModal({
       protein_g: v.p,
       fat_g: v.f,
       carbs_g: v.c,
-      source: menuPrefill?.restaurantId ?? "manual",
+      source: sourceId,
       menu_item_id: menuPrefill?.menuItemId ?? null,
       saved_at: new Date().toISOString(),
     };
@@ -224,6 +238,7 @@ export function FoodLogEntryModal({
     onSaved,
     onToast,
     onOutboxChanged,
+    snapshotRestaurantId,
   ]);
 
   const runSaveEdit = useCallback(async () => {

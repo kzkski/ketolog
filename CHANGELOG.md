@@ -18,6 +18,16 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.45.0] - 2026-04-23
+
+### Added
+
+- **Mobile / Today**: 当日 `food_log` の一覧表示、手入力での追加（品目・食事区分・分量 g・100g あたり PFC）、分量と食事区分の編集（Web と同様の PFC 比率による再計算）、削除（確認ダイアログ）。失敗時はトーストとモーダル内の再試行。Web で登録した行も同じ一覧に表示される（[#268](https://github.com/kzkski/ketolog/issues/268)）。
+
+### Changed
+
+- **Shared / domain**: `pfcGramsFromNullablePer100` を `packages/domain/src/pfc.ts` に追加し、`src/lib/menu-item-pfc.ts` から再エクスポートするよう整理した（[#268](https://github.com/kzkski/ketolog/issues/268)）。
+
 ## [1.44.0] - 2026-04-23
 
 ### Added

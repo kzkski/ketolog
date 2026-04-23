@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -23,6 +24,10 @@ import {
   normalizeUserSettings,
 } from "@ketolog/domain/diet-phase";
 import { getSupabase } from "../lib/supabase";
+import {
+  FoodLogEntryModal,
+  type FoodLogRow,
+} from "../components/FoodLogEntryModal";
 
 type UserSettingsState = {
   diet_phase: DietPhase;
@@ -30,6 +35,13 @@ type UserSettingsState = {
 };
 
 const DIET_PHASES: DietPhase[] = [1, 2, 3];
+
+const MEAL_SHORT: Record<string, string> = {
+  breakfast: "朝",
+  lunch: "昼",
+  dinner: "夕",
+  snack: "間",
+};
 
 const COLORS = {
   bg: "#0a0a0a",
@@ -105,8 +117,23 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
   const [jstDate, setJstDate] = useState(() => toJstDateString());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [phaseSaving, setPhaseSaving] = useState(false);
+  const [logEntries, setLogEntries] = useState<FoodLogRow[]>([]);
+  const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [entryModalMode, setEntryModalMode] = useState<"add" | "edit">("add");
+  const [editingEntry, setEditingEntry] = useState<FoodLogRow | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const appVersion = Constants.expoConfig?.version ?? "—";
+
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -121,9 +148,12 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
         .maybeSingle(),
       supabase
         .from("food_log")
-        .select("protein_g, fat_g, carbs_g")
+        .select(
+          "id, date, meal_type, item_name, grams, protein_g, fat_g, carbs_g"
+        )
         .eq("user_id", userId)
-        .eq("date", today),
+        .eq("date", today)
+        .order("created_at", { ascending: true }),
     ]);
 
     if (settingsRes.error) {
@@ -137,6 +167,18 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
 
     setSettings(normalizeUserSettings(settingsRes.data));
     const rows = logRes.data ?? [];
+    setLogEntries(
+      rows.map((r) => ({
+        id: String(r.id),
+        date: String(r.date),
+        meal_type: String(r.meal_type),
+        item_name: String(r.item_name),
+        grams: Number(r.grams) || 0,
+        protein_g: Number(r.protein_g) || 0,
+        fat_g: Number(r.fat_g) || 0,
+        carbs_g: Number(r.carbs_g) || 0,
+      }))
+    );
     setConsumed(
       sumPfc(
         ...rows.map((r) => ({
@@ -147,6 +189,51 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
       )
     );
   }, [supabase, userId]);
+
+  const openAddEntry = useCallback(() => {
+    setEditingEntry(null);
+    setEntryModalMode("add");
+    setEntryModalOpen(true);
+  }, []);
+
+  const openEditEntry = useCallback((e: FoodLogRow) => {
+    setEditingEntry(e);
+    setEntryModalMode("edit");
+    setEntryModalOpen(true);
+  }, []);
+
+  const confirmDeleteEntry = useCallback(
+    (e: FoodLogRow) => {
+      Alert.alert(
+        "記録を削除",
+        `「${e.item_name}」を削除しますか？`,
+        [
+          { text: "キャンセル", style: "cancel" },
+          {
+            text: "削除",
+            style: "destructive",
+            onPress: () => {
+              void (async () => {
+                const { error } = await supabase
+                  .from("food_log")
+                  .delete()
+                  .eq("id", e.id)
+                  .eq("user_id", userId);
+                if (error) {
+                  showToast(`削除に失敗: ${error.message}`);
+                  return;
+                }
+                showToast("削除しました");
+                await load();
+              })();
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    },
+    [supabase, userId, load, showToast]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -302,15 +389,96 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
             />
           </View>
 
-          <View style={styles.mvpBox}>
-            <Text style={styles.mvpTitle}>MVP 表示中</Text>
-            <Text style={styles.mvpBody}>
-              メニュー・カート・食事記録の追加・編集は、引き続き Web 版（PWA）をご利用ください。アプリは Web
-              で記録した内容と同じ Supabase 上の日次合計（上記 PFC）を表示します。
-            </Text>
+          <View style={styles.logSection}>
+            <View style={styles.logSectionHeader}>
+              <Text style={styles.logSectionTitle}>今日の記録</Text>
+              <Pressable
+                onPress={openAddEntry}
+                style={({ pressed }) => [
+                  styles.addChip,
+                  pressed && { opacity: 0.85 },
+                ]}
+                accessibilityLabel="食事を追加"
+              >
+                <Ionicons name="add" size={18} color="#022c22" />
+                <Text style={styles.addChipText}>追加</Text>
+              </Pressable>
+            </View>
+            {logEntries.length === 0 ? (
+              <Text style={styles.logEmpty}>
+                まだ記録がありません。「追加」から手入力で登録できます（Web
+                での記録もここに表示されます）。
+              </Text>
+            ) : (
+              logEntries.map((e) => (
+                <View key={e.id} style={styles.logRow}>
+                  <Pressable
+                    onPress={() => openEditEntry(e)}
+                    style={({ pressed }) => [
+                      styles.logRowMain,
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <Text style={styles.logMealBadge}>
+                      {MEAL_SHORT[e.meal_type] ?? e.meal_type}
+                    </Text>
+                    <View style={styles.logRowBody}>
+                      <Text style={styles.logItemName} numberOfLines={2}>
+                        {e.item_name}
+                      </Text>
+                      <Text style={styles.logMeta}>
+                        {e.grams}g · P {fmtMacroGrams(e.protein_g)} / F{" "}
+                        {fmtMacroGrams(e.fat_g)} / C {fmtMacroGrams(e.carbs_g)}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={COLORS.textMuted}
+                    />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => confirmDeleteEntry(e)}
+                    hitSlop={10}
+                    style={({ pressed }) => [
+                      styles.logDeleteBtn,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                    accessibilityLabel="削除"
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={20}
+                      color="#f87171"
+                    />
+                  </Pressable>
+                </View>
+              ))
+            )}
           </View>
         </ScrollView>
       </View>
+
+      <FoodLogEntryModal
+        visible={entryModalOpen}
+        mode={entryModalMode}
+        supabase={supabase}
+        userId={userId}
+        date={jstDate}
+        entry={editingEntry}
+        onClose={() => {
+          setEntryModalOpen(false);
+          setEditingEntry(null);
+        }}
+        onSaved={load}
+        onToast={showToast}
+      />
+
+      {toast ? (
+        <View style={styles.toast} pointerEvents="none">
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      ) : null}
 
       <Modal
         visible={settingsOpen}
@@ -475,21 +643,94 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontVariant: ["tabular-nums"],
   },
-  mvpBox: {
-    margin: 12,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: "#0f172a",
+  logSection: {
+    marginHorizontal: 12,
+    marginTop: 8,
+    paddingBottom: 72,
+  },
+  logSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  logSectionTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  addChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: COLORS.c,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  addChipText: { color: "#022c22", fontWeight: "700", fontSize: 13 },
+  logEmpty: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    paddingVertical: 8,
+  },
+  logRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    backgroundColor: COLORS.sectionBg,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.headerBorder,
+    overflow: "hidden",
+  },
+  logRowMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingLeft: 10,
+    paddingRight: 4,
+    gap: 8,
+  },
+  logMealBadge: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#a7f3d0",
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  logRowBody: { flex: 1, minWidth: 0 },
+  logItemName: { color: COLORS.text, fontSize: 14, fontWeight: "500" },
+  logMeta: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 4,
+    fontVariant: ["tabular-nums"],
+  },
+  logDeleteBtn: {
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: COLORS.headerBorder,
+  },
+  toast: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 24,
+    backgroundColor: "#1f2937",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.headerBorder,
   },
-  mvpTitle: {
-    color: COLORS.text,
-    fontWeight: "600",
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  mvpBody: { color: COLORS.textMuted, fontSize: 12, lineHeight: 18 },
+  toastText: { color: COLORS.text, fontSize: 13, textAlign: "center" },
   inlineError: {
     color: "#fecaca",
     fontSize: 12,

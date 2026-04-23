@@ -24,8 +24,19 @@ npm install
 
 ### Supabase 認証（Issue #266 / PoC）
 
-1. `apps/mobile/.env.example` を `apps/mobile/.env` にコピーし、`EXPO_PUBLIC_SUPABASE_URL` と `EXPO_PUBLIC_SUPABASE_ANON_KEY` を Web（`NEXT_PUBLIC_SUPABASE_*`）と**同じプロジェクト**の値で埋める。
-2. **Supabase ダッシュボード**（Authentication → URL Configuration）の **Redirect URLs** に、少なくとも次のパターンを含める（Google OAuth・PKCE の戻り先用）。
+**接続先の切り替え**（`apps/mobile/lib/supabase.ts`）: `expo-constants` の **`Constants.isDevice`** で判別する。
+
+| 実行環境 | 使う環境変数 | 想定する DB |
+|---|---|---|
+| **iOS シミュレータ / Android エミュレータ**（`isDevice === false`） | `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` | ローカル Supabase（`supabase start` など） |
+| **実機**（`isDevice === true`、Xcode / EAS でインストールしたビルド含む） | `EXPO_PUBLIC_SUPABASE_PRODUCTION_URL` / `EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY` | 本番（またはステージング）プロジェクト |
+
+実機ビルド時も `.env`（または EAS Secrets などビルド時に埋め込む手段）に **本番用の 2 変数**が入っている必要がある。シミュレータ用の URL だけでは実機では起動しない。
+
+**補足**: **Expo Go を実機で開いた場合**も `Constants.isDevice === true` のため、本番用の 2 変数が使われる（実機からローカル Supabase に繋ぎたい場合は、この判定を変えるかトンネル URL を本番変数側に載せるなど別運用が必要）。
+
+1. `apps/mobile/.env.example` を `apps/mobile/.env` にコピーし、上表に従って **シミュレータ用**と**実機用**の両方を埋める（ローカルと本番で Supabase プロジェクトが違う前提）。
+2. **Supabase ダッシュボード**（Authentication → URL Configuration）の **Redirect URLs** に、少なくとも次のパターンを含める（Google OAuth・PKCE の戻り先用）。**ローカル用と本番用の両プロジェクト**それぞれで、当該環境の `ketolog://` を登録する。
    - カスタムスキーム（`app.config.ts` の `scheme: "ketolog"`）: `ketolog://**` または `ketolog://auth/callback`（必要に応じて両方）
    - **Expo Go 開発時**は、ターミナルに表示される `exp://` 系のリダイレクトが変わるため、エラーに含まれる URL を見ながら **Redirect URLs に都度追加**するか、通し用の `exp://**` が許可できる場合はルールに従って登録する。
 3. 環境変数を変えたら `npx expo start`（Metro）を**再起動**する。

@@ -18,6 +18,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.46.0] - 2026-04-23
+
+### Changed
+
+- **Mobile / Supabase**: `expo-constants` の `Constants.isDevice` に応じて接続先を切り替え。シミュレータ・エミュレータでは `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`（ローカル想定）、実機では `EXPO_PUBLIC_SUPABASE_PRODUCTION_URL` / `EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY`（本番想定）を使用する。`App.tsx` の未設定案内と `apps/mobile/README.md`・`.env.example` を更新した。
+
 ## [1.45.0] - 2026-04-23
 
 ### Added

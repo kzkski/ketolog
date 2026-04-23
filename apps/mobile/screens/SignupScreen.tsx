@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,45 +9,59 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Link, useLocalSearchParams } from "expo-router";
+import { Link, router } from "expo-router";
+import { makeRedirectUri } from "expo-auth-session";
 import { getSupabase } from "../lib/supabase";
 import { signInWithGoogle } from "../lib/googleSignIn";
 
-export function LoginScreen() {
-  const { authError } = useLocalSearchParams<{ authError?: string }>();
+export function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  useEffect(() => {
-    const raw = Array.isArray(authError) ? authError[0] : authError;
-    if (typeof raw === "string" && raw.length > 0) {
-      setError(raw);
+  async function handleSignUp() {
+    if (password.length < 6) {
+      setError("パスワードは6文字以上にしてください。");
+      return;
     }
-  }, [authError]);
-
-  async function handlePasswordLogin() {
     setLoading(true);
     setError(null);
-    const { error: signInError } = await getSupabase().auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError(signInError.message);
+    setInfo(null);
+    const redirectTo = makeRedirectUri({ path: "auth/callback" });
+    const { data, error: signUpError } = await getSupabase().auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
+    });
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return;
+    }
+    if (data.session) {
+      router.replace("/(app)/today");
+    } else {
+      setInfo("確認が必要な場合は、届いたメールのリンクから完了してください。");
     }
     setLoading(false);
   }
 
-  async function handleGoogleLogin() {
+  async function handleGoogleSignUp() {
     setGoogleLoading(true);
     setError(null);
+    setInfo(null);
     try {
       const { cancelled } = await signInWithGoogle();
       if (cancelled) {
-        // ユーザー操作で閉じた — 黙ってよい
+        // ユーザー操作で閉じた
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Google ログインに失敗しました。");
+      setError(e instanceof Error ? e.message : "Google 登録に失敗しました。");
     } finally {
       setGoogleLoading(false);
     }
@@ -60,17 +74,17 @@ export function LoginScreen() {
     >
       <View style={styles.card}>
         <Text style={styles.title}>Ketolog</Text>
-        <Text style={styles.subtitle}>ログイン</Text>
+        <Text style={styles.subtitle}>新規登録</Text>
 
         <Pressable
-          onPress={handleGoogleLogin}
+          onPress={handleGoogleSignUp}
           style={[styles.googleBtn, googleLoading && styles.btnDisabled]}
           disabled={googleLoading}
         >
           {googleLoading ? (
             <ActivityIndicator color="#111" />
           ) : (
-            <Text style={styles.googleBtnText}>Googleでログイン</Text>
+            <Text style={styles.googleBtnText}>Googleで登録</Text>
           )}
         </Pressable>
 
@@ -92,31 +106,36 @@ export function LoginScreen() {
           placeholder="you@example.com"
           placeholderTextColor="#6b7280"
         />
-        <Text style={styles.label}>パスワード</Text>
+        <Text style={styles.label}>パスワード（6文字以上）</Text>
         <TextInput
           style={styles.input}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          textContentType="password"
+          textContentType="newPassword"
           placeholder="••••••••"
           placeholderTextColor="#6b7280"
         />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {info ? <Text style={styles.info}>{info}</Text> : null}
 
         <Pressable
-          onPress={handlePasswordLogin}
+          onPress={handleSignUp}
           style={[styles.primaryBtn, loading && styles.btnDisabled]}
           disabled={loading}
         >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>ログイン</Text>}
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.primaryBtnText}>アカウント作成</Text>
+          )}
         </Pressable>
 
         <Text style={styles.footer}>
-          アカウントがない方は{" "}
-          <Link href="/(auth)/signup" style={styles.link}>
-            新規登録
+          すでにアカウントをお持ちの方は{" "}
+          <Link href="/(auth)/login" style={styles.link}>
+            ログイン
           </Link>
         </Text>
       </View>
@@ -169,6 +188,12 @@ const styles = StyleSheet.create({
     color: "#f87171",
     fontSize: 14,
     marginBottom: 12,
+  },
+  info: {
+    color: "#93c5fd",
+    fontSize: 13,
+    marginBottom: 12,
+    lineHeight: 18,
   },
   primaryBtn: {
     backgroundColor: "#059669",

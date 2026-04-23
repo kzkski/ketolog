@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Mobile / 同期**: オフライン時は食事追加を端末下書きに保持し、オンライン復帰後に手動で再送できるようにした。クライアント UUID を `food_log.id` に使い再送時の二重登録を防ぐ。方針は `docs/mobile/sync-policy.md` に記載（[#270](https://github.com/kzkski/ketolog/issues/270)）。
+
 ### Changed
 
 - **ドキュメント / 開発運用**: `CONTRIBUTING.md` と `docs/release/README.md` に Issue ラベル運用の最小ルール（`platform` / `type` / `priority` の必須系統、`epic:*` / `track:*` の推奨運用）を追加した（[#274](https://github.com/kzkski/ketolog/issues/274)）。

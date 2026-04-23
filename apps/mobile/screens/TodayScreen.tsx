@@ -30,6 +30,13 @@ import {
 } from "../components/FoodLogEntryModal";
 import { MenuPickModal } from "../components/MenuPickModal";
 import type { MenuPrefill } from "../lib/menu-prefill";
+import {
+  loadFoodLogOutbox,
+  removeFoodLogDraft,
+  sendFoodLogDraft,
+  type FoodLogOutboxDraft,
+} from "../lib/food-log-outbox";
+import { getIsOnline } from "../lib/network";
 
 type UserSettingsState = {
   diet_phase: DietPhase;
@@ -126,8 +133,14 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
   const [menuPrefill, setMenuPrefill] = useState<MenuPrefill | null>(null);
   const [menuPickOpen, setMenuPickOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [outbox, setOutbox] = useState<FoodLogOutboxDraft[]>([]);
+  const [resendingDraftId, setResendingDraftId] = useState<string | null>(null);
 
   const appVersion = Constants.expoConfig?.version ?? "—";
+
+  const refreshOutbox = useCallback(async () => {
+    setOutbox(await loadFoodLogOutbox(userId));
+  }, [userId]);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -257,19 +270,65 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      await load();
+      await Promise.all([load(), refreshOutbox()]);
       if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [load, refreshOutbox]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
+    await Promise.all([load(), refreshOutbox()]);
     setRefreshing(false);
-  }, [load]);
+  }, [load, refreshOutbox]);
+
+  const resendDraft = useCallback(
+    async (d: FoodLogOutboxDraft) => {
+      if (!(await getIsOnline())) {
+        showToast("オフラインです。通信が戻ってから再送してください。");
+        return;
+      }
+      setResendingDraftId(d.id);
+      const r = await sendFoodLogDraft(supabase, userId, d);
+      setResendingDraftId(null);
+      if (r.ok) {
+        await removeFoodLogDraft(userId, d.id);
+        await refreshOutbox();
+        await load();
+        showToast("サーバーに送りました");
+        return;
+      }
+      showToast(r.error);
+    },
+    [supabase, userId, load, refreshOutbox, showToast]
+  );
+
+  const discardDraft = useCallback(
+    (d: FoodLogOutboxDraft) => {
+      Alert.alert(
+        "下書きを破棄",
+        `「${d.item_name}」の未送信下書きを端末から削除しますか？`,
+        [
+          { text: "キャンセル", style: "cancel" },
+          {
+            text: "破棄",
+            style: "destructive",
+            onPress: () => {
+              void (async () => {
+                await removeFoodLogDraft(userId, d.id);
+                await refreshOutbox();
+                showToast("下書きを破棄しました");
+              })();
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    },
+    [userId, refreshOutbox, showToast]
+  );
 
   const onSelectPhase = useCallback(
     async (ph: DietPhase) => {
@@ -408,6 +467,63 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
           </View>
 
           <View style={styles.logSection}>
+            {outbox.length > 0 ? (
+              <View style={styles.outboxBlock}>
+                <Text style={styles.outboxTitle}>未送信の下書き</Text>
+                <Text style={styles.outboxHint}>
+                  クラウドへはまだ届いていません。通信が安定したら「再送」を押してください。
+                </Text>
+                {outbox.map((d) => (
+                  <View key={d.id} style={styles.outboxRow}>
+                    <View style={styles.outboxRowBody}>
+                      <Text style={styles.outboxDate}>
+                        {d.date} · {MEAL_SHORT[d.meal_type] ?? d.meal_type}
+                      </Text>
+                      <Text style={styles.outboxItem} numberOfLines={2}>
+                        {d.item_name}
+                      </Text>
+                      <Text style={styles.outboxMeta}>
+                        {d.grams}g · P {fmtMacroGrams(d.protein_g)} / F{" "}
+                        {fmtMacroGrams(d.fat_g)} / C {fmtMacroGrams(d.carbs_g)}
+                      </Text>
+                    </View>
+                    <View style={styles.outboxActions}>
+                      <Pressable
+                        onPress={() => {
+                          void resendDraft(d);
+                        }}
+                        disabled={resendingDraftId !== null}
+                        style={({ pressed }) => [
+                          styles.outboxResendBtn,
+                          pressed && { opacity: 0.85 },
+                          resendingDraftId !== null && { opacity: 0.5 },
+                        ]}
+                        accessibilityLabel="再送"
+                      >
+                        {resendingDraftId === d.id ? (
+                          <ActivityIndicator size="small" color="#022c22" />
+                        ) : (
+                          <Text style={styles.outboxResendText}>再送</Text>
+                        )}
+                      </Pressable>
+                      <Pressable
+                        onPress={() => discardDraft(d)}
+                        disabled={resendingDraftId !== null}
+                        hitSlop={6}
+                        style={({ pressed }) => [
+                          styles.outboxDiscardBtn,
+                          pressed && { opacity: 0.75 },
+                          resendingDraftId !== null && { opacity: 0.4 },
+                        ]}
+                        accessibilityLabel="下書きを破棄"
+                      >
+                        <Text style={styles.outboxDiscardText}>破棄</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
             <View style={styles.logSectionHeader}>
               <Text style={styles.logSectionTitle}>今日の記録</Text>
               <View style={styles.logActions}>
@@ -514,6 +630,7 @@ export function TodayScreen({ session, onSignOut }: TodayScreenProps) {
         }}
         onSaved={load}
         onToast={showToast}
+        onOutboxChanged={refreshOutbox}
       />
 
       {toast ? (
@@ -690,6 +807,59 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingBottom: 72,
   },
+  outboxBlock: {
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#854d0e",
+    backgroundColor: "rgba(113, 63, 18, 0.35)",
+  },
+  outboxTitle: {
+    color: "#fef3c7",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  outboxHint: {
+    color: "#fde68a",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  outboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    marginBottom: 8,
+  },
+  outboxRowBody: { flex: 1, minWidth: 0 },
+  outboxDate: { color: "#fcd34d", fontSize: 10, marginBottom: 2 },
+  outboxItem: { color: "#fffbeb", fontSize: 14, fontWeight: "600" },
+  outboxMeta: {
+    color: "#fde68a",
+    fontSize: 11,
+    marginTop: 4,
+    fontVariant: ["tabular-nums"],
+  },
+  outboxActions: { alignItems: "flex-end", gap: 6 },
+  outboxResendBtn: {
+    minWidth: 72,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: COLORS.c,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 36,
+  },
+  outboxResendText: { color: "#022c22", fontWeight: "700", fontSize: 13 },
+  outboxDiscardBtn: { paddingVertical: 4, paddingHorizontal: 4 },
+  outboxDiscardText: { color: "#fecaca", fontSize: 12, fontWeight: "600" },
   logSectionHeader: {
     flexDirection: "row",
     alignItems: "center",

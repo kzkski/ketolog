@@ -20,3 +20,17 @@ export function sumPfc(...parts: PfcGrams[]): PfcGrams {
   }
   return { p, f, c };
 }
+
+/** 100g あたり（nullable は 0 扱い）と分量 g から、その分量の PFC（g）を算出する。 */
+export function pfcGramsFromNullablePer100(
+  proteinPer100: number | null,
+  fatPer100: number | null,
+  carbsPer100: number | null,
+  grams: number
+): PfcGrams {
+  return {
+    p: ((proteinPer100 ?? 0) * grams) / 100,
+    f: ((fatPer100 ?? 0) * grams) / 100,
+    c: ((carbsPer100 ?? 0) * grams) / 100,
+  };
+}

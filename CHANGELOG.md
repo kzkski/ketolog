@@ -18,6 +18,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.48.0] - 2026-04-23
+
+### Added
+
+- **Mobile / 同期**: オフライン時は食事追加を端末下書きに保持し、オンライン復帰後に手動で再送できるようにした。クライアント UUID を `food_log.id` に使い再送時の二重登録を防ぐ。方針は `docs/mobile/sync-policy.md` に記載（[#270](https://github.com/kzkski/ketolog/issues/270)）。
+
 ## [1.47.0] - 2026-04-23
 
 ### Added

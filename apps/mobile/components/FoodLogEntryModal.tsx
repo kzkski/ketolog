@@ -16,6 +16,13 @@ import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
 import type { MealType } from "@ketolog/types";
 
 import type { MenuPrefill } from "../lib/menu-prefill";
+import {
+  buildFoodLogInsertPayload,
+  enqueueFoodLogDraft,
+  newClientRowId,
+  type FoodLogOutboxDraft,
+} from "../lib/food-log-outbox";
+import { getIsOnline, isTransientNetworkError } from "../lib/network";
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 
@@ -70,6 +77,8 @@ type Props = {
   onClose: () => void;
   onSaved: () => Promise<void>;
   onToast: (message: string) => void;
+  /** 下書きキューが変わったとき（未送信一覧の更新） */
+  onOutboxChanged?: () => void | Promise<void>;
 };
 
 export function FoodLogEntryModal({
@@ -83,6 +92,7 @@ export function FoodLogEntryModal({
   onClose,
   onSaved,
   onToast,
+  onOutboxChanged,
 }: Props) {
   const [meal, setMeal] = useState<MealType>("lunch");
   const [itemName, setItemName] = useState("");
@@ -142,10 +152,9 @@ export function FoodLogEntryModal({
     const fp = parseNum(f100);
     const cp = parseNum(c100);
     const v = pfcGramsFromNullablePer100(pp, fp, cp, grams);
-    setBusy(true);
-    setFormError(null);
-    const { error } = await supabase.from("food_log").insert({
-      user_id: userId,
+    const rowId = newClientRowId();
+    const draft: FoodLogOutboxDraft = {
+      id: rowId,
       date,
       meal_type: meal,
       item_name: name,
@@ -155,9 +164,44 @@ export function FoodLogEntryModal({
       carbs_g: v.c,
       source: menuPrefill?.restaurantId ?? "manual",
       menu_item_id: menuPrefill?.menuItemId ?? null,
-    });
+      saved_at: new Date().toISOString(),
+    };
+
+    setBusy(true);
+    setFormError(null);
+
+    const online = await getIsOnline();
+    if (!online) {
+      await enqueueFoodLogDraft(userId, draft);
+      setBusy(false);
+      onToast(
+        "オフラインのため端末に保存しました。通信が戻ったら一覧から再送してください。"
+      );
+      onClose();
+      await onOutboxChanged?.();
+      return;
+    }
+
+    const { error } = await supabase
+      .from("food_log")
+      .insert(buildFoodLogInsertPayload(userId, draft));
     setBusy(false);
     if (error) {
+      if (error.code === "23505") {
+        onToast("保存しました");
+        onClose();
+        await onSaved();
+        return;
+      }
+      if (isTransientNetworkError(error)) {
+        await enqueueFoodLogDraft(userId, draft);
+        onToast(
+          "通信に失敗しました。端末に下書きを残しました。通信が戻ったら再送してください。"
+        );
+        onClose();
+        await onOutboxChanged?.();
+        return;
+      }
       setFormError(error.message);
       onToast(`保存に失敗しました: ${error.message}`);
       return;
@@ -179,6 +223,7 @@ export function FoodLogEntryModal({
     onClose,
     onSaved,
     onToast,
+    onOutboxChanged,
   ]);
 
   const runSaveEdit = useCallback(async () => {

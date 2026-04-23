@@ -11,9 +11,19 @@ let client: SupabaseClient | null = null;
 function resolveSupabaseEnv(): { url: string; key: string } | null {
   const onPhysicalDevice = Constants.isDevice === true;
   if (onPhysicalDevice) {
-    const url = process.env.EXPO_PUBLIC_SUPABASE_PRODUCTION_URL?.trim();
-    const key = process.env.EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY?.trim();
-    if (url && key) return { url, key };
+    // Prefer dedicated production keys for physical devices, but keep backward
+    // compatibility with EXPO_PUBLIC_SUPABASE_* so TestFlight builds don't break
+    // when only legacy keys are configured on EAS.
+    const productionUrl =
+      process.env.EXPO_PUBLIC_SUPABASE_PRODUCTION_URL?.trim();
+    const productionKey =
+      process.env.EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY?.trim();
+    if (productionUrl && productionKey) {
+      return { url: productionUrl, key: productionKey };
+    }
+    const fallbackUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+    const fallbackKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
+    if (fallbackUrl && fallbackKey) return { url: fallbackUrl, key: fallbackKey };
     return null;
   }
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
@@ -32,7 +42,7 @@ export function getSupabase(): SupabaseClient {
     const onPhysicalDevice = Constants.isDevice === true;
     throw new Error(
       onPhysicalDevice
-        ? "実機用の `EXPO_PUBLIC_SUPABASE_PRODUCTION_URL` / `EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY` が未設定、または空です。"
+        ? "実機用の `EXPO_PUBLIC_SUPABASE_PRODUCTION_URL` / `EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY`（またはフォールバックの `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`）が未設定、または空です。"
         : "シミュレータ用の `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` が未設定、または空です。"
     );
   }

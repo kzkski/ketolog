@@ -406,7 +406,7 @@ export function TodaySettingsModal({
 
             <Text style={[styles.sectionTitle, { marginTop: 22 }]}>分析</Text>
             <Text style={styles.sectionHint}>
-              過去7日・30日・カスタム期間の食事ログの集計は、Web 版 Ketolog の分析画面から利用できます。
+              画面下の「分析」タブから、過去7日・30日・カスタム期間の集計・グラフ・Top10 を利用できます（Web 版の分析と同じ計算）。
             </Text>
 
             <Text style={[styles.sectionTitle, { marginTop: 22 }]}>データソース</Text>

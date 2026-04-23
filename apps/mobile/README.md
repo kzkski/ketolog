@@ -1,6 +1,12 @@
 # Ketolog Mobile (Expo)
 
-`apps/mobile` は Native PoC 用の Expo アプリです。
+`apps/mobile` は Native PoC 用の Expo アプリです。ログイン後のメインは **Today（JST 日付・PFC バー・フェーズ切替）**の MVP 表示（[#267](https://github.com/kzkski/ketolog/issues/267)）。食事の詳細操作は引き続き Web 版（同じ Supabase プロジェクト）を想定。
+
+**アイコン・スプラッシュ**: `assets/icon.png`（ホーム画面／ストア用）・`splash-icon.png`・`adaptive-icon.png`・`favicon.png`・Today 用の `brand-header.png` は、リポジトリ正として [`public/icons/`](../../public/icons/) の Ketolog ロゴからコピーして揃えている。Web 側の見た目を更新したら同じファイルを `apps/mobile/assets/` に上書きコピーする。
+
+**`npm run mobile:ios:run` がすぐ終わるとき**: `app.config.ts` に `ios.bundleIdentifier`（と Android 用の `android.package`）が無いと `expo prebuild` が失敗し、ターミナルに一行も出ず終了することがある。現在は `com.ketolog.mobile` を設定済み。初回は Xcode が `ios/` を生成するまで数分かかる。`ios/` / `android/` は `.gitignore` している（CNG 前提）。ネイティブディレクトリをコミットしたい場合はルート `.gitignore` の該当行を外す。
+
+**Expo Go とネイティブの見え方（重要）**: `npm run mobile:ios`（`expo start --ios`）で **Expo Go** が立ち上がる場合、白背景に同心円のような絵と **「Building JavaScript bundle…」** が出る画面は **開発サーバ接続用の UI** で、`app.config` のスプラッシュやアプリアイコンとは別です。ホーム画面のアイコン・起動スプラッシュを Ketolog のネイティブアセットで確認するには、リポジトリルートから **`npm run mobile:ios:run`**（`apps/mobile` をカレントに `expo run:ios`）で **開発ビルドをシミュレータにインストール**してください（初回は Xcode ビルドに時間がかかります）。**リポジトリ直下で `npx expo run:ios` や誤ったルート用 `npm run ios` を実行しないでください**（ルートに `App.tsx` が無く `Unable to resolve ../../App` になります）。`app.config` や画像を変えたあとは `--no-build-cache` を付けるか、シミュレータ上の当該アプリを削除してから再ビルドすると確実です。Metro のみの再起動なら `npx expo start apps/mobile -c` でキャッシュを消せます。
 
 ## 前提
 

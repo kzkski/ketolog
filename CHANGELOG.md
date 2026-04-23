@@ -18,6 +18,20 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.44.0] - 2026-04-23
+
+### Added
+
+- **Mobile / Today（MVP / iOS）**: ログイン後のホームを `TodayScreen` にし、JST 日付表示・3 フェーズ切替（`user_settings` 同期）・当日 `food_log` 合算の PFC バー・`SafeAreaProvider` ／ `SafeAreaView`（ノッチ等）を実装。詳細設定は Web 版案内＋モーダルからログアウト（[#267](https://github.com/kzkski/ketolog/issues/267)）。
+
+### Fixed
+
+- **Mobile / Monorepo**: ルート `package.json` の誤った `ios` / `android`（リポジトリ直下で `expo run:*` を実行し `../../App` 解決エラーになる）を削除し、`mobile:ios:run` を `npm --prefix apps/mobile run run:ios` に変更。`apps/mobile` に `run:ios` / `run:android` スクリプトを追加した（[#267](https://github.com/kzkski/ketolog/issues/267)）。
+- **Mobile / prebuild**: `app.config.ts` に `ios.bundleIdentifier` と `android.package` を明示（未設定時に `expo prebuild` / `expo run:ios` がメッセージなしで終了するのを防ぐ）。紛らわしいルートの `app.json` を削除し、`apps/mobile/ios`・`android` を `.gitignore` に追加した（[#267](https://github.com/kzkski/ketolog/issues/267)）。
+- **Mobile / Today**: ヘッダーに Web と同じロゴ（`public/icons/icon-header.png` を `assets/brand-header.png` として同梱）を表示し、設定を `@expo/vector-icons`（`settings-outline`）に変更（[#267](https://github.com/kzkski/ketolog/issues/267)）。
+- **Mobile / アセット**: ホーム画面（アプリアイコン）・スプラッシュ・アダプティブアイコン・favicon を `public/icons` の Ketolog ロゴ（`icon-512.png` / `icon-192.png`）で差し替え、スプラッシュと Android 適応型の背景色をロゴの紺（`#0d2344`）に揃えた（[#267](https://github.com/kzkski/ketolog/issues/267)）。
+- **Mobile / スプラッシュ**: `expo-splash-screen` を依存に追加し、`app.config` の `plugins` でネイティブ向けスプラッシュを明示。エントリで `preventAutoHideAsync`、セッション確認完了後に `hideAsync` するよう `App` / `index` を調整。Expo Go の「バンドル構築中」画面と区別するため、ネイティブ確認用にルートから `npm run mobile:ios:run`（`expo run:ios`）を README に追記した（[#267](https://github.com/kzkski/ketolog/issues/267)）。
+
 ## [1.43.1] - 2026-04-23
 
 ### Fixed

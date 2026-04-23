@@ -22,15 +22,17 @@
     "etl:mext-ch2": "node scripts/etl-mext-ch2.mjs",
     "mobile:start": "npx expo start apps/mobile",
     "mobile:ios": "npx expo start apps/mobile --ios",
+    "mobile:ios:run": "npm --prefix apps/mobile run run:ios",
+    "mobile:android:run": "npm --prefix apps/mobile run run:android",
     "mobile:android": "npx expo start apps/mobile --android",
     "mobile:typecheck": "npm --prefix apps/mobile run typecheck"
   },
   "dependencies": {
-    "@ketolog/domain": "*",
-    "@ketolog/types": "*",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@ketolog/domain": "*",
+    "@ketolog/types": "*",
     "@sentry/nextjs": "^10.48.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.102.1",
@@ -42,7 +44,9 @@
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "expo": "~54.0.33",
+    "react-native": "0.81.5"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.2.3",

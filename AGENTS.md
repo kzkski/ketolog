@@ -17,12 +17,13 @@ Cursor では **`.cursor/rules/github-flow.mdc`** が常時適用され、上記
 
 ## Monorepo 共有パッケージ（Web / Mobile）
 
-- **`@ketolog/domain`**: UI に依存しない共有ロジック。サブパス import（`@ketolog/domain/pfc` など）を使う。
+- **`@ketolog/domain`**: UI に依存しない共有ロジック。サブパス import（`@ketolog/domain/pfc` / `diet-phase` / `date` など）を使う。
 - **`@ketolog/types`**: Web / Mobile で共有する型（DTO 等）の再エクスポート。**DB 行型の正は引き続き** `src/types/database.ts`（Web）を用い、スキーマ型の大量移管は別 Issue で扱う。
 
 ```typescript
 // 例: 純粋関数
 import { sumPfc } from "@ketolog/domain/pfc";
+import { normalizeUserSettings } from "@ketolog/domain/diet-phase";
 import { toJstDateString } from "@ketolog/domain/date";
 import { getMealTypeForTimeZone } from "@ketolog/domain/meal-timezone";
 

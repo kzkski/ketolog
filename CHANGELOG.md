@@ -18,6 +18,18 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.43.1] - 2026-04-23
+
+### Fixed
+
+- **Mobile / Expo（モノレプ）**: リポジトリルートで誤った `App` 解決になる起動手順を `npx expo start apps/mobile` に揃え、Web と別バージョンの `react` が混在する問題を `overrides` および Metro の `extraNodeModules` 解消で直した。トップ `README` と `apps/mobile/README` に注意を追記（[#266](https://github.com/kzkski/ketolog/issues/266)）。
+
+## [1.43.0] - 2026-04-23
+
+### Added
+
+- **Mobile PoC / 認証**: `apps/mobile` に Supabase Auth（Email+Password、Google OAuth、PKCE + in-app ブラウザ、AsyncStorage でのセッション永続化、未ログインはログイン画面）を追加した。`app.config.ts` で `scheme: ketolog`、`.env.example`・`README` に Redirect URL と Web 共存の注意を記載した（[#266](https://github.com/kzkski/ketolog/issues/266)）。
+
 ## [1.42.0] - 2026-04-23
 
 ### Added

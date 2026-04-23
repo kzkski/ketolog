@@ -1,0 +1,52 @@
+name: Mobile iOS TestFlight Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this release is needed"
+        required: true
+        type: string
+      git_ref:
+        description: "Git ref to release (branch, tag, or SHA)"
+        required: false
+        default: "main"
+        type: string
+
+jobs:
+  build-and-submit:
+    name: Build and submit iOS to TestFlight
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PRODUCTION_ANON_KEY }}
+      EXPO_PUBLIC_SUPABASE_PRODUCTION_URL: ${{ format('https://{0}.supabase.co', secrets.SUPABASE_PROJECT_REF) }}
+      EAS_BUILD_NO_EXPO_GO_WARNING: "true"
+
+    steps:
+      - name: Checkout target ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Expo auth
+        run: npx --yes eas-cli whoami
+        working-directory: apps/mobile
+
+      - name: Typecheck mobile app
+        run: npm run mobile:typecheck
+
+      - name: Build iOS and auto-submit to TestFlight
+        run: npm --prefix apps/mobile run eas:build:ios:production -- --non-interactive --auto-submit

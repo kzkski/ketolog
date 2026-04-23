@@ -1,9 +1,16 @@
 import type { ExpoConfig } from "expo/config";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const rootPackageJson = JSON.parse(
+  readFileSync(join(__dirname, "../../package.json"), "utf8")
+) as { version?: string };
+const appVersion = rootPackageJson.version ?? "1.0.0";
 
 const config: ExpoConfig = {
   name: "Ketolog",
   slug: "mobile",
-  version: "1.0.0",
+  version: appVersion,
   scheme: "ketolog",
   orientation: "portrait",
   icon: "./assets/icon.png",
@@ -19,6 +26,9 @@ const config: ExpoConfig = {
     supportsTablet: true,
     /** `app.config.ts` では prebuild が自動追記できないため必須（未設定だと `expo run:ios` が無言で終了することがある） */
     bundleIdentifier: "com.ketolog.mobile",
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     package: "com.ketolog.mobile",
@@ -31,6 +41,17 @@ const config: ExpoConfig = {
   },
   web: {
     favicon: "./assets/favicon.png",
+  },
+  extra: {
+    eas: {
+      projectId: "153113f9-7a7c-4c8f-a4df-deb628ade3d5",
+    },
+  },
+  updates: {
+    url: "https://u.expo.dev/153113f9-7a7c-4c8f-a4df-deb628ade3d5",
+  },
+  runtimeVersion: {
+    policy: "appVersion",
   },
   plugins: [
     "expo-web-browser",

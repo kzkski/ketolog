@@ -13,7 +13,7 @@
 
 | 状況 | 読む順 |
 |------|--------|
-| **ベータを切りたい** | [staging-setup.md](staging-setup.md)（Preview + ステージング DB）→ [beta-checklist.md](beta-checklist.md) → [quality-and-ci.md](quality-and-ci.md)（CI 最低ライン）→ [sentry-alerts-slack.md](sentry-alerts-slack.md)（アラート）→ [sentry-operations-runbook.md](sentry-operations-runbook.md)（発報時 Runbook）→ 必要なら [third-party-compliance.md](third-party-compliance.md) |
+| **ベータを切りたい** | [staging-setup.md](staging-setup.md)（Preview + ステージング DB）→ [beta-checklist.md](beta-checklist.md) → [quality-and-ci.md](quality-and-ci.md)（CI 最低ライン）→ [ios-testflight-distribution.md](ios-testflight-distribution.md)（iOS 配布導線）→ [sentry-alerts-slack.md](sentry-alerts-slack.md)（アラート）→ [sentry-operations-runbook.md](sentry-operations-runbook.md)（発報時 Runbook）→ 必要なら [third-party-compliance.md](third-party-compliance.md) |
 | **一般公開（GA）を切りたい** | [general-availability-checklist.md](general-availability-checklist.md) → [operations-and-costs.md](operations-and-costs.md) → [quality-and-ci.md](quality-and-ci.md) → [v3-native-feasibility.md](v3-native-feasibility.md)（事前検討） |
 | **課金・枠の見直しだけ** | [operations-and-costs.md](operations-and-costs.md)（表の数値は公式を再確認すること） |
 | **テスト・CI を整備する** | [quality-and-ci.md](quality-and-ci.md) |
@@ -28,6 +28,7 @@
 | [general-availability-checklist.md](general-availability-checklist.md) | GA：アカウント削除、濫用対策、本番法務、コミュニケーション |
 | [operations-and-costs.md](operations-and-costs.md) | Vercel / Supabase の枠、課金検討の目安、信頼性 |
 | [quality-and-ci.md](quality-and-ci.md) | CI 現状、lint/build、テストの段階、E2E（Issue #59）、リリース前確認 |
+| [ios-testflight-distribution.md](ios-testflight-distribution.md) | Expo iOS の EAS Build / TestFlight 配布手順、証明書・Bundle ID の固定、失敗時切り分け |
 | [v3-native-feasibility.md](v3-native-feasibility.md) | v3 一般公開時点のネイティブアプリ化検討メモ（判断材料の頭出し） |
 | [third-party-compliance.md](third-party-compliance.md) | Open Food Facts 等の継続義務・新規 API のテンプレ |
 | [sentry-alerts-slack.md](sentry-alerts-slack.md) | Sentry の最小アラート 5 本・P1/P2・Slack 連携・通知抑制（運用者向け） |

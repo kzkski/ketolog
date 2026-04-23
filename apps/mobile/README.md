@@ -69,6 +69,16 @@ Next（ルート）と Expo で **別バージョンの `react` が併存**す�
 npm run mobile:typecheck
 ```
 
+## iOS 配布（EAS / TestFlight）
+
+配布運用の正本は [`docs/release/ios-testflight-distribution.md`](../../docs/release/ios-testflight-distribution.md)。  
+`apps/mobile` には `eas.json` と以下の実行スクリプトを用意している。
+
+- `npm --prefix apps/mobile run eas:build:ios:preview`
+- `npm --prefix apps/mobile run eas:build:ios:production`
+- `npm --prefix apps/mobile run eas:submit:ios:production`
+- `npm --prefix apps/mobile run eas:credentials:ios`
+
 ## 共有パッケージ（`@ketolog/domain` / `@ketolog/types`）
 
 モノレポ直下の `packages/` を `package.json` の workspaces から参照する。`App.tsx` で共有ロジックの import を確認できる。

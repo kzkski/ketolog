@@ -18,6 +18,19 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.49.0] - 2026-04-23
+
+### Added
+
+- **Mobile / 配布運用**: Expo iOS の `eas.json` と配布用 npm scripts を追加し、GitHub Actions から `build -> TestFlight submit` を実行できる自動化ワークフローを追加した（[#271](https://github.com/kzkski/ketolog/issues/271)）。
+- **ドキュメント / リリース運用**: `docs/release/ios-testflight-distribution.md` を新設し、EAS/TestFlight の再現手順・失敗時切り分け・Actions 運用を整理した。
+
+### Changed
+
+- **Mobile / 接続安定性**: 実機の Supabase 接続で `EXPO_PUBLIC_SUPABASE_PRODUCTION_*` を優先しつつ、既存の `EXPO_PUBLIC_SUPABASE_*` へフォールバックするようにして TestFlight の設定差分に強くした。
+- **Mobile / バージョン表示**: `apps/mobile/app.config.ts` の `version` をルート `package.json` と同期し、TestFlight 表示が本体バージョンと一致するようにした。
+- **Mobile / アイコン**: iOS/Web のアイコン資産を更新し、TestFlight 実機確認時の見え方を調整した。
+
 ## [1.48.0] - 2026-04-23
 
 ### Added

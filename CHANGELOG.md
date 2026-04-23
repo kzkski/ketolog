@@ -24,7 +24,7 @@
 
 ### Added
 
-- **Mobile / 分析（[#293](https://github.com/kzkski/ketolog/issues/293)）**: 画面下タブに「分析」を追加し、過去7日・30日・カスタム（最大90日）の食事ログ取得・平均PFC・日次折れ線グラフ・日別一覧・Top10・期間JSONの共有エクスポートを実装した（Web の分析と同じ Supabase クエリと `@ketolog/domain/insights` の集計）。
+- **Mobile / 分析（[#293](https://github.com/kzkski/ketolog/issues/293)）**: 設定の「分析」から専用画面へ開き、過去7日・30日・カスタム（最大90日）の食事ログ取得・平均PFC・日次折れ線グラフ・日別一覧・Top10・期間JSONの共有エクスポートを利用できる。画面上部の「閉じる」で Today に戻る。Web の分析と同じ Supabase クエリと `@ketolog/domain/insights` の集計である。
 
 ### Changed
 

@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   Linking,
@@ -91,6 +92,7 @@ export function TodaySettingsModal({
   onToast,
   onSignOut,
 }: Props) {
+  const router = useRouter();
   const [profiles, setProfiles] = useState<PhaseProfiles>(settings.phase_profiles);
   const [selectedSlot, setSelectedSlot] = useState<DietPhase>(settings.diet_phase);
   const [pfcTargetDrafts, setPfcTargetDrafts] = useState<Record<string, string>>({});
@@ -406,8 +408,20 @@ export function TodaySettingsModal({
 
             <Text style={[styles.sectionTitle, { marginTop: 22 }]}>分析</Text>
             <Text style={styles.sectionHint}>
-              画面下の「分析」タブから、過去7日・30日・カスタム期間の集計・グラフ・Top10 を利用できます（Web 版の分析と同じ計算）。
+              Web 版と同様、過去7日・30日・カスタム期間の集計・グラフ・Top10 を専用画面で開けます。
             </Text>
+            <Pressable
+              onPress={() => {
+                onClose();
+                router.push("/(app)/insights");
+              }}
+              style={({ pressed }) => [
+                styles.insightsOpenBtn,
+                pressed && { opacity: 0.9 },
+              ]}
+            >
+              <Text style={styles.insightsOpenBtnText}>分析画面を開く</Text>
+            </Pressable>
 
             <Text style={[styles.sectionTitle, { marginTop: 22 }]}>データソース</Text>
             <Text style={styles.sectionHint}>
@@ -559,6 +573,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   exportBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  insightsOpenBtn: {
+    marginTop: 8,
+    backgroundColor: "#059669",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  insightsOpenBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
   link: { color: "#34d399", textDecorationLine: "underline" },
   signOut: { marginTop: 22, paddingVertical: 12, alignItems: "center" },
   signOutText: { color: "#f87171", fontSize: 14, fontWeight: "500" },

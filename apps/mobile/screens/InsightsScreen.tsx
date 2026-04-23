@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -68,6 +69,7 @@ function toIsoNow() {
 }
 
 export function InsightsScreen() {
+  const router = useRouter();
   const { session } = useAuthSessionContext();
   const userId = session?.user.id ?? "";
   const supabase = getSupabase();
@@ -171,9 +173,18 @@ export function InsightsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right", "bottom"]}>
       <View style={styles.header}>
-        <Text style={styles.title}>分析</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>分析</Text>
+          <Pressable
+            onPress={() => router.replace("/(app)/today")}
+            hitSlop={10}
+            style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.75 }]}
+          >
+            <Text style={styles.closeBtnText}>閉じる</Text>
+          </Pressable>
+        </View>
         <Text style={styles.sub}>JST の日付で集計します</Text>
       </View>
 
@@ -415,8 +426,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
   },
-  title: { color: COLORS.text, fontSize: 18, fontWeight: "700" },
-  sub: { color: COLORS.muted, fontSize: 11, marginTop: 4 },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  title: { color: COLORS.text, fontSize: 18, fontWeight: "700", flex: 1, minWidth: 0 },
+  closeBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.btnBg,
+  },
+  closeBtnText: { color: COLORS.text, fontSize: 13, fontWeight: "600" },
+  sub: { color: COLORS.muted, fontSize: 11, marginTop: 6 },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 12, paddingTop: 12 },
   card: {

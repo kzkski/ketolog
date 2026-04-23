@@ -25,6 +25,9 @@
 *.pem
 .expo/
 apps/mobile/.expo/
+# Expo prebuild 生成物（`expo run:ios` / `expo prebuild` でローカルに作成。コミット方針を変える場合はこの行を外す）
+apps/mobile/ios/
+apps/mobile/android/
 
 # debug
 npm-debug.log*

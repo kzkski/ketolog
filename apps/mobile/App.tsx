@@ -1,8 +1,11 @@
+import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { isSupabaseConfigured } from "./lib/supabase";
-import { HomeScreen } from "./screens/HomeScreen";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { TodayScreen } from "./screens/TodayScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 
 function MissingSupabaseConfigScreen() {
@@ -22,6 +25,12 @@ function MissingSupabaseConfigScreen() {
 
 function AuthenticatedApp() {
   const { session, loading, initError, signOut } = useAuthSession();
+
+  useEffect(() => {
+    if (!loading) {
+      void SplashScreen.hideAsync();
+    }
+  }, [loading]);
 
   if (initError) {
     return (
@@ -48,10 +57,10 @@ function AuthenticatedApp() {
 
   if (session) {
     return (
-      <>
-        <HomeScreen session={session} onSignOut={signOut} />
-        <StatusBar style="auto" />
-      </>
+      <SafeAreaProvider>
+        <TodayScreen session={session} onSignOut={signOut} />
+        <StatusBar style="light" />
+      </SafeAreaProvider>
     );
   }
 
@@ -64,7 +73,15 @@ function AuthenticatedApp() {
 }
 
 export default function App() {
-  if (!isSupabaseConfigured()) {
+  const configured = isSupabaseConfigured();
+
+  useEffect(() => {
+    if (!configured) {
+      void SplashScreen.hideAsync();
+    }
+  }, [configured]);
+
+  if (!configured) {
     return <MissingSupabaseConfigScreen />;
   }
   return <AuthenticatedApp />;

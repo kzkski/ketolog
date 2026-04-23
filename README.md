@@ -105,10 +105,12 @@ Native PoC 用の Expo アプリは `apps/mobile` に配置している。セッ
 ```bash
 npm run mobile:start
 npm run mobile:ios
+npm run mobile:ios:run       # apps/mobile で expo run:ios（スプラッシュ・アイコン確認用）
+npm run mobile:android:run   # 同上 Android
 npm run mobile:typecheck
 ```
 
-**注意:** リポジトリ直下で `npx expo start` だけを実行すると `App` が解決できない。上記 `npm run` か `npx expo start apps/mobile` を使うこと（詳細は [apps/mobile/README.md](apps/mobile/README.md)）。
+**注意:** リポジトリ直下で `npx expo start` だけを実行すると `App` が解決できない。上記 `npm run` か `npx expo start apps/mobile` を使うこと（詳細は [apps/mobile/README.md](apps/mobile/README.md)）。**Expo Go の「Building JavaScript bundle…」画面は開発接続用で、カスタムスプラッシュとは別**（同上 README）。
 
 ### バンドル分析（Bundle Analyzer）
 

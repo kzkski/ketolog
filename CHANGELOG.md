@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Mobile PoC / 認証**: `apps/mobile` に Supabase Auth（Email+Password、Google OAuth、PKCE + in-app ブラウザ、AsyncStorage でのセッション永続化、未ログインはログイン画面）を追加した。`app.config.ts` で `scheme: ketolog`、`.env.example`・`README` に Redirect URL と Web 共存の注意を記載した（[#266](https://github.com/kzkski/ketolog/issues/266)）。
+
 ### Changed
 
 - **ドキュメント / 開発運用**: `CONTRIBUTING.md` と `docs/release/README.md` に Issue ラベル運用の最小ルール（`platform` / `type` / `priority` の必須系統、`epic:*` / `track:*` の推奨運用）を追加した（[#274](https://github.com/kzkski/ketolog/issues/274)）。

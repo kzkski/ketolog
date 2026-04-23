@@ -16,6 +16,18 @@
 npm install
 ```
 
+### Supabase 認証（Issue #266 / PoC）
+
+1. `apps/mobile/.env.example` を `apps/mobile/.env` にコピーし、`EXPO_PUBLIC_SUPABASE_URL` と `EXPO_PUBLIC_SUPABASE_ANON_KEY` を Web（`NEXT_PUBLIC_SUPABASE_*`）と**同じプロジェクト**の値で埋める。
+2. **Supabase ダッシュボード**（Authentication → URL Configuration）の **Redirect URLs** に、少なくとも次のパターンを含める（Google OAuth・PKCE の戻り先用）。
+   - カスタムスキーム（`app.config.ts` の `scheme: "ketolog"`）: `ketolog://**` または `ketolog://auth/callback`（必要に応じて両方）
+   - **Expo Go 開発時**は、ターミナルに表示される `exp://` 系のリダイレクトが変わるため、エラーに含まれる URL を見ながら **Redirect URLs に都度追加**するか、通し用の `exp://**` が許可できる場合はルールに従って登録する。
+3. 環境変数を変えたら `npx expo start`（Metro）を**再起動**する。
+
+**Email/Password** と **Google ログアウト** は、未ログイン時に Today 等の保護画面へは遷移しない（ログイン / 再ログイン画面のみ）構成になっている。セッションは `AsyncStorage` に永続化し、アプリ再起動後も `getSession` で復元する。
+
+**Web との競合を避けるには**: 同じ Supabase プロジェクト内で、Next.js 用（例: Vercel の `https://.../auth/callback`）は既存のまま、上記に **Expo 用の `ketolog://` / `exp://` を足す**だけにするとよい。Site URL や他プロバイダー設定を差し替えない。
+
 ## 起動
 
 リポジトリのルートで次を実行します。

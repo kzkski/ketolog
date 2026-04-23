@@ -1,5 +1,5 @@
-import { addDaysJst, eachDate, toJstDateString } from "@/lib/date";
-import { sumPfc } from "@/lib/pfc";
+import { addDaysJst, eachDate, toJstDateString } from "@ketolog/domain/date";
+import { sumPfc } from "@ketolog/domain/pfc";
 export { addDaysJst };
 
 export type InsightFoodLogEntry = {

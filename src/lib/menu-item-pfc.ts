@@ -1,5 +1,5 @@
 import type { MenuItem } from "@/types/database";
-import type { PfcGrams } from "@/lib/pfc";
+import type { PfcGrams } from "@ketolog/types";
 
 /** メニュー行（100g あたり）とグラム数から、その分量の PFC（g）を算出する。 */
 export function pfcGramsFromMenuItem(item: MenuItem, grams: number): PfcGrams {

@@ -1,4 +1,4 @@
-import type { MealType } from "@/lib/meal-timezone";
+import type { MealType } from "@ketolog/types";
 
 export const MEAL_LABELS: Record<MealType, string> = {
   breakfast: "朝食",

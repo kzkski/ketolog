@@ -24,8 +24,8 @@ import {
   type DietPhase,
   type PhaseProfiles,
 } from "@/lib/diet-phase";
-import type { MealType } from "@/lib/meal-timezone";
-import { sumPfc, type PfcGrams } from "@/lib/pfc";
+import { sumPfc } from "@ketolog/domain/pfc";
+import type { MealType, PfcGrams } from "@ketolog/types";
 import { pfcGramsFromMenuItem, pfcGramsFromNullablePer100 } from "@/lib/menu-item-pfc";
 import { isSnapshotRestaurant } from "@/lib/snapshot-restaurant";
 import { RESTAURANT_NAME_MAX_LENGTH } from "@/lib/restaurant-limits";

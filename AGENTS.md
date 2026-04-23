@@ -15,6 +15,23 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Cursor では **`.cursor/rules/github-flow.mdc`** が常時適用され、上記と同じ方針が補強される。
 
+## Monorepo 共有パッケージ（Web / Mobile）
+
+- **`@ketolog/domain`**: UI に依存しない共有ロジック。サブパス import（`@ketolog/domain/pfc` など）を使う。
+- **`@ketolog/types`**: Web / Mobile で共有する型（DTO 等）の再エクスポート。**DB 行型の正は引き続き** `src/types/database.ts`（Web）を用い、スキーマ型の大量移管は別 Issue で扱う。
+
+```typescript
+// 例: 純粋関数
+import { sumPfc } from "@ketolog/domain/pfc";
+import { toJstDateString } from "@ketolog/domain/date";
+import { getMealTypeForTimeZone } from "@ketolog/domain/meal-timezone";
+
+// 例: 型だけ（PfcGrams / MealType など）
+import type { PfcGrams, MealType } from "@ketolog/types";
+```
+
+Next.js は `transpilePackages`（`next.config.ts`）で workspace パッケージをトランスパイルする。Expo は `apps/mobile/metro.config.js` でモノレポの `node_modules` 解決と watch 対象を合わせる。
+
 ## src/ ディレクトリ規約
 
 新しいファイルを追加する前に、以下の配置規約に従う。
@@ -42,7 +59,7 @@ Cursor では **`.cursor/rules/github-flow.mdc`** が常時適用され、上記
 |---|---|
 | `lib/constants/` | アプリ全体で共有する定数（`meal.ts` など） |
 | `lib/supabase/` | DB クライアントファクトリ（変更不要） |
-| `lib/*.ts` | ドメイン固有のビジネスロジック・ユーティリティ（UI に依存しない） |
+| `lib/*.ts` | ドメイン固有のビジネスロジック・ユーティリティ（UI に依存しない。Web / Mobile 共有に切り出したものは `packages/` へ） |
 
 ### 共通コンポーネント・hooks
 
@@ -55,3 +72,10 @@ Cursor では **`.cursor/rules/github-flow.mdc`** が常時適用され、上記
 
 - DB テーブルの TypeScript 型定義の正は `database.ts`。新しい DB 関連の型はここに追加する
 - ページ固有の型は各コンポーネントファイルまたは `_hooks/` 内で定義してよい
+
+### packages/（`packages/`）
+
+| パッケージ | 対象 |
+|---|---|
+| `domain/` | Web / Mobile 共通の UI 非依存ロジック（上記 Monorepo 節） |
+| `types/` | 共有 DTO 等の型（`@ketolog/types`） |

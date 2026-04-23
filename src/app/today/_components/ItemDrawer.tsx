@@ -9,7 +9,7 @@ import {
   useCallback,
 } from "react";
 import type { MenuItem, Restaurant, SharedProduct } from "@/types/database";
-import type { MealType } from "@/lib/meal-timezone";
+import type { MealType } from "@ketolog/types";
 import { pfcGramsFromNullablePer100 } from "@/lib/menu-item-pfc";
 import {
   addMenuItem,

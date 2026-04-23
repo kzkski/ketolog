@@ -52,6 +52,8 @@
 | `src/lib/` | ビジネスロジック・ユーティリティ（UI に依存しない pure な関数） |
 | `src/lib/constants/` | アプリ全体で共有する定数 |
 | `src/types/` | 型定義（DB スキーマ型は `database.ts` を正とする） |
+| `packages/domain/` | Web / Mobile 共通の UI 非依存ロジック（`@ketolog/domain/*`） |
+| `packages/types/` | Web / Mobile 共通の共有型（`@ketolog/types`） |
 
 ### Server Actions の import ルール
 

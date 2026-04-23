@@ -315,13 +315,26 @@ export function FoodLogEntryModal({
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.card}>
-          <Text style={styles.title}>
-            {mode === "add"
-              ? menuPrefill
-                ? "食事を追加（メニュー）"
-                : "食事を追加（手入力）"
-              : "記録を編集"}
-          </Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.title} numberOfLines={2}>
+              {mode === "add"
+                ? menuPrefill
+                  ? "食事を追加（メニュー）"
+                  : "食事を追加（手入力）"
+                : "記録を編集"}
+            </Text>
+            <Pressable
+              onPress={onClose}
+              disabled={busy}
+              hitSlop={8}
+              style={({ pressed }) => [
+                busy && { opacity: 0.45 },
+                pressed && !busy && { opacity: 0.85 },
+              ]}
+            >
+              <Text style={styles.headerCancel}>キャンセル</Text>
+            </Pressable>
+          </View>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollPad}
@@ -354,42 +367,48 @@ export function FoodLogEntryModal({
             )}
 
             <View style={styles.field}>
-              <Text style={styles.label}>食事</Text>
-              <View style={styles.mealRow}>
-                {MEALS.map((m) => (
-                  <Pressable
-                    key={m}
-                    onPress={() => !busy && setMeal(m)}
-                    style={[
-                      styles.mealChip,
-                      meal === m && styles.mealChipOn,
-                      busy && { opacity: 0.5 },
-                    ]}
-                  >
-                    <Text
+              <View style={styles.mealGramsTopRow}>
+                <Text style={styles.labelFlat}>食事</Text>
+                <Text style={[styles.labelFlat, styles.gramsLabelAbove]}>分量（g）</Text>
+              </View>
+              <View style={styles.mealGramsBottomRow}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.mealScroll}
+                  contentContainerStyle={styles.mealScrollContent}
+                >
+                  {MEALS.map((m) => (
+                    <Pressable
+                      key={m}
+                      onPress={() => !busy && setMeal(m)}
                       style={[
-                        styles.mealChipText,
-                        meal === m && styles.mealChipTextOn,
+                        styles.mealChip,
+                        meal === m && styles.mealChipOn,
+                        busy && { opacity: 0.5 },
                       ]}
                     >
-                      {MEAL_LABEL[m]}
-                    </Text>
-                  </Pressable>
-                ))}
+                      <Text
+                        style={[
+                          styles.mealChipText,
+                          meal === m && styles.mealChipTextOn,
+                        ]}
+                      >
+                        {MEAL_LABEL[m]}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                <TextInput
+                  value={gramsStr}
+                  onChangeText={setGramsStr}
+                  placeholder="200"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="decimal-pad"
+                  style={styles.gramsInputCompact}
+                  editable={!busy}
+                />
               </View>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>分量（g）</Text>
-              <TextInput
-                value={gramsStr}
-                onChangeText={setGramsStr}
-                placeholder="200"
-                placeholderTextColor={COLORS.textMuted}
-                keyboardType="decimal-pad"
-                style={styles.input}
-                editable={!busy}
-              />
             </View>
 
             {mode === "add" ? (
@@ -438,28 +457,19 @@ export function FoodLogEntryModal({
 
             {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
-            <View style={styles.btnRow}>
-              <Pressable
-                onPress={onClose}
-                disabled={busy}
-                style={[styles.btnGhost, busy && { opacity: 0.5 }]}
-              >
-                <Text style={styles.btnGhostText}>キャンセル</Text>
-              </Pressable>
-              <Pressable
-                onPress={mode === "add" ? onSubmitLogOnly : onSubmitEdit}
-                disabled={busy}
-                style={[styles.btnPrimary, busy && { opacity: 0.6 }]}
-              >
-                {busy ? (
-                  <ActivityIndicator color="#022c22" />
-                ) : (
-                  <Text style={styles.btnPrimaryText}>
-                    {mode === "add" ? "保存" : "更新"}
-                  </Text>
-                )}
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={mode === "add" ? onSubmitLogOnly : onSubmitEdit}
+              disabled={busy}
+              style={[styles.btnPrimary, styles.btnPrimaryFull, busy && { opacity: 0.6 }]}
+            >
+              {busy ? (
+                <ActivityIndicator color="#022c22" />
+              ) : (
+                <Text style={styles.btnPrimaryText}>
+                  {mode === "add" ? "保存" : "更新"}
+                </Text>
+              )}
+            </Pressable>
             {formError ? (
               <Pressable
                 onPress={mode === "edit" ? onSubmitEdit : onSubmitLogOnly}
@@ -492,11 +502,25 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: COLORS.border,
   },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 10,
+  },
   title: {
+    flex: 1,
+    minWidth: 0,
     color: COLORS.text,
     fontSize: 17,
     fontWeight: "700",
-    marginBottom: 8,
+  },
+  headerCancel: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    paddingTop: 2,
+    fontWeight: "500",
   },
   scrollPad: { paddingBottom: 28 },
   field: { marginBottom: 14 },
@@ -504,6 +528,45 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 12,
     marginBottom: 6,
+  },
+  labelFlat: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+  },
+  mealGramsTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginBottom: 4,
+  },
+  gramsLabelAbove: {
+    width: 76,
+    textAlign: "right",
+  },
+  mealGramsBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  mealScroll: { flex: 1, minWidth: 0 },
+  mealScrollContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 2,
+    paddingRight: 4,
+  },
+  gramsInputCompact: {
+    width: 76,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    color: COLORS.text,
+    fontSize: 15,
+    textAlign: "right",
+    fontVariant: ["tabular-nums"],
   },
   input: {
     borderWidth: 1,
@@ -525,14 +588,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 16,
   },
-  mealRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
   mealChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -542,7 +600,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
     backgroundColor: "rgba(16, 185, 129, 0.15)",
   },
-  mealChipText: { color: COLORS.textMuted, fontSize: 13 },
+  mealChipText: { color: COLORS.textMuted, fontSize: 12 },
   mealChipTextOn: { color: "#a7f3d0", fontWeight: "600" },
   sectionHint: {
     color: COLORS.textMuted,
@@ -557,28 +615,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 10,
   },
-  btnRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 8,
-  },
-  btnGhost: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  btnGhostText: { color: COLORS.text, fontWeight: "600" },
   btnPrimary: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
     borderRadius: 8,
     backgroundColor: COLORS.primary,
     minHeight: 48,
+  },
+  btnPrimaryFull: {
+    width: "100%",
+    marginTop: 8,
   },
   btnPrimaryText: { color: "#022c22", fontWeight: "700" },
   retry: { alignItems: "center", marginTop: 12, padding: 8 },

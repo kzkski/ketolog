@@ -14,7 +14,18 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
 import type { MealType } from "@ketolog/types";
+import {
+  MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
+  SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
+} from "@ketolog/domain/shared-product-source";
+import {
+  buildMenuQrPayloadJson,
+  parseMenuSharePayload,
+  type MenuShareImportItem,
+} from "@ketolog/domain/menu-share-qr";
+import QRCode from "react-native-qrcode-svg";
 
+import { MenuBarcodeSection } from "./MenuBarcodeSection";
 import { fetchDistinctMenuGroupNames } from "../lib/fetch-distinct-menu-group-names";
 import { fetchRestaurantsExcludingSnapshot } from "../lib/fetch-restaurants-excluding-snapshot";
 import {
@@ -25,6 +36,10 @@ import {
 } from "../lib/food-log-outbox";
 import { getIsOnline, isTransientNetworkError } from "../lib/network";
 import { resolveMenuItemGroupOrder } from "../lib/resolve-menu-item-group-order";
+import {
+  lookupSharedProductByBarcodeMobile,
+  type SharedProductRow,
+} from "../lib/shared-product-lookup";
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 const MEAL_LABEL: Record<MealType, string> = {
@@ -68,8 +83,16 @@ function toServing(val: string, gramsStr: string): string {
   return String(parseFloat(((v * g) / 100).toFixed(2)));
 }
 
+export type StandardFoodDraft = {
+  food_code: string;
+  name: string;
+  protein_per_100g: number | null;
+  fat_per_100g: number | null;
+  carbs_per_100g: number | null;
+};
+
 export type MenuItemEditorState =
-  | { kind: "add"; registerRestaurantIdHint?: string | null }
+  | { kind: "add"; registerRestaurantIdHint?: string | null; standardFoodDraft?: StandardFoodDraft }
   | { kind: "edit"; menuItemId: string };
 
 type MenuRow = {
@@ -98,14 +121,9 @@ type Props = {
   onClose: () => void;
   onSaved: () => Promise<void>;
   onToast: (message: string) => void;
-  onAddSnapshotDraftToCart: (draft: {
-    name: string;
-    protein_per_100g: number | null;
-    fat_per_100g: number | null;
-    carbs_per_100g: number | null;
-    grams: number;
-  }) => void;
   onOutboxChanged?: () => void | Promise<void>;
+  /** Web の「文科省成分表で検索」: モーダルを閉じて成分表タブへ誘導 */
+  onRequestOpenStandardFoodComposition?: () => void;
 };
 
 export function MenuItemEditorModal({
@@ -119,8 +137,8 @@ export function MenuItemEditorModal({
   onClose,
   onSaved,
   onToast,
-  onAddSnapshotDraftToCart,
   onOutboxChanged,
+  onRequestOpenStandardFoodComposition,
 }: Props) {
   const isEdit = state?.kind === "edit";
 
@@ -155,11 +173,19 @@ export function MenuItemEditorModal({
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const [sharedBarcode, setSharedBarcode] = useState<string | null>(null);
+  const [standardFoodCode, setStandardFoodCode] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraResult, setCameraResult] = useState<SharedProductRow | null>(null);
+  const [manualSharedProductPending, setManualSharedProductPending] = useState(false);
+  const [lastLookup, setLastLookup] = useState<{ barcode: string; at: number } | null>(null);
+  const [servingHint, setServingHint] = useState<string | null>(null);
+  const [menuQrImportDone, setMenuQrImportDone] = useState<string | null>(null);
+  const [shareQrGenError, setShareQrGenError] = useState<string | null>(null);
+
   const gramsNum = parseFloat(grams);
-  const modeLabel =
-    nutrientMode === "per100g"
-      ? "100gあたり"
-      : `1回分あたり（${Number.isNaN(gramsNum) ? "?" : gramsNum}g）`;
 
   const displayP = nutrientMode === "per100g" ? protein : toServing(protein, grams);
   const displayF = nutrientMode === "per100g" ? fat : toServing(fat, grams);
@@ -209,6 +235,45 @@ export function MenuItemEditorModal({
     setLoadedEdit(null);
     setFormError(null);
     setConfirmDelete(false);
+    setSharedBarcode(null);
+    setStandardFoodCode(null);
+    setScanError(null);
+    setScanLoading(false);
+    setCameraOn(false);
+    setCameraResult(null);
+    setManualSharedProductPending(false);
+    setLastLookup(null);
+    setServingHint(null);
+    setMenuQrImportDone(null);
+  }, [mealTypeForLog]);
+
+  const applyStandardFoodDraft = useCallback((draft: StandardFoodDraft) => {
+    setName(draft.name);
+    setProtein(draft.protein_per_100g != null ? String(draft.protein_per_100g) : "");
+    setFat(draft.fat_per_100g != null ? String(draft.fat_per_100g) : "");
+    setCarbs(draft.carbs_per_100g != null ? String(draft.carbs_per_100g) : "");
+    setGrams("100");
+    setRank(2);
+    setGroupName("");
+    setNotes("文科省標準成分表（利用可能炭水化物・質量計）");
+    setNutrientMode("perServing");
+    setRawP(null);
+    setRawF(null);
+    setRawC(null);
+    setLogMeal(mealTypeForLog);
+    setLoadedEdit(null);
+    setFormError(null);
+    setConfirmDelete(false);
+    setSharedBarcode(null);
+    setStandardFoodCode(draft.food_code);
+    setScanError(null);
+    setScanLoading(false);
+    setCameraOn(false);
+    setCameraResult(null);
+    setManualSharedProductPending(false);
+    setLastLookup(null);
+    setServingHint(null);
+    setMenuQrImportDone(null);
   }, [mealTypeForLog]);
 
   useEffect(() => {
@@ -216,9 +281,13 @@ export function MenuItemEditorModal({
     setFormError(null);
     setConfirmDelete(false);
     if (state.kind === "add") {
-      resetAddForm();
+      if (state.standardFoodDraft) {
+        applyStandardFoodDraft(state.standardFoodDraft);
+      } else {
+        resetAddForm();
+      }
     }
-  }, [visible, state, resetAddForm]);
+  }, [visible, state, resetAddForm, applyStandardFoodDraft]);
 
   useEffect(() => {
     if (!visible || !state || state.kind !== "add") return;
@@ -321,10 +390,56 @@ export function MenuItemEditorModal({
       rank,
       notes: notes.trim() || null,
       group_name: groupName.trim() || null,
+      shared_barcode: isEdit ? (loadedEdit?.shared_barcode ?? null) : sharedBarcode,
+      standard_food_code: isEdit ? (loadedEdit?.standard_food_code ?? null) : standardFoodCode,
+    };
+  }, [
+    name,
+    protein,
+    fat,
+    carbs,
+    grams,
+    rank,
+    notes,
+    groupName,
+    loadedEdit,
+    isEdit,
+    sharedBarcode,
+    standardFoodCode,
+  ]);
+
+  /** メニュー共有 QR（Web の ItemDrawer と同じペイロード） */
+  const shareQrImportItem = useMemo((): MenuShareImportItem | null => {
+    if (!isEdit) return null;
+    if (!name.trim()) return null;
+    const gramsNum = parseFloat(grams) || 100;
+    const n = (s: string) => {
+      if (s.trim() === "") return null;
+      const v = parseFloat(s);
+      return Number.isFinite(v) ? v : null;
+    };
+    return {
+      name: name.trim(),
+      protein_per_100g: n(protein),
+      fat_per_100g: n(fat),
+      carbs_per_100g: n(carbs),
       shared_barcode: loadedEdit?.shared_barcode ?? null,
       standard_food_code: loadedEdit?.standard_food_code ?? null,
+      default_grams: gramsNum,
+      rank,
+      notes: notes.trim() || null,
+      group: groupName.trim() || null,
     };
-  }, [name, protein, fat, carbs, grams, rank, notes, groupName, loadedEdit]);
+  }, [isEdit, name, protein, fat, carbs, grams, rank, notes, groupName, loadedEdit]);
+
+  const shareQrPayload = useMemo(() => {
+    if (!shareQrImportItem) return null;
+    return buildMenuQrPayloadJson(shareQrImportItem);
+  }, [shareQrImportItem]);
+
+  useEffect(() => {
+    setShareQrGenError(null);
+  }, [shareQrPayload]);
 
   const registerTargetRestaurantName = useMemo(
     () => registerRestaurants.find((r) => r.id === registerRestaurantId)?.name ?? "",
@@ -336,6 +451,140 @@ export function MenuItemEditorModal({
     !registerRestaurantsLoading &&
     registerRestaurants.length > 0 &&
     registerRestaurantId != null;
+
+  const applyImportRestaurantItemToForm = useCallback((item: MenuShareImportItem) => {
+    setName(item.name);
+    setProtein(
+      item.protein_per_100g === null || item.protein_per_100g === undefined
+        ? ""
+        : String(item.protein_per_100g)
+    );
+    setFat(item.fat_per_100g === null || item.fat_per_100g === undefined ? "" : String(item.fat_per_100g));
+    setCarbs(
+      item.carbs_per_100g === null || item.carbs_per_100g === undefined ? "" : String(item.carbs_per_100g)
+    );
+    setGrams(String(item.default_grams));
+    setRank(item.rank);
+    setGroupName(item.group ?? "");
+    setNotes(item.notes ?? "");
+    setSharedBarcode(item.shared_barcode ?? null);
+    setStandardFoodCode(item.standard_food_code ?? null);
+    setManualSharedProductPending(false);
+    setCameraResult(null);
+    setServingHint(null);
+    setScanError(null);
+    setFormError(null);
+    setNutrientMode("perServing");
+    setRawP(null);
+    setRawF(null);
+    setRawC(null);
+    setLastLookup(null);
+  }, []);
+
+  const lookupOffProductBarcode = useCallback(
+    async (rawBarcode: string) => {
+      const normalized = rawBarcode.replace(/[^\d]/g, "");
+      if (!normalized) {
+        setScanError("バーコードを読み取れませんでした。もう一度お試しください。");
+        return;
+      }
+      if (lastLookup?.barcode === normalized && Date.now() - lastLookup.at < 3000) return;
+
+      setScanLoading(true);
+      setScanError(null);
+      setLastLookup({ barcode: normalized, at: Date.now() });
+      const res = await lookupSharedProductByBarcodeMobile(supabase, normalized);
+      setScanLoading(false);
+      if (res.status === "error") {
+        setManualSharedProductPending(false);
+        setScanError(res.error ?? "バーコードの照会に失敗しました");
+        return;
+      }
+      if (res.status === "not_found" || !res.product) {
+        setCameraResult(null);
+        setServingHint(null);
+        setSharedBarcode(normalized);
+        setStandardFoodCode(null);
+        setManualSharedProductPending(true);
+        setScanError(
+          "Open Food Facts にこのバーコードはありませんでした。商品名と栄養を入力して保存すると、アプリ内で共有されます（写真は不要です）。"
+        );
+        return;
+      }
+      setManualSharedProductPending(false);
+      setScanError(null);
+      setCameraResult(res.product);
+      setSharedBarcode(res.product.barcode);
+      setStandardFoodCode(null);
+      setName(res.product.product_name);
+      setProtein(res.product.protein_per_100g?.toString() ?? "");
+      setFat(res.product.fat_per_100g?.toString() ?? "");
+      setCarbs(res.product.carbs_per_100g?.toString() ?? "");
+      if (res.product.serving_size_grams && res.product.serving_size_grams > 0) {
+        setGrams(res.product.serving_size_grams.toString());
+        setServingHint(
+          `OFFの serving_size (${res.product.serving_size}) を1回量に仮入力しました。ラベルで必ず確認してください。`
+        );
+      } else if (res.product.serving_size) {
+        setServingHint(
+          `OFFの serving_size (${res.product.serving_size}) を取得しました。1回量(g)を手動で確認してください。`
+        );
+      } else {
+        setServingHint(null);
+      }
+      setNotes((prev) => {
+        if (prev.trim()) return prev;
+        if (res.product?.source === SHARED_PRODUCT_SOURCE_MANUAL_ENTRY) {
+          return MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES;
+        }
+        return res.product?.brand ? `OFF: ${res.product.brand}` : "OFF連携";
+      });
+    },
+    [lastLookup, supabase]
+  );
+
+  const handleDecodedScan = useCallback(
+    async (raw: string) => {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        setScanError("バーコードを読み取れませんでした。もう一度お試しください。");
+        return;
+      }
+      if (/^https?:\/\//i.test(trimmed)) {
+        setScanLoading(false);
+        setScanError("URLからの取り込みは、まだ対応していません。");
+        return;
+      }
+      if (trimmed.startsWith("{")) {
+        const parsed = parseMenuSharePayload(trimmed);
+        if (!parsed.ok) {
+          setScanLoading(false);
+          setScanError(parsed.error);
+          return;
+        }
+        if (!canRegisterMenu) {
+          setScanLoading(false);
+          setScanError(
+            registerRestaurants.length === 0
+              ? "追加先のお店がありません。"
+              : "メニュー登録先のお店を選んでください。"
+          );
+          return;
+        }
+        setMenuQrImportDone(null);
+        applyImportRestaurantItemToForm(parsed.item);
+        setMenuQrImportDone(`「${parsed.item.name}」をフォームに反映しました。`);
+        return;
+      }
+      await lookupOffProductBarcode(trimmed);
+    },
+    [
+      applyImportRestaurantItemToForm,
+      canRegisterMenu,
+      lookupOffProductBarcode,
+      registerRestaurants.length,
+    ]
+  );
 
   const applyMenuUpdate = useCallback(
     async (id: string, payload: ReturnType<typeof buildMenuPayload>) => {
@@ -433,6 +682,74 @@ export function MenuItemEditorModal({
       groupNameTrim
     );
 
+    if (manualSharedProductPending && sharedBarcode) {
+      const trimmedName = data.name.trim();
+      if (!trimmedName) {
+        setBusy(false);
+        setFormError("名前を入力してください");
+        return;
+      }
+      if (data.standard_food_code) {
+        setBusy(false);
+        setFormError("標準成分表とバーコードの同時指定はできません");
+        return;
+      }
+      const rankVal = data.rank;
+      if (!Number.isFinite(rankVal) || rankVal < 1 || rankVal > 4) {
+        setBusy(false);
+        setFormError("ランクの値が不正です");
+        return;
+      }
+      const notesRpc = data.notes?.trim() || MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES;
+      const { data: menuId, error: rpcError } = await supabase.rpc(
+        "add_menu_item_with_manual_shared_product",
+        {
+          p_restaurant_id: registerRestaurantId,
+          p_barcode: sharedBarcode,
+          p_shared_product_name: trimmedName,
+          p_shared_brand: null,
+          p_shared_protein: data.protein_per_100g,
+          p_shared_fat: data.fat_per_100g,
+          p_shared_carbs: data.carbs_per_100g,
+          p_shared_serving_size: null,
+          p_shared_serving_size_grams: null,
+          p_menu_name: trimmedName,
+          p_menu_protein: data.protein_per_100g,
+          p_menu_fat: data.fat_per_100g,
+          p_menu_carbs: data.carbs_per_100g,
+          p_default_grams: data.default_grams,
+          p_rank: rankVal,
+          p_notes: notesRpc,
+          p_group_name: groupNameTrim,
+          p_group_order: groupOrder,
+        }
+      );
+      setBusy(false);
+      if (rpcError) {
+        const msg = rpcError.message ?? "";
+        if (msg.includes("menu_item_barcode_exists")) {
+          setFormError("このお店に同じバーコードのメニューがあります");
+          onToast("このお店に同じバーコードのメニューがあります");
+          return;
+        }
+        if (msg.includes("restaurant not found")) {
+          setFormError("お店が見つかりません");
+          return;
+        }
+        setFormError(msg);
+        onToast(`メニュー登録に失敗しました: ${msg}`);
+        return;
+      }
+      if (!menuId) {
+        setFormError("メニューの追加に失敗しました");
+        return;
+      }
+      onToast("メニューに登録しました");
+      onClose();
+      await onSaved();
+      return;
+    }
+
     const { error } = await supabase.from("menu_items").insert({
       user_id: userId,
       restaurant_id: registerRestaurantId,
@@ -445,8 +762,8 @@ export function MenuItemEditorModal({
       notes: data.notes,
       group_name: groupNameTrim,
       group_order: groupOrder,
-      shared_barcode: null,
-      standard_food_code: null,
+      shared_barcode: data.shared_barcode,
+      standard_food_code: data.standard_food_code,
     });
 
     setBusy(false);
@@ -470,6 +787,8 @@ export function MenuItemEditorModal({
     registerRestaurants.length,
     supabase,
     userId,
+    manualSharedProductPending,
+    sharedBarcode,
   ]);
 
   const buildSnapshotLogDraft = useCallback((): FoodLogOutboxDraft | null => {
@@ -552,27 +871,6 @@ export function MenuItemEditorModal({
     onOutboxChanged,
   ]);
 
-  const handleAddToCart = useCallback(() => {
-    if (!name.trim()) {
-      setFormError("名前を入力してください");
-      return;
-    }
-    if (!snapshotRestaurantId) {
-      setFormError("カートに載せる準備ができていません。");
-      return;
-    }
-    const gramsNum = parseFloat(grams) || 100;
-    onAddSnapshotDraftToCart({
-      name: name.trim(),
-      protein_per_100g: protein === "" ? null : parseFloat(protein),
-      fat_per_100g: fat === "" ? null : parseFloat(fat),
-      carbs_per_100g: carbs === "" ? null : parseFloat(carbs),
-      grams: gramsNum,
-    });
-    onToast("カートに入れました");
-    onClose();
-  }, [name, grams, protein, fat, carbs, snapshotRestaurantId, onAddSnapshotDraftToCart, onToast, onClose]);
-
   const handleDelete = useCallback(async () => {
     if (!state || state.kind !== "edit") return;
     setDeleting(true);
@@ -644,20 +942,57 @@ export function MenuItemEditorModal({
                 />
               </View>
 
-              <View style={styles.field}>
-                <Text style={styles.label}>1回の量（g）</Text>
-                <TextInput
-                  value={grams}
-                  onChangeText={setGrams}
-                  keyboardType="decimal-pad"
-                  style={[styles.input, styles.gramsInput]}
-                  editable={!busy}
+              {!isEdit ? (
+                <MenuBarcodeSection
+                  cameraOn={cameraOn}
+                  onToggleCamera={() => {
+                    setScanError(null);
+                    setCameraResult(null);
+                    setServingHint(null);
+                    setMenuQrImportDone(null);
+                    setCameraOn((v) => !v);
+                  }}
+                  scanLoading={scanLoading}
+                  scanError={scanError}
+                  cameraResult={
+                    cameraResult
+                      ? { barcode: cameraResult.barcode, product_name: cameraResult.product_name }
+                      : null
+                  }
+                  menuQrImportDone={menuQrImportDone}
+                  manualSharedProductPending={manualSharedProductPending}
+                  sharedBarcode={sharedBarcode}
+                  servingHint={servingHint}
+                  onBarcodeData={(raw) => void handleDecodedScan(raw)}
+                  onRuntimeError={(message) => setScanError(message)}
+                  onCameraClosed={() => setCameraOn(false)}
+                  onOpenStandardFoodSearch={
+                    onRequestOpenStandardFoodComposition
+                      ? () => {
+                          if (registerRestaurants.length === 0) {
+                            setFormError("先にお店を追加してください。");
+                            onToast("先にお店を追加してください。");
+                            return;
+                          }
+                          onRequestOpenStandardFoodComposition();
+                        }
+                      : undefined
+                  }
                 />
-              </View>
+              ) : null}
 
               <View style={styles.field}>
-                <View style={styles.nutrientHeaderRow}>
-                  <Text style={styles.label}>栄養素</Text>
+                <View style={styles.gramsModeRow}>
+                  <Text style={styles.gramsInlineLabel} numberOfLines={1}>
+                    1回の量（g）
+                  </Text>
+                  <TextInput
+                    value={grams}
+                    onChangeText={setGrams}
+                    keyboardType="decimal-pad"
+                    style={[styles.input, styles.gramsInputRow]}
+                    editable={!busy}
+                  />
                   <View style={styles.modeSwitch}>
                     {(["per100g", "perServing"] as NutrientMode[]).map((m) => {
                       const on = nutrientMode === m;
@@ -667,7 +1002,10 @@ export function MenuItemEditorModal({
                           onPress={() => !busy && handleNutrientModeChange(m)}
                           style={[styles.modeChip, on && styles.modeChipOn]}
                         >
-                          <Text style={[styles.modeChipText, on && styles.modeChipTextOn]}>
+                          <Text
+                            style={[styles.modeChipText, on && styles.modeChipTextOn]}
+                            numberOfLines={1}
+                          >
                             {m === "per100g" ? "100gあたり" : `1回分（${Number.isNaN(gramsNum) ? "?" : gramsNum}g）`}
                           </Text>
                         </Pressable>
@@ -675,6 +1013,7 @@ export function MenuItemEditorModal({
                     })}
                   </View>
                 </View>
+                <Text style={styles.label}>栄養素</Text>
                 <View style={styles.pfcGrid}>
                   {(
                     [
@@ -700,12 +1039,11 @@ export function MenuItemEditorModal({
                     </View>
                   ))}
                 </View>
-                <Text style={styles.modeHint}>入力単位: {modeLabel}</Text>
               </View>
 
               <View style={styles.field}>
                 <Text style={styles.label}>ランク</Text>
-                <View style={styles.rankGrid}>
+                <View style={styles.rankRow}>
                   {RANK_OPTIONS.map((opt) => {
                     const on = rank === opt.value;
                     return (
@@ -715,7 +1053,10 @@ export function MenuItemEditorModal({
                           style={[styles.rankBtn, on && styles.rankBtnOn]}
                           disabled={busy}
                         >
-                          <Text style={[styles.rankBtnText, on && styles.rankBtnTextOn]}>
+                          <Text
+                            style={[styles.rankBtnText, on && styles.rankBtnTextOn]}
+                            numberOfLines={2}
+                          >
                             {opt.label}
                           </Text>
                         </Pressable>
@@ -780,23 +1121,80 @@ export function MenuItemEditorModal({
                 />
               </View>
 
+              {isEdit ? (
+                <View style={styles.shareQrSection}>
+                  <Text style={styles.label}>共有（QR）</Text>
+                  <Text style={styles.shareQrHint}>
+                    入力中の内容を QR にします。相手は「メニューを追加」からカメラで読み取れます。
+                  </Text>
+                  {!shareQrImportItem ? (
+                    <Text style={styles.amberSm}>名前を入力すると QR を表示できます。</Text>
+                  ) : null}
+                  {shareQrGenError ? <Text style={styles.amberSm}>{shareQrGenError}</Text> : null}
+                  {shareQrPayload && !shareQrGenError ? (
+                    <View style={styles.shareQrWhite}>
+                      <QRCode
+                        value={shareQrPayload}
+                        size={200}
+                        ecl="L"
+                        color="#000000"
+                        backgroundColor="#ffffff"
+                        quietZone={4}
+                        onError={(e: unknown) => {
+                          setShareQrGenError(
+                            e instanceof Error
+                              ? `QRを生成できませんでした（${e.message}）。メモや名前を短くするか、項目を減らして保存内容を試してください。`
+                              : "QRを生成できませんでした。メモや名前を短くしてください。"
+                          );
+                        }}
+                      />
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
               {!isEdit ? (
                 <View style={styles.field}>
                   <Text style={styles.label}>食事（記録で使用）</Text>
-                  <View style={styles.mealRow}>
-                    {MEALS.map((m) => (
-                      <Pressable
-                        key={m}
-                        onPress={() => !busy && setLogMeal(m)}
-                        style={[styles.mealChip, logMeal === m && styles.mealChipOn]}
-                      >
-                        <Text
-                          style={[styles.mealChipText, logMeal === m && styles.mealChipTextOn]}
+                  <View style={styles.mealLogActionsRow}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.mealScrollForLog}
+                      contentContainerStyle={styles.mealScrollForLogContent}
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      {MEALS.map((m) => (
+                        <Pressable
+                          key={m}
+                          onPress={() => !busy && setLogMeal(m)}
+                          style={[
+                            styles.mealChip,
+                            styles.mealChipCompact,
+                            logMeal === m && styles.mealChipOn,
+                            busy && { opacity: 0.5 },
+                          ]}
                         >
-                          {MEAL_LABEL[m]}
-                        </Text>
-                      </Pressable>
-                    ))}
+                          <Text
+                            style={[styles.mealChipText, logMeal === m && styles.mealChipTextOn]}
+                          >
+                            {MEAL_LABEL[m]}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                    <Pressable
+                      onPress={() => void handleLogOnly()}
+                      disabled={busy || !snapshotRestaurantId}
+                      style={[
+                        styles.logNowBtn,
+                        (!snapshotRestaurantId || busy) && { opacity: 0.45 },
+                      ]}
+                    >
+                      <Text style={styles.logNowBtnText} numberOfLines={2}>
+                        今すぐ記録
+                      </Text>
+                    </Pressable>
                   </View>
                 </View>
               ) : null}
@@ -895,23 +1293,6 @@ export function MenuItemEditorModal({
                       メニュー登録先のお店がないため、メニューへの登録はできません。
                     </Text>
                   ) : null}
-
-                  <View style={styles.cartRow}>
-                    <Pressable
-                      onPress={handleAddToCart}
-                      disabled={busy || !snapshotRestaurantId}
-                      style={[styles.btnSecondaryHalf, (!snapshotRestaurantId || busy) && { opacity: 0.5 }]}
-                    >
-                      <Text style={styles.btnSecondaryText}>カートへ</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => void handleLogOnly()}
-                      disabled={busy || !snapshotRestaurantId}
-                      style={[styles.btnSecondaryHalf, (!snapshotRestaurantId || busy) && { opacity: 0.5 }]}
-                    >
-                      <Text style={styles.btnSecondaryText}>今すぐ記録</Text>
-                    </Pressable>
-                  </View>
                 </>
               )}
             </ScrollView>
@@ -978,18 +1359,47 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
   },
-  gramsInput: { maxWidth: 120 },
-  nutrientHeaderRow: {
+  gramsModeRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 6,
     marginBottom: 8,
-    gap: 8,
   },
-  modeSwitch: { flexDirection: "row", borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: COLORS.border },
-  modeChip: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: "#0f172a" },
+  gramsInlineLabel: {
+    flexShrink: 0,
+    color: COLORS.textMuted,
+    fontSize: 12,
+    maxWidth: "34%",
+  },
+  gramsInputRow: {
+    width: 64,
+    minWidth: 56,
+    flexShrink: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    textAlign: "center",
+    fontSize: 15,
+  },
+  modeSwitch: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modeChip: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    backgroundColor: "#0f172a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   modeChipOn: { backgroundColor: COLORS.primary },
-  modeChipText: { color: COLORS.textMuted, fontSize: 11 },
+  modeChipText: { color: COLORS.textMuted, fontSize: 10, textAlign: "center" },
   modeChipTextOn: { color: "#fff", fontWeight: "600" },
   pfcGrid: { flexDirection: "row", gap: 8 },
   pfcCell: { flex: 1 },
@@ -1004,19 +1414,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: "center",
   },
-  modeHint: { color: COLORS.textMuted, fontSize: 11, marginTop: 6 },
-  rankGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  rankCell: { width: "48%" },
+  rankRow: { flexDirection: "row", flexWrap: "nowrap", gap: 6 },
+  rankCell: { flex: 1, minWidth: 0 },
   rankBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: "#0f172a",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
   },
   rankBtnOn: { borderColor: COLORS.primary, backgroundColor: "rgba(16, 185, 129, 0.2)" },
-  rankBtnText: { color: COLORS.textMuted, fontSize: 13, fontWeight: "500" },
+  rankBtnText: { color: COLORS.textMuted, fontSize: 11, fontWeight: "500", textAlign: "center" },
   rankBtnTextOn: { color: "#fff", fontWeight: "600" },
   groupRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   groupInput: { flex: 1 },
@@ -1040,7 +1452,40 @@ const styles = StyleSheet.create({
   suggestRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   suggestRowText: { color: COLORS.text, fontSize: 14 },
   textarea: { minHeight: 88, textAlignVertical: "top" },
-  mealRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  shareQrSection: {
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: "rgba(15, 23, 42, 0.4)",
+    gap: 8,
+  },
+  shareQrHint: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  shareQrWhite: {
+    alignSelf: "center",
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+  },
+  amberSm: { fontSize: 12, color: "#fcd34d", lineHeight: 17 },
+  mealLogActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  mealScrollForLog: { flex: 1, minWidth: 0 },
+  mealScrollForLogContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 2,
+    paddingRight: 4,
+  },
   mealChip: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -1050,8 +1495,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#0f172a",
   },
   mealChipOn: { borderColor: COLORS.primary, backgroundColor: "rgba(16, 185, 129, 0.15)" },
-  mealChipText: { color: COLORS.textMuted, fontSize: 13 },
+  mealChipCompact: { paddingVertical: 6, paddingHorizontal: 10 },
+  mealChipText: { color: COLORS.textMuted, fontSize: 12 },
   mealChipTextOn: { color: "#a7f3d0", fontWeight: "600" },
+  logNowBtn: {
+    width: 88,
+    flexShrink: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    backgroundColor: "#0f172a",
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  logNowBtnText: {
+    color: "#a7f3d0",
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 14,
+  },
   error: { color: "#fecaca", fontSize: 13, marginBottom: 10 },
   registerBox: {
     marginBottom: 12,
@@ -1084,17 +1549,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   btnPrimaryText: { color: "#022c22", fontWeight: "700", fontSize: 16 },
-  cartRow: { flexDirection: "row", gap: 8, marginTop: 4 },
-  btnSecondaryHalf: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: "#0f172a",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  btnSecondaryText: { color: COLORS.text, fontSize: 13, fontWeight: "600" },
   deleteSection: { marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
   deleteConfirmRow: { flexDirection: "row", gap: 8 },
   btnGhostWide: {

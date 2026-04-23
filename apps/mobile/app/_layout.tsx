@@ -1,6 +1,8 @@
+import "react-native-gesture-handler";
 import "react-native-url-polyfill/auto";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -14,12 +16,18 @@ void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   if (!isSupabaseConfigured()) {
-    return <MissingSupabaseRoot />;
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <MissingSupabaseRoot />
+      </GestureHandlerRootView>
+    );
   }
   return (
-    <AuthSessionProvider>
-      <ConfiguredRootLayout />
-    </AuthSessionProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthSessionProvider>
+        <ConfiguredRootLayout />
+      </AuthSessionProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -32,6 +40,14 @@ function MissingSupabaseRoot() {
 
 function ConfiguredRootLayout() {
   const { loading, initError } = useAuthSessionContext();
+
+  /** `getSession` が返らない環境でもネイティブスプラッシュで止まらないようにする */
+  useEffect(() => {
+    const failSafe = setTimeout(() => {
+      void SplashScreen.hideAsync();
+    }, 4000);
+    return () => clearTimeout(failSafe);
+  }, []);
 
   useEffect(() => {
     if (!loading || initError) {

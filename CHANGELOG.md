@@ -20,6 +20,22 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.53.0] - 2026-04-23
+
+### Added
+
+- **Mobile / Today**: メニュー編集モーダルに、Web のメニュー項目ドロワーと同じ内容の共有用 QR コードを表示する（`react-native-qrcode-svg`）。
+- **Mobile / Today**: 店舗タブ行を Web の `SortableRestaurantTabs` に近い見た目（下線で選択・左の ⣿ を長押しでドラッグ）にし、`display_order` を Supabase に保存する並べ替えに対応した（`react-native-draggable-flatlist` / `reorderRestaurantsMobile`）。
+- **Mobile / 起動**: `auth.getSession()` が返らないときにネイティブスプラッシュのまま固まらないよう、15 秒タイムアウトとスプラッシュの 4 秒フェイルセーフを入れた。
+
+### Changed
+
+- **Mobile / Today**: 店舗タブ行の `DraggableFlatList` が横方向に広がりすぎて「お店を追加」の＋が画面外に押し出されることがあったため、`minWidth: 0` のスロットで包んで常に＋が見えるようにした。
+- **Mobile / Today**: お気に入り・成分表を枠付きボタン風からやめ、店舗タブと同系統の下線選択のミニタブにし、行の左右パディングとギャップを詰めて店名タブの幅を確保した。
+- **Mobile / Today（成分表）**: タブアイコンを `Ionicons` の虫眼鏡に変更、検索欄をお気に入り・店舗と同じく一番上に統一、成分表パネルから「追加先のお店」選択を廃止（メニュー追加モーダルで店を選ぶ前提で `registerRestaurantIdHint: null` を渡す）。
+- **Mobile / Today**: 店舗タブの店名を長押しして「名前を変更」（Web のタブコンテキストメニュー相当）、`updateRestaurantNameMobile` で Web と同じ店名・お気に入りグループ名の更新を行う。
+- **Mobile / Today**: カートに入れたときにドックを自動展開しない（既定は閉じたまま）。上部 PFC バーは「記録済み＋カート内」を合算して表示し、カート変更のたびに即反映されるようにした。
+
 ## [1.52.0] - 2026-04-23
 
 ### Added

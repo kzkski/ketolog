@@ -1,7 +1,11 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
 import {
+  ActionSheetIOS,
   ActivityIndicator,
+  Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +13,11 @@ import {
   TextInput,
   View,
 } from "react-native";
+import DraggableFlatList, {
+  ScaleDecorator,
+  type DragEndParams,
+  type RenderItemParams,
+} from "react-native-draggable-flatlist";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   addMenuItemToFavoritesMobile,
@@ -33,8 +42,12 @@ import {
   menuRowMacroHighlights,
   type MacroHighlightTargets,
 } from "../lib/menu-row-macro-highlights";
+import type { StandardFoodSearchRow } from "../lib/search-standard-foods-mobile";
+import { RenameRestaurantModal } from "./RenameRestaurantModal";
+import { StandardFoodCompositionPanel } from "./StandardFoodCompositionPanel";
+import { reorderRestaurantsMobile } from "../lib/reorder-restaurants-mobile";
 
-type BrowseTab = "favorites" | "shops";
+type BrowseTab = "favorites" | "shops" | "composition";
 
 /** Web `MenuGroup` に相当 */
 type MenuGroup = {
@@ -136,6 +149,12 @@ type Props = {
   onSelectRestaurantIdAfterAddConsumed?: () => void;
   /** メニュー行の P/F 強調（Web `MenuItemRow` の `pfcTargets`） */
   macroTargets: MacroHighlightTargets;
+  /** Web の `browseTabRequest` 相当: 成分表タブへ切り替え */
+  browseTabRequest?: "composition" | null;
+  onBrowseTabRequestConsumed?: () => void;
+  /** 文科省検索からメニュー追加モーダルを開く（登録先ヒントは null 可） */
+  onPickStandardFoodForMenu?: (row: StandardFoodSearchRow, registerRestaurantIdHint: string | null) => void;
+  onToast?: (message: string) => void;
 };
 
 /** Web `compareMenuItemsForListOrder` / `sortMenuItemsForListOrder` と同順 */
@@ -303,6 +322,10 @@ export function TodayMenuPanel({
   selectRestaurantIdAfterAdd,
   onSelectRestaurantIdAfterAddConsumed,
   macroTargets,
+  browseTabRequest,
+  onBrowseTabRequestConsumed,
+  onPickStandardFoodForMenu,
+  onToast,
 }: Props) {
   const [tab, setTab] = useState<BrowseTab>("favorites");
   const [restaurants, setRestaurants] = useState<RestaurantRow[]>([]);
@@ -311,8 +334,11 @@ export function TodayMenuPanel({
   const [favoriteGroups, setFavoriteGroups] = useState<FavoriteGroupPayload[]>([]);
   const [favoritedMenuItemIds, setFavoritedMenuItemIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
+  /** 成分表タブ用（店舗メニュー検索の `query` と分離） */
+  const [compositionQuery, setCompositionQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [renameRestaurantTarget, setRenameRestaurantTarget] = useState<RestaurantRow | null>(null);
 
   const refreshFavoritedIds = useCallback(async () => {
     const r = await fetchFavoritedMenuItemIds(supabase, userId);
@@ -365,6 +391,109 @@ export function TodayMenuPanel({
       prev && rows.some((r) => r.id === prev) ? prev : rows[0]?.id ?? null
     );
   }, [supabase, userId]);
+
+  const openRestaurantTabMenu = useCallback((r: RestaurantRow) => {
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ["キャンセル", "名前を変更"], cancelButtonIndex: 0 },
+        (idx) => {
+          if (idx === 1) setRenameRestaurantTarget(r);
+        }
+      );
+    } else {
+      Alert.alert(r.name, undefined, [
+        { text: "キャンセル", style: "cancel" },
+        { text: "名前を変更", onPress: () => setRenameRestaurantTarget(r) },
+      ]);
+    }
+  }, []);
+
+  const handleRestaurantRenamed = useCallback(
+    (nextName: string, updatedFavoriteGroupId: string | null, restaurantId: string) => {
+      setRestaurants((prev) =>
+        sortRestaurants(
+          prev.map((row) => (row.id === restaurantId ? { ...row, name: nextName } : row))
+        )
+      );
+      if (updatedFavoriteGroupId) {
+        void loadFavorites();
+      }
+    },
+    [loadFavorites]
+  );
+
+  const handleRestaurantDragEnd = useCallback(
+    ({ data }: DragEndParams<RestaurantRow>) => {
+      const next = data.map((r, index) => ({ ...r, display_order: index }));
+      setRestaurants(next);
+      void (async () => {
+        const { error } = await reorderRestaurantsMobile(
+          supabase,
+          userId,
+          next.map((r) => r.id)
+        );
+        if (error) {
+          setError(error);
+          await loadRestaurants();
+        }
+      })();
+    },
+    [supabase, userId, loadRestaurants]
+  );
+
+  const renderRestaurantDraggableItem = useCallback(
+    ({ item, drag, isActive }: RenderItemParams<RestaurantRow>) => {
+      const selected = tab === "shops" && selectedRestaurantId === item.id;
+      return (
+        <ScaleDecorator>
+          <View
+            style={[
+              styles.restaurantTabStrip,
+              selected ? styles.restaurantTabStripOn : null,
+              isActive ? styles.restaurantTabStripDragging : null,
+            ]}
+          >
+            <Pressable
+              onLongPress={drag}
+              delayLongPress={220}
+              disabled={isActive}
+              style={({ pressed }) => [
+                styles.restaurantDragHandle,
+                (pressed || isActive) && { opacity: 0.78 },
+              ]}
+              accessibilityLabel={`${item.name}の表示順を変更`}
+              hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+            >
+              <Text style={styles.restaurantDragHandleGlyph}>⣿</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setTab("shops");
+                setSelectedRestaurantId(item.id);
+              }}
+              onLongPress={() => openRestaurantTabMenu(item)}
+              delayLongPress={520}
+              disabled={isActive}
+              style={({ pressed }) => [styles.restaurantNameHit, pressed && { opacity: 0.88 }]}
+              accessibilityLabel={item.name}
+              accessibilityHint="長押しで名前を変更"
+            >
+              <Text
+                style={[
+                  styles.restaurantNameText,
+                  selected ? styles.restaurantNameTextOn : null,
+                ]}
+                numberOfLines={1}
+              >
+                {item.name}
+              </Text>
+            </Pressable>
+          </View>
+        </ScaleDecorator>
+      );
+    },
+    [tab, selectedRestaurantId, openRestaurantTabMenu]
+  );
 
   const loadMenus = useCallback(async () => {
     if (!selectedRestaurantId) {
@@ -419,11 +548,20 @@ export function TodayMenuPanel({
   }, [menuItems, query]);
 
   const menuGroups = useMemo((): MenuGroup[] => {
+    if (tab === "composition") return [];
     if (tab === "favorites") {
       return buildFavoriteMenuGroups(favoriteGroups, query);
     }
     return buildShopMenuGroups(visibleMenus);
   }, [tab, favoriteGroups, query, visibleMenus]);
+
+  useEffect(() => {
+    if (!browseTabRequest) return;
+    if (browseTabRequest === "composition") {
+      setTab("composition");
+    }
+    onBrowseTabRequestConsumed?.();
+  }, [browseTabRequest, onBrowseTabRequestConsumed]);
 
   const collapsibleSectionKeys = useMemo(
     () => menuGroups.filter((g) => g.groupName !== null).map((g) => g.sectionKey),
@@ -436,6 +574,7 @@ export function TodayMenuPanel({
   );
 
   const storageScope = useMemo((): string | null => {
+    if (tab === "composition") return null;
     if (tab === "favorites") return MENU_GROUP_FAVORITES_SCOPE;
     if (!selectedRestaurantId) return null;
     return selectedRestaurantId;
@@ -511,55 +650,66 @@ export function TodayMenuPanel({
   return (
     <View style={styles.wrap}>
       <View style={styles.switchRow}>
-        <Pressable
-          onPress={() => setTab("favorites")}
-          style={({ pressed }) => [
-            styles.favAnchor,
-            tab === "favorites" && styles.favAnchorOn,
-            pressed && { opacity: 0.88 },
-          ]}
-          accessibilityLabel="お気に入り"
-        >
-          <Text style={[styles.favStarGlyph, tab === "favorites" && styles.favStarGlyphOn]}>
-            {tab === "favorites" ? "★" : "☆"}
-          </Text>
-          <Text
-            style={[styles.favAnchorLabel, tab === "favorites" && styles.favAnchorLabelOn]}
-            numberOfLines={1}
+        <View style={styles.leftModeTabs}>
+          <Pressable
+            onPress={() => setTab("favorites")}
+            style={({ pressed }) => [
+              styles.modeTab,
+              tab === "favorites" && styles.modeTabOn,
+              pressed && { opacity: 0.85 },
+            ]}
+            accessibilityLabel="お気に入り"
           >
-            お気に入り
-          </Text>
-        </Pressable>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.restaurantTabRow}
-          style={styles.restaurantScroll}
-        >
-          {restaurants.map((r) => (
-            <Pressable
-              key={r.id}
-              onPress={() => {
-                setTab("shops");
-                setSelectedRestaurantId(r.id);
-              }}
-              style={[
-                styles.restaurantTab,
-                tab === "shops" && selectedRestaurantId === r.id && styles.restaurantTabOn,
-              ]}
+            <Text style={[styles.modeTabIcon, tab === "favorites" && styles.modeTabIconOn]}>
+              {tab === "favorites" ? "★" : "☆"}
+            </Text>
+            <Text
+              style={[styles.modeTabLabel, tab === "favorites" && styles.modeTabLabelOn]}
+              numberOfLines={1}
             >
-              <Text
-                style={[
-                  styles.restaurantTabText,
-                  tab === "shops" && selectedRestaurantId === r.id && styles.restaurantTabTextOn,
-                ]}
-              >
-                {r.name}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+              お気に入り
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setTab("composition")}
+            style={({ pressed }) => [
+              styles.modeTab,
+              tab === "composition" && styles.modeTabOn,
+              pressed && { opacity: 0.85 },
+            ]}
+            accessibilityLabel="食品成分表"
+          >
+            <View style={styles.modeTabGlyphWrap}>
+              <Ionicons
+                name="search"
+                size={12}
+                color={tab === "composition" ? "#34d399" : "#6b7280"}
+              />
+            </View>
+            <Text
+              style={[styles.modeTabLabel, tab === "composition" && styles.modeTabLabelOn]}
+              numberOfLines={1}
+            >
+              成分表
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* flex 行で FlatList は minWidth:0 無しだと幅を取りすぎて右の「＋」が画面外へ押し出される */}
+        <View style={styles.restaurantListSlot}>
+          <DraggableFlatList
+            horizontal
+            data={restaurants}
+            keyExtractor={(r) => r.id}
+            renderItem={renderRestaurantDraggableItem}
+            onDragEnd={handleRestaurantDragEnd}
+            activationDistance={10}
+            showsHorizontalScrollIndicator={false}
+            style={styles.restaurantScroll}
+            contentContainerStyle={styles.restaurantTabRowContent}
+          />
+        </View>
         {onOpenRestaurantAdd ? (
           <Pressable
             onPress={onOpenRestaurantAdd}
@@ -573,14 +723,28 @@ export function TodayMenuPanel({
       </View>
 
       <TextInput
-        value={query}
-        onChangeText={setQuery}
-        placeholder={tab === "favorites" ? "お気に入りを検索" : "メニューを検索"}
+        value={tab === "composition" ? compositionQuery : query}
+        onChangeText={tab === "composition" ? setCompositionQuery : setQuery}
+        placeholder={
+          tab === "favorites"
+            ? "お気に入りを検索"
+            : tab === "composition"
+              ? "成分表を検索（例: さけ 生）"
+              : "メニューを検索"
+        }
         placeholderTextColor="#6b7280"
         style={styles.search}
       />
 
-      {loading ? (
+      {tab === "composition" ? (
+        <StandardFoodCompositionPanel
+          supabase={supabase}
+          searchQuery={compositionQuery}
+          onPickFood={(row) => {
+            onPickStandardFoodForMenu?.(row, null);
+          }}
+        />
+      ) : loading ? (
         <View style={styles.center}>
           <ActivityIndicator color="#10b981" />
         </View>
@@ -670,6 +834,17 @@ export function TodayMenuPanel({
           ) : null}
         </View>
       )}
+
+      <RenameRestaurantModal
+        visible={renameRestaurantTarget != null}
+        supabase={supabase}
+        userId={userId}
+        restaurantId={renameRestaurantTarget?.id ?? null}
+        initialName={renameRestaurantTarget?.name ?? ""}
+        onClose={() => setRenameRestaurantTarget(null)}
+        onRenamed={handleRestaurantRenamed}
+        onToast={onToast}
+      />
     </View>
   );
 }
@@ -679,16 +854,62 @@ const styles = StyleSheet.create({
   wrap: {
     marginTop: 0,
     marginHorizontal: 0,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingVertical: 12,
     backgroundColor: "#111827",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#1f2937",
     gap: 10,
   },
-  switchRow: { flexDirection: "row", alignItems: "stretch", gap: 8 },
+  switchRow: { flexDirection: "row", alignItems: "stretch", gap: 4, minWidth: 0 },
+  /** お気に入り・成分表を店舗タブ行の左に詰めて並べる（枠ボタンは使わない） */
+  leftModeTabs: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    flexShrink: 0,
+    gap: 0,
+    marginRight: 2,
+  },
+  modeTab: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    minHeight: 38,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  /** お気に入りの星（modeTabIcon 11pt）と同程度の見た目 */
+  modeTabGlyphWrap: {
+    width: 16,
+    minHeight: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modeTabOn: {
+    borderBottomColor: "#10b981",
+  },
+  modeTabIcon: {
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "700",
+    color: "#6b7280",
+  },
+  modeTabIconOn: { color: "#34d399" },
+  modeTabLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6b7280",
+    maxWidth: 76,
+  },
+  modeTabLabelOn: { color: "#e5e7eb" },
+  /** DraggableFlatList が親幅いっぱいに広がらないようにする */
+  restaurantListSlot: { flex: 1, minWidth: 0, overflow: "hidden" },
   restaurantPlusBtn: {
     width: 40,
+    flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "stretch",
@@ -710,54 +931,57 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addMenuItemText: { color: "#9ca3af", fontSize: 14, fontWeight: "500" },
-  /** 店舗タブと同じ高さ・1行（成分表タブ追加時も揃えやすい） */
-  favAnchor: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    minHeight: 40,
-    alignSelf: "stretch",
-    borderRadius: 0,
-    borderWidth: 1,
-    borderColor: "rgba(113, 63, 18, 0.7)",
-    backgroundColor: "rgba(66, 32, 6, 0.5)",
-  },
-  favAnchorOn: {
-    borderColor: "#fbbf24",
-    backgroundColor: "rgba(251, 191, 36, 0.18)",
-  },
-  favStarGlyph: {
-    fontSize: 12,
-    lineHeight: 14,
-    fontWeight: "700",
-    color: "#6b7280",
-  },
-  favStarGlyphOn: { color: "#fbbf24" },
-  favAnchorLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#a3a3a3",
-    flexShrink: 1,
-  },
-  favAnchorLabelOn: { color: "#fef3c7" },
   restaurantScroll: { flex: 1 },
-  restaurantTabRow: { gap: 6, paddingRight: 8 },
-  restaurantTab: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    minHeight: 40,
-    justifyContent: "center",
-    borderRadius: 0,
-    borderWidth: 1,
-    borderColor: "#374151",
-    backgroundColor: "#111827",
+  /** Web `SortableRestaurantTabs` に近い: 下線で選択、左に並べ替え用ハンドル */
+  restaurantTabRowContent: {
+    paddingRight: 8,
+    alignItems: "stretch",
   },
-  restaurantTabOn: { borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.18)" },
-  restaurantTabText: { color: "#9ca3af", fontSize: 12, fontWeight: "600" },
-  restaurantTabTextOn: { color: "#d1fae5" },
+  restaurantTabStrip: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    alignSelf: "flex-start",
+    maxWidth: 200,
+    minHeight: 38,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+    marginRight: 2,
+  },
+  restaurantTabStripOn: {
+    borderBottomColor: "#10b981",
+  },
+  restaurantTabStripDragging: {
+    opacity: 0.92,
+  },
+  restaurantDragHandle: {
+    paddingLeft: 2,
+    paddingRight: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    minWidth: 28,
+  },
+  restaurantDragHandleGlyph: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  restaurantNameHit: {
+    flexShrink: 1,
+    justifyContent: "center",
+    paddingRight: 6,
+    paddingLeft: 2,
+    minWidth: 0,
+  },
+  restaurantNameText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#9ca3af",
+    maxWidth: 164,
+  },
+  restaurantNameTextOn: {
+    color: "#f9fafb",
+  },
   search: {
     borderWidth: 1,
     borderColor: "#374151",
@@ -772,8 +996,8 @@ const styles = StyleSheet.create({
   list: { gap: 7 },
   /** Web `MenuItemList` のグループ見出しに近い */
   menuGroupHeader: {
-    marginHorizontal: -14,
-    paddingHorizontal: 14,
+    marginHorizontal: -10,
+    paddingHorizontal: 10,
     paddingVertical: 10,
     backgroundColor: "rgba(17, 24, 39, 0.5)",
     borderBottomWidth: StyleSheet.hairlineWidth,

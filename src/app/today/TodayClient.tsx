@@ -1568,6 +1568,7 @@ export default function TodayClient({
   }
 
   // ── 食事記録保存 ────────────────────────────────────────────────────────────
+  // Web: ここは楽観的 UI。失敗時にカートとログ行・PFC を戻す。方針は docs/architecture/food-log-sync.md。
   async function handleSave() {
     if (!hasCart || saving) return;
     if (

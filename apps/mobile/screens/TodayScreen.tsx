@@ -410,6 +410,7 @@ export function TodayScreen() {
     });
   }, []);
 
+  // 接続時は挿入成功後 load()。オフライン/一時失敗は food-log-outbox。docs/architecture/food-log-sync.md 参照。
   const saveCartToLog = useCallback(async () => {
     if (!userId || cart.size === 0) return;
     setCartSaving(true);

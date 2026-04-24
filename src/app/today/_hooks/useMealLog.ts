@@ -66,6 +66,7 @@ export function useMealLog({
     }
   }
 
+  // 楽観的に削除し、API 失敗でロールバック。Web/モバイルの差は docs/architecture/food-log-sync.md。
   async function handleDeleteEntry(id: string) {
     const previousEntries = logEntries;
     const previousConsumed = consumedForDate;

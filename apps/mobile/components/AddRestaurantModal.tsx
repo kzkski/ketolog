@@ -243,17 +243,21 @@ export function AddRestaurantModal({
             <Text style={styles.title} numberOfLines={1}>
               {title}
             </Text>
-            <View style={styles.headerBarRight}>
-              <Pressable
-                onPress={handleClose}
-                disabled={busy}
-                hitSlop={8}
-                accessibilityLabel="キャンセル"
-                style={styles.headerCancelHit}
-              >
-                <Text style={styles.headerCancelText}>キャンセル</Text>
-              </Pressable>
-            </View>
+            {step === "choice" ? (
+              <View style={styles.headerBarRight} />
+            ) : (
+              <View style={styles.headerBarRight}>
+                <Pressable
+                  onPress={handleClose}
+                  disabled={busy}
+                  hitSlop={8}
+                  accessibilityLabel="キャンセル"
+                  style={styles.headerCancelHit}
+                >
+                  <Text style={styles.headerCancelText}>キャンセル</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
 
           {step === "choice" ? (

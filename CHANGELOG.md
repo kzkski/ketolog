@@ -24,6 +24,11 @@
 
 ## [1.59.0] - 2026-04-24
 
+### Changed
+
+- **Web / Today**: 「お店を追加」各ドロワー（手入力 / JSON インポート / プリセット）の**見出し**を、モバイル同様**中央揃え**にし、**キャンセル**を右上に固定（`TodayClient`）。
+- **Mobile / Today（[#303](https://github.com/kzkski/ketolog/issues/303)）**: 「お店を追加」シートの**最初の画面**では、Web と同様に**左上の「閉じる」**を出さず、**背景タップ**で閉じる。手入力以降は**戻る**＋幾何中央のタイトル（`AddRestaurantModal`）。
+
 ### Added
 
 - **Mobile / Today（[#303](https://github.com/kzkski/ketolog/issues/303)）**: 「お店を追加」を Web の Today と揃え、**手入力**（店名＋4カテゴリ）/ **JSONから新規インポート**（`importRestaurantData` と同じ Supabase 操作をクライアント実装）/ **プリセット**（`public/presets` 同梱、オフライン優先。Web 追加時は同梱の更新要）の3経路に対応。共有シーマ型は `@ketolog/domain/restaurant-import`。

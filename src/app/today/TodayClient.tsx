@@ -117,9 +117,17 @@ function AddRestaurantDrawer({
         <div className="flex-none flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
-        <div className="flex-none flex items-center justify-between px-4 pb-3 border-b border-gray-800">
-          <h2 className="text-base font-semibold text-white">お店を追加</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">キャンセル</button>
+        <div className="relative flex min-h-12 items-center justify-center border-b border-gray-800 px-4 pb-3">
+          <h2 className="w-full text-center text-base font-semibold text-white px-10">
+            お店を追加
+          </h2>
+          <button
+            onClick={onClose}
+            type="button"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400 hover:text-white"
+          >
+            キャンセル
+          </button>
         </div>
 
         <div className="px-4 py-4 space-y-4">
@@ -289,9 +297,17 @@ function ImportRestaurantDrawer({
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
-        <div className="flex items-center justify-between px-4 pb-3 border-b border-gray-800">
-          <h2 className="text-base font-semibold text-white">JSONからお店を追加</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">キャンセル</button>
+        <div className="relative flex min-h-12 items-center justify-center border-b border-gray-800 px-4 pb-3">
+          <h2 className="w-full text-center text-base font-semibold text-white px-10">
+            JSONからお店を追加
+          </h2>
+          <button
+            onClick={onClose}
+            type="button"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400 hover:text-white"
+          >
+            キャンセル
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           <label className="block w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-xl text-center cursor-pointer transition-colors">
@@ -371,9 +387,17 @@ function PresetSelectDrawer({
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-600 rounded-full" />
         </div>
-        <div className="flex items-center justify-between px-4 pb-3 border-b border-gray-800">
-          <h2 className="text-base font-semibold text-white">プリセットから選ぶ</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">キャンセル</button>
+        <div className="relative flex min-h-12 items-center justify-center border-b border-gray-800 px-4 pb-3">
+          <h2 className="w-full text-center text-base font-semibold text-white px-10">
+            プリセットから選ぶ
+          </h2>
+          <button
+            onClick={onClose}
+            type="button"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400 hover:text-white"
+          >
+            キャンセル
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
           {visiblePresets.map((preset) => (

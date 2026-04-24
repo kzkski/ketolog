@@ -252,11 +252,23 @@ export function AddRestaurantModal({
         <View style={styles.card}>
           <View style={styles.handle} />
           <View style={styles.headerRow}>
-            <Pressable onPress={goBack} disabled={busy} hitSlop={8} accessibilityLabel="戻る">
-              <Text style={styles.back}>{step === "choice" ? "閉じる" : "戻る"}</Text>
-            </Pressable>
-            <Text style={styles.title}>{title}</Text>
-            <View style={styles.headerSpacer} />
+            {step === "choice" ? (
+              <View style={styles.headerSide} />
+            ) : (
+              <Pressable
+                onPress={goBack}
+                disabled={busy}
+                hitSlop={8}
+                accessibilityLabel="戻る"
+                style={styles.headerSide}
+              >
+                <Text style={styles.back}>戻る</Text>
+              </Pressable>
+            )}
+            <Text style={styles.title} numberOfLines={1}>
+              {title}
+            </Text>
+            <View style={styles.headerSide} />
           </View>
 
           {step === "choice" ? (
@@ -435,15 +447,21 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
+    minHeight: 48,
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#1f2937",
   },
-  back: { color: COLORS.textMuted, fontSize: 14, minWidth: 56 },
-  title: { color: COLORS.text, fontSize: 16, fontWeight: "700", flex: 1, textAlign: "center" },
-  headerSpacer: { minWidth: 56 },
+  /** 左右同幅: Web に「キャンセル等が片側」にないレイアウトに合わせ、タイトルを幾何学的中央に */
+  headerSide: {
+    minWidth: 56,
+    maxWidth: 80,
+    paddingLeft: 8,
+    paddingRight: 4,
+    justifyContent: "center",
+  },
+  back: { color: COLORS.textMuted, fontSize: 14 },
+  title: { flex: 1, color: COLORS.text, fontSize: 16, fontWeight: "700", textAlign: "center" },
   section: { padding: 16 },
   scroll: { maxHeight: 420, paddingHorizontal: 16, paddingTop: 8 },
   label: { color: COLORS.textMuted, fontSize: 12, marginBottom: 6 },

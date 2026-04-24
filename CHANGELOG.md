@@ -12,6 +12,8 @@
 
 ### Changed
 
+- **Web / Today**: 食事区分（朝・昼・晩・間食）の**タブ行**と、右端の**メニュー追加用「＋」**を表示しないようにした。記録先の食事は**カート内の「記録する食事」**で選び、メニュー品目の追加は各店舗の「＋ メニューを追加」・成分表からの導線・お店の「＋」を使う（モバイル版 Today と同趣旨の整理）。
+
 - **ドキュメント / Native PoC**: `docs/release/v3-native-feasibility.md` に #272 向けの実証 KPI（体感速度・操作完了率・クラッシュ・開発効率）と固定計測手順、暫定評価、Go/No-Go の記録枠を追加した。
 - **ドキュメント / Native PoC**: 実証完了に伴い Go を **継続** とし、**デスクトップは Web（ネイティブ対象外）・モバイルは Expo ネイティブ前提**の製品方針を `v3-native-feasibility.md` に追記した（[#263](https://github.com/kzkski/ketolog/issues/263) / [#272](https://github.com/kzkski/ketolog/issues/272)）。
 - **ドキュメント / 開発運用**: `CONTRIBUTING.md` と `docs/release/README.md` に Issue ラベル運用の最小ルール（`platform` / `type` / `priority` の必須系統、`epic:*` / `track:*` の推奨運用）を追加した（[#274](https://github.com/kzkski/ketolog/issues/274)）。

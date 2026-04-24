@@ -20,6 +20,13 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.58.0] - 2026-04-24
+
+### Added
+
+- **Web / Today（[#302](https://github.com/kzkski/ketolog/issues/302)）**: お気に入りタブ・店舗メニュータブに、モバイル `TodayMenuPanel` と同様のメニュー名検索（部分一致・大文字小文字無視）を追加した（`MenuItemList` / `filterMenuGroupsByBrowseQuery`）。
+- **ドキュメント**: Web / モバイルの Today まわり（食事の選び方・カート・メニュー登録導線）の対応表を `docs/ux/today-clients.md` に追加した。
+
 ## [1.57.0] - 2026-04-24
 
 ### Added

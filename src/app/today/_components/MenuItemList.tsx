@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { MenuItem, Restaurant } from "@/types/database";
+import { filterMenuGroupsByBrowseQuery } from "@/lib/menu-browse-filter";
 import type { StandardFoodSearchRow } from "../actions/menu-item";
 import { StandardFoodPanel } from "../StandardFoodPanel";
 import { MenuGroupCollapseSession } from "../MenuGroupCollapseSession";
@@ -54,7 +56,7 @@ export function MenuItemList({
   onPickStandardFood,
   onOpenItemAddDrawer,
   menuGroupCollapseSessionKey,
-  collapsibleMenuSectionKeys,
+  collapsibleMenuSectionKeys: _collapsibleMenuSectionKeysFromParent,
   menuGroups,
   cart,
   proteinTargetG,
@@ -79,10 +81,27 @@ export function MenuItemList({
   favoriteGroupsError,
   onRetryLoadFavoriteGroups,
 }: MenuItemListProps) {
+  void _collapsibleMenuSectionKeysFromParent;
+
   const isNormalRestaurantTab =
     Boolean(selectedRestaurantIdResolved) &&
     selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
     selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID;
+
+  const [menuBrowseQuery, setMenuBrowseQuery] = useState("");
+
+  const displayMenuGroups = useMemo(
+    () => filterMenuGroupsByBrowseQuery(menuGroups, menuBrowseQuery),
+    [menuGroups, menuBrowseQuery]
+  );
+
+  const collapsibleMenuSectionKeysForSession = useMemo(
+    () => displayMenuGroups.filter((g) => g.groupName !== null).map((g) => g.sectionKey),
+    [displayMenuGroups]
+  );
+
+  const browseQueryTrimmed = menuBrowseQuery.trim();
+  const hasAnyMenuRows = menuGroups.some((g) => g.items.length > 0);
 
   return (
     <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
@@ -96,6 +115,30 @@ export function MenuItemList({
         />
       ) : (
         <>
+          {(selectedRestaurantIdResolved === FAVORITES_TAB_ID ||
+            isNormalRestaurantTab) && (
+            <div className="px-3 sm:px-4 pt-3 pb-1 shrink-0">
+              <label className="sr-only" htmlFor="today-menu-browse-query">
+                {selectedRestaurantIdResolved === FAVORITES_TAB_ID
+                  ? "お気に入りを検索"
+                  : "メニューを検索"}
+              </label>
+              <input
+                id="today-menu-browse-query"
+                type="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                value={menuBrowseQuery}
+                onChange={(e) => setMenuBrowseQuery(e.target.value)}
+                placeholder={
+                  selectedRestaurantIdResolved === FAVORITES_TAB_ID
+                    ? "お気に入りを検索"
+                    : "メニューを検索"
+                }
+                className="w-full rounded-none border border-gray-700 bg-gray-950/80 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:border-emerald-600/70 focus:outline-none focus:ring-1 focus:ring-emerald-600/40"
+              />
+            </div>
+          )}
           {isNormalRestaurantTab && selectedRestaurantMenuError && (
             <div className="mx-4 mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
               <p className="text-xs text-amber-200">{selectedRestaurantMenuError}</p>
@@ -108,7 +151,7 @@ export function MenuItemList({
               </button>
             </div>
           )}
-          {isNormalRestaurantTab && isSelectedRestaurantMenuLoading && menuGroups.every((g) => g.items.length === 0) && (
+          {isNormalRestaurantTab && isSelectedRestaurantMenuLoading && displayMenuGroups.every((g) => g.items.length === 0) && (
             <p className="text-center text-gray-500 text-base sm:text-sm py-8">
               メニューを読み込み中...
             </p>
@@ -116,11 +159,11 @@ export function MenuItemList({
           <MenuGroupCollapseSession
             key={menuGroupCollapseSessionKey}
             selectedRestaurantIdResolved={selectedRestaurantIdResolved}
-            collapsibleMenuSectionKeys={collapsibleMenuSectionKeys}
+            collapsibleMenuSectionKeys={collapsibleMenuSectionKeysForSession}
           >
             {({ collapsedGroups, toggleMenuGroupCollapsed }) => (
               <>
-                {menuGroups.map((group) => {
+                {displayMenuGroups.map((group) => {
                   if (group.groupName === null) {
                     return group.items.map((item) => (
                       <MenuItemRow
@@ -247,7 +290,17 @@ export function MenuItemList({
               </div>
             )}
 
-          {menuGroups.every((g) => g.items.length === 0) &&
+          {browseQueryTrimmed &&
+            displayMenuGroups.every((g) => g.items.length === 0) &&
+            selectedRestaurantIdResolved === FAVORITES_TAB_ID &&
+            !favoriteGroupsLoading &&
+            !favoriteGroupsError && (
+              <p className="text-center text-gray-500 text-base sm:text-sm py-8 px-4">
+                検索に一致するメニューがありません
+              </p>
+            )}
+          {!browseQueryTrimmed &&
+            menuGroups.every((g) => g.items.length === 0) &&
             selectedRestaurantIdResolved === FAVORITES_TAB_ID && (
               <FavoritesPanel
                 loading={favoriteGroupsLoading}
@@ -255,7 +308,18 @@ export function MenuItemList({
                 onRetry={onRetryLoadFavoriteGroups}
               />
             )}
-          {menuGroups.every((g) => g.items.length === 0) &&
+          {browseQueryTrimmed &&
+            isNormalRestaurantTab &&
+            hasAnyMenuRows &&
+            displayMenuGroups.every((g) => g.items.length === 0) &&
+            !isSelectedRestaurantMenuLoading &&
+            !selectedRestaurantMenuError && (
+              <p className="text-center text-gray-500 text-base sm:text-sm py-8 px-4">
+                検索に一致するメニューがありません
+              </p>
+            )}
+          {!browseQueryTrimmed &&
+            menuGroups.every((g) => g.items.length === 0) &&
             selectedRestaurantIdResolved &&
             selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
             !isSelectedRestaurantMenuLoading &&

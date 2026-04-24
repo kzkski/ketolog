@@ -20,6 +20,16 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.56.0] - 2026-04-24
+
+### Added
+
+- **Mobile / 分析・法務（[#293](https://github.com/kzkski/ketolog/issues/293)）**: 未送信の食事下書きが1件以上ある場合のみ、分析画面に「集計に含まれない」旨の注意を表示する。`EXPO_PUBLIC_KETOLOG_WEB_ORIGIN` または `EXPO_PUBLIC_KETOLOG_LEGAL_*_URL` で解決した利用規約・プライバシーポリシーを、ログイン・新規登録・Today の設定からブラウザで開ける（https のみ）。
+
+### Changed
+
+- **Mobile / 法務・分析補足**: 法務 URL 解決は `apps/mobile/lib/ketolog-legal-urls.ts` に集約。分析の未送信下書きの有無の再取得には `@react-navigation/native` の `useFocusEffect` を使う。
+
 ## [1.55.0] - 2026-04-24
 
 ### Added

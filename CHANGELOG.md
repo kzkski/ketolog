@@ -24,6 +24,10 @@
 
 ## [1.59.0] - 2026-04-24
 
+### Fixed
+
+- **Web / Today**: `import-export` の `ImportData` 型の再エクスポートを `@ketolog/domain` 直指定にし、dev / Server Actions で `ReferenceError: ImportData is not defined` になる問題を解消（[#303](https://github.com/kzkski/ketolog/issues/303)）。
+
 ### Changed
 
 - **Web / Today**: 「お店を追加」各ドロワー（手入力 / JSON インポート / プリセット）の**見出し**を、モバイル同様**中央揃え**にし、**キャンセル**を右上に固定（`TodayClient`）。

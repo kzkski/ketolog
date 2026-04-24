@@ -71,6 +71,7 @@ export function StandardFoodPanel({
   onPickFood: (row: StandardFoodSearchRow) => void;
 }) {
   const selectId = useId();
+  const nameSearchId = useId();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [groupCode, setGroupCode] = useState<string | null>(null);
@@ -117,7 +118,29 @@ export function StandardFoodPanel({
   const visibleRows = hasMore ? rows.slice(0, STANDARD_FOOD_SEARCH_PAGE_SIZE) : rows;
 
   return (
-    <div className="flex flex-col gap-4 px-4 py-4 pb-28">
+    <div className="flex flex-col gap-4 px-3 sm:px-4 py-3 sm:pt-3 sm:pb-4 pb-28">
+      <div className="shrink-0 pb-1 -mx-0">
+        <label className="sr-only" htmlFor={nameSearchId}>
+          名称検索（文科省食品成分表）
+        </label>
+        <input
+          id={nameSearchId}
+          type="search"
+          enterKeyHint="search"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(0);
+          }}
+          placeholder="名称を検索（例: ささみ、木綿豆腐）"
+          autoComplete="off"
+          className="w-full rounded-none border border-gray-700 bg-gray-950/80 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:border-emerald-600/70 focus:outline-none focus:ring-1 focus:ring-emerald-600/40"
+        />
+        <p className="text-[11px] text-gray-600 mt-1.5 leading-relaxed">
+          部分一致と類似（pg_trgm）を併用します。群のみ選択するとその群の一覧が出ます。
+        </p>
+      </div>
+
       <div>
         <h2 className="text-base font-semibold text-white leading-snug" title={STANDARD_FOOD_TAB_TITLE}>
           文科省食品成分表
@@ -184,24 +207,6 @@ export function StandardFoodPanel({
             );
           })}
         </div>
-      </div>
-
-      <div>
-        <label className="block text-xs text-gray-400 mb-1">名称検索</label>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setPage(0);
-          }}
-          placeholder="例: ささみ、木綿豆腐"
-          autoComplete="off"
-          className="w-full px-3 py-2.5 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500"
-        />
-        <p className="text-[11px] text-gray-600 mt-1">
-          部分一致と類似（pg_trgm）を併用します。群のみ選択するとその群の一覧が出ます。
-        </p>
       </div>
 
       {loading && <p className="text-xs text-gray-500">検索中…</p>}

@@ -348,12 +348,13 @@ function PresetSelectDrawer({
   onImported: (restaurant: Restaurant, items: MenuItem[]) => void;
   presets: { name: string; file: string; itemCount: number }[];
 }) {
-  const PRESET_VISIBLE = 5;
+  /** 件数が増えたら折りたたみで隠す。現状のプリセット件数（〜7件）を余裕を持ってカバー */
+  const PRESET_INITIAL_VISIBLE = 10;
   const [fetchingPreset, setFetchingPreset] = useState<string | null>(null);
   const [fetchError, setFetchError]         = useState<string | null>(null);
   const [expanded, setExpanded]             = useState(false);
 
-  const visiblePresets = expanded ? presets : presets.slice(0, PRESET_VISIBLE);
+  const visiblePresets = expanded ? presets : presets.slice(0, PRESET_INITIAL_VISIBLE);
 
   async function handleSelect(file: string) {
     setFetchingPreset(file); setFetchError(null);
@@ -411,10 +412,10 @@ function PresetSelectDrawer({
               </span>
             </button>
           ))}
-          {presets.length > PRESET_VISIBLE && (
+          {presets.length > PRESET_INITIAL_VISIBLE && (
             <button onClick={() => setExpanded((v) => !v)}
               className="w-full py-1.5 text-xs text-gray-500 hover:text-white transition-colors">
-              {expanded ? "▲ 折り畳む" : `▼ さらに${presets.length - PRESET_VISIBLE}件表示`}
+              {expanded ? "▲ 折り畳む" : `▼ さらに${presets.length - PRESET_INITIAL_VISIBLE}件表示`}
             </button>
           )}
           {fetchError && <p className="text-red-400 text-xs pt-1">{fetchError}</p>}

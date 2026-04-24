@@ -43,7 +43,8 @@ const CATEGORY_OPTIONS = [
 
 type Step = "choice" | "manual" | "import" | "preset";
 
-const PRESET_VISIBLE = 5;
+/** 件数が増えたら折りたたみで隠す。現状のプリセット件数（〜7件）を余裕を持ってカバー */
+const PRESET_INITIAL_VISIBLE = 10;
 
 type Props = {
   visible: boolean;
@@ -218,7 +219,7 @@ export function AddRestaurantModal({
 
   const visiblePresets = presetExpanded
     ? RESTAURANT_PRESET_LIST
-    : RESTAURANT_PRESET_LIST.slice(0, PRESET_VISIBLE);
+    : RESTAURANT_PRESET_LIST.slice(0, PRESET_INITIAL_VISIBLE);
 
   const title =
     step === "choice"
@@ -389,7 +390,7 @@ export function AddRestaurantModal({
                   </Text>
                 </Pressable>
               ))}
-              {RESTAURANT_PRESET_LIST.length > PRESET_VISIBLE ? (
+              {RESTAURANT_PRESET_LIST.length > PRESET_INITIAL_VISIBLE ? (
                 <Pressable
                   onPress={() => setPresetExpanded((e) => !e)}
                   style={styles.expandHint}
@@ -397,7 +398,7 @@ export function AddRestaurantModal({
                   <Text style={styles.expandHintText}>
                     {presetExpanded
                       ? "▲ 折り畳む"
-                      : `▼ さらに${RESTAURANT_PRESET_LIST.length - PRESET_VISIBLE}件表示`}
+                      : `▼ さらに${RESTAURANT_PRESET_LIST.length - PRESET_INITIAL_VISIBLE}件表示`}
                   </Text>
                 </Pressable>
               ) : null}

@@ -27,6 +27,12 @@
 ### Changed
 
 - **Web / Today**: 食事区分（朝・昼・晩・間食）の**タブ行**と、右端の**メニュー追加用「＋」**を表示しないようにした。記録先の食事は**カート内の「記録する食事」**で選び、メニュー品目の追加は各店舗の「＋ メニューを追加」・成分表からの導線・お店の「＋」を使う（モバイル版 Today と同趣旨の整理）。関連: [#302](https://github.com/kzkski/ketolog/issues/302)
+- **Web / Today（[#302](https://github.com/kzkski/ketolog/issues/302)）**: 食品成分表（文科省）タブの**名称検索**を、お気に入り・店舗メニューと同様に**パネル最上段**にし、検索欄のスタイルも `MenuItemList` 側のメニュー検索に揃えた（`StandardFoodPanel`）。
+
+### Added
+
+- **Web / Today（[#302](https://github.com/kzkski/ketolog/issues/302)）**: お気に入りタブ・店舗メニュータブに、モバイル `TodayMenuPanel` と同様のメニュー名検索（部分一致・大文字小文字無視）を追加した（`MenuItemList` / `filterMenuGroupsByBrowseQuery`）。
+- **ドキュメント**: Web / モバイルの Today まわり（食事の選び方・カート・メニュー登録導線）の対応表を `docs/ux/today-clients.md` に追加した。
 
 ## [1.57.0] - 2026-04-24
 

@@ -1,3 +1,6 @@
+/**
+ * 未送信食事のローカル待ち。再送と Web/モバイル差分は docs/architecture/food-log-sync.md。
+ */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MealType } from "@ketolog/types";

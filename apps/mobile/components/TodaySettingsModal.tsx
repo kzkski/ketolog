@@ -20,6 +20,7 @@ import {
   type MenuItemExportRow,
   type RestaurantExportRow,
 } from "../lib/export-full-user-data-mobile";
+import { LegalDocumentLinks } from "./LegalDocumentLinks";
 import { isSnapshotRestaurant } from "../lib/snapshot-restaurant";
 import { shareUtf8JsonFile } from "../lib/share-json-mobile";
 
@@ -430,6 +431,11 @@ export function TodaySettingsModal({
                 Open Food Facts
               </Text>
             </Text>
+
+            <LegalDocumentLinks
+              variant="settings"
+              onOpenError={(m) => onToast?.(m)}
+            />
 
             <Pressable
               onPress={() => {

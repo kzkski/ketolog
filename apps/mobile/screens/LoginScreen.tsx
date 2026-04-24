@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { Link, useLocalSearchParams } from "expo-router";
+import { LegalDocumentLinks } from "../components/LegalDocumentLinks";
 import { getSupabase } from "../lib/supabase";
 import { signInWithGoogle } from "../lib/googleSignIn";
 
@@ -112,6 +113,8 @@ export function LoginScreen() {
         >
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>ログイン</Text>}
         </Pressable>
+
+        <LegalDocumentLinks variant="auth" onOpenError={setError} />
 
         <Text style={styles.footer}>
           アカウントがない方は{" "}

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { makeRedirectUri } from "expo-auth-session";
+import { LegalDocumentLinks } from "../components/LegalDocumentLinks";
 import { getSupabase } from "../lib/supabase";
 import { signInWithGoogle } from "../lib/googleSignIn";
 
@@ -131,6 +132,8 @@ export function SignupScreen() {
             <Text style={styles.primaryBtnText}>アカウント作成</Text>
           )}
         </Pressable>
+
+        <LegalDocumentLinks variant="auth" onOpenError={setError} />
 
         <Text style={styles.footer}>
           すでにアカウントをお持ちの方は{" "}

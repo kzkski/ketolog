@@ -1,3 +1,4 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -20,6 +21,7 @@ import {
   type InsightFoodLogEntry,
 } from "@ketolog/domain/insights";
 import { useAuthSessionContext } from "../contexts/AuthSessionContext";
+import { loadFoodLogOutbox } from "../lib/food-log-outbox";
 import { getSupabase } from "../lib/supabase";
 import { fetchInsightsFoodLogForDateRange } from "../lib/fetch-insights-food-log-mobile";
 import { shareUtf8JsonFile } from "../lib/share-json-mobile";
@@ -85,6 +87,8 @@ export function InsightsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [shareErr, setShareErr] = useState<string | null>(null);
+  const [outboxLoaded, setOutboxLoaded] = useState(false);
+  const [outboxHasUnsent, setOutboxHasUnsent] = useState(false);
 
   const loadRange = useCallback(
     async (nextStart: string, nextEnd: string, nextPreset: Preset) => {
@@ -118,6 +122,27 @@ export function InsightsScreen() {
     });
     return () => cancelAnimationFrame(id);
   }, [userId, loadRange, preset7.start, preset7.end]);
+
+  const refreshOutbox = useCallback(async () => {
+    if (!userId) return;
+    const drafts = await loadFoodLogOutbox(userId);
+    setOutboxHasUnsent(drafts.length > 0);
+    setOutboxLoaded(true);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      setOutboxLoaded(false);
+      setOutboxHasUnsent(false);
+    }
+  }, [userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      void refreshOutbox();
+    }, [userId, refreshOutbox])
+  );
 
   const insight = useMemo(
     () => buildInsights(entries, start, end),
@@ -187,6 +212,20 @@ export function InsightsScreen() {
         </View>
         <Text style={styles.sub}>JST の日付で集計します</Text>
       </View>
+
+      {outboxLoaded && outboxHasUnsent ? (
+        <View
+          style={styles.outboxBanner}
+          accessibilityRole="alert"
+          accessibilityLabel="未送信の下書きは分析に含まれません。Todayで再送または破棄できます。"
+        >
+          <Ionicons name="alert-circle" size={18} color="#fcd34d" style={styles.outboxIcon} />
+          <Text style={styles.outboxText}>
+            未送信の下書きはクラウドに未同期のため、この分析の集計には含まれません。Today
+            の「未送信の下書き」から再送するか、破棄してください。
+          </Text>
+        </View>
+      ) : null}
 
       <ScrollView
         style={styles.scroll}
@@ -443,6 +482,21 @@ const styles = StyleSheet.create({
   },
   closeBtnText: { color: COLORS.text, fontSize: 13, fontWeight: "600" },
   sub: { color: COLORS.muted, fontSize: 11, marginTop: 6 },
+  outboxBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 0,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(120, 53, 15, 0.35)",
+    borderWidth: 1,
+    borderColor: "rgba(234, 179, 8, 0.4)",
+  },
+  outboxIcon: { marginTop: 1 },
+  outboxText: { color: "#fef3c7", fontSize: 12, lineHeight: 17, flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 12, paddingTop: 12 },
   card: {

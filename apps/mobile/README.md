@@ -41,6 +41,8 @@ npm install
    - **Expo Go 開発時**は、ターミナルに表示される `exp://` 系のリダイレクトが変わるため、エラーに含まれる URL を見ながら **Redirect URLs に都度追加**するか、通し用の `exp://**` が許可できる場合はルールに従って登録する。
 3. 環境変数を変えたら `npx expo start`（Metro）を**再起動**する。
 
+**利用規約・プライバシー**（`Login` / `Signup` / 設定）: 表示するには `EXPO_PUBLIC_KETOLOG_WEB_ORIGIN` または `EXPO_PUBLIC_KETOLOG_LEGAL_TERMS_URL` / `EXPO_PUBLIC_KETOLOG_LEGAL_PRIVACY_URL` のいずれかで **https** の URL を解決できる必要がある。`apps/mobile/.env.example` を参照。未設定のとき当該ブロックは出ない。
+
 **Email/Password** と **Google ログアウト** は、未ログイン時に Today 等の保護画面へは遷移しない（ログイン / 再ログイン画面のみ）構成になっている。セッションは `AsyncStorage` に永続化し、アプリ再起動後も `getSession` で復元する。
 
 **Web との競合を避けるには**: 同じ Supabase プロジェクト内で、Next.js 用（例: Vercel の `https://.../auth/callback`）は既存のまま、上記に **Expo 用の `ketolog://` / `exp://` を足す**だけにするとよい。Site URL や他プロバイダー設定を差し替えない。

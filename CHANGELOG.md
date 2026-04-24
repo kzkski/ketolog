@@ -20,6 +20,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.57.0] - 2026-04-24
+
+### Added
+
+- **Mobile / 更新配布（[#293](https://github.com/kzkski/ketolog/issues/293)）**: 本番相当で `expo-updates` が有効なビルドでは、起動直後（短い遅延後）とアプリのフォアグラウンド復帰時に EAS Update の確認・取得を行い、新しい JavaScript バンドルがあれば**再読み込み**を案内する（`__DEV__` や無効ビルドでは no-op。同一セッションは冷却あり）。実装は `useEASUpdatePrompt`（`app/_layout`）。
+
 ## [1.56.0] - 2026-04-24
 
 ### Added

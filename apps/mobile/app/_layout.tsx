@@ -8,6 +8,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { AuthSessionProvider, useAuthSessionContext } from "../contexts/AuthSessionContext";
 import { MissingSupabaseConfigScreen } from "../components/MissingSupabaseConfigScreen";
+import { useEASUpdatePrompt } from "../hooks/useEASUpdatePrompt";
 import { isSupabaseConfigured } from "../lib/supabase";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -40,6 +41,7 @@ function MissingSupabaseRoot() {
 
 function ConfiguredRootLayout() {
   const { loading, initError } = useAuthSessionContext();
+  useEASUpdatePrompt();
 
   /** `getSession` が返らない環境でもネイティブスプラッシュで止まらないようにする */
   useEffect(() => {

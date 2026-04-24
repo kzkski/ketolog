@@ -27,7 +27,7 @@
 ### Changed
 
 - **Web / Today**: 「お店を追加」各ドロワー（手入力 / JSON インポート / プリセット）の**見出し**を、モバイル同様**中央揃え**にし、**キャンセル**を右上に固定（`TodayClient`）。
-- **Mobile / Today（[#303](https://github.com/kzkski/ketolog/issues/303)）**: 「お店を追加」シートの**最初の画面**では、Web と同様に**左上の「閉じる」**を出さず、**背景タップ**で閉じる。手入力以降は**戻る**＋幾何中央のタイトル（`AddRestaurantModal`）。
+- **Mobile / Today（[#303](https://github.com/kzkski/ketolog/issues/303)）**: 「お店を追加」は、Web の各ドロワーと同様、**全ステップで右上「キャンセル」**でフロー全体を閉じる。見出しは幾何中央。背景タップで閉じる挙動は従来どおり（`AddRestaurantModal`）。
 
 ### Added
 

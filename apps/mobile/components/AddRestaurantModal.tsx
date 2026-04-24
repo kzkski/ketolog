@@ -97,19 +97,6 @@ export function AddRestaurantModal({
     onClose();
   }, [busy, onClose]);
 
-  const goBack = useCallback(() => {
-    if (busy) return;
-    setError(null);
-    setFetchError(null);
-    if (step === "choice") handleClose();
-    else {
-      setStep("choice");
-      setImportParsedName(null);
-      setImportItemCount(null);
-      setImportReadyPayload(null);
-    }
-  }, [busy, step, handleClose]);
-
   const handleManualSave = useCallback(async () => {
     setBusy(true);
     setError(null);
@@ -252,23 +239,21 @@ export function AddRestaurantModal({
         <View style={styles.card}>
           <View style={styles.handle} />
           <View style={styles.headerRow}>
-            {step === "choice" ? (
-              <View style={styles.headerSide} />
-            ) : (
-              <Pressable
-                onPress={goBack}
-                disabled={busy}
-                hitSlop={8}
-                accessibilityLabel="戻る"
-                style={styles.headerSide}
-              >
-                <Text style={styles.back}>戻る</Text>
-              </Pressable>
-            )}
+            <View style={styles.headerBarLeft} />
             <Text style={styles.title} numberOfLines={1}>
               {title}
             </Text>
-            <View style={styles.headerSide} />
+            <View style={styles.headerBarRight}>
+              <Pressable
+                onPress={handleClose}
+                disabled={busy}
+                hitSlop={8}
+                accessibilityLabel="キャンセル"
+                style={styles.headerCancelHit}
+              >
+                <Text style={styles.headerCancelText}>キャンセル</Text>
+              </Pressable>
+            </View>
           </View>
 
           {step === "choice" ? (
@@ -452,15 +437,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#1f2937",
   },
-  /** 左右同幅: Web に「キャンセル等が片側」にないレイアウトに合わせ、タイトルを幾何学的中央に */
-  headerSide: {
-    minWidth: 56,
-    maxWidth: 80,
-    paddingLeft: 8,
+  /** Web のドロワー同様: 左スペーサ＋中央タイトル＋右上「キャンセル」、左右同幅でタイトル中心 */
+  headerBarLeft: {
+    minWidth: 72,
+    maxWidth: 88,
+  },
+  headerBarRight: {
+    minWidth: 72,
+    maxWidth: 88,
+    alignItems: "flex-end",
     paddingRight: 4,
     justifyContent: "center",
   },
-  back: { color: COLORS.textMuted, fontSize: 14 },
+  headerCancelHit: { paddingVertical: 2 },
+  headerCancelText: { color: COLORS.textMuted, fontSize: 14 },
   title: { flex: 1, color: COLORS.text, fontSize: 16, fontWeight: "700", textAlign: "center" },
   section: { padding: 16 },
   scroll: { maxHeight: 420, paddingHorizontal: 16, paddingTop: 8 },

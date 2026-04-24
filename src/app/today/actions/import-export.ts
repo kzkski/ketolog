@@ -2,14 +2,15 @@
 
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type { MenuItem, Restaurant } from "@/types/database";
-import type { ImportData, ImportRestaurantEntry } from "@ketolog/domain/restaurant-import";
+import type { ImportData } from "@ketolog/domain/restaurant-import";
 import type { MenuShareImportItem } from "@ketolog/domain/menu-share-qr";
 import { ensureFavoriteEntryForMenuItem } from "./favorites";
 import { nextRestaurantDisplayOrder } from "./restaurant";
 
 export type ImportRestaurantItem = MenuShareImportItem;
 
-export type { ImportData, ImportRestaurantEntry };
+/** ローカルの `import type` 再エクスポートは Server Actions バンドルで実行時参照になることがあるため、直に再エクスポートする */
+export type { ImportData, ImportRestaurantEntry } from "@ketolog/domain/restaurant-import";
 
 export async function importRestaurantData(data: ImportData): Promise<{
   added: number;

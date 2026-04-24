@@ -81,6 +81,8 @@ npm run mobile:typecheck
 - `npm --prefix apps/mobile run eas:submit:ios:production`
 - `npm --prefix apps/mobile run eas:credentials:ios`
 
+**EAS Update（Over-The-Air）**: `app.config` の `updates` / `runtimeVersion` が有効な**本番相当**のインストールでは、起動直後（短い遅延のあと）と**フォアグラウンド復帰**時に更新の確認・取得を行い、新しい JS バンドルがあれば再読み込みを案内する。`npx expo start` の開発中（`__DEV__`）や `expo-updates` が無効なビルドでは何もしない。
+
 ## 共有パッケージ（`@ketolog/domain` / `@ketolog/types`）
 
 モノレポ直下の `packages/` を `package.json` の workspaces から参照する。`App.tsx` で共有ロジックの import を確認できる。

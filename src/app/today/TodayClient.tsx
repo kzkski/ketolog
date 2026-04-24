@@ -48,7 +48,7 @@ import {
 import { updateUserSettings } from "./actions/settings";
 import { computeHeaderHintText, getActiveHintSlot } from "@/lib/header-hint";
 import { useAppUpdateBanner } from "@/hooks/useAppUpdateBanner";
-import { MEAL_LABELS, MEAL_TAB_STYLES } from "@/lib/constants/meal";
+import { MEAL_LABELS } from "@/lib/constants/meal";
 import { PfcHeader } from "./_components/PfcHeader";
 import { CartPanel, type CartEntry } from "./_components/CartPanel";
 import { MenuItemList } from "./_components/MenuItemList";
@@ -1794,47 +1794,6 @@ export default function TodayClient({
             )}
           </div>
         )}
-
-        {/* 食事タイプ タブ＋記録（＋は選択中の区分でドロワーを開く） */}
-        <div className="flex-none flex items-stretch border-b border-gray-800 bg-gray-900">
-          <div className="flex flex-1 min-w-0">
-            {(Object.keys(MEAL_LABELS) as MealType[]).map((type) => {
-              const active = mealType === type;
-              const a = MEAL_TAB_STYLES[type];
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setMealType(type)}
-                  className={`flex-1 min-w-0 min-h-9 sm:min-h-0 py-1.5 sm:py-2.5 text-xs font-medium border-b-2 transition-colors text-center touch-manipulation ${
-                    active
-                      ? `${a.row} ${a.label}`
-                      : "border-transparent text-gray-500 hover:text-gray-300"
-                  }`}
-                >
-                  {MEAL_LABELS[type]}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            aria-label={`${MEAL_LABELS[mealType]}に記録を追加（いま選んでいる食事区分で開きます）`}
-            onClick={() => {
-              const rid = menuAddRestaurantId;
-              if (!rid) {
-                alert(
-                  "表示できるお店がありません。上の「＋」からお店を追加してください。"
-                );
-                return;
-              }
-              setItemDrawer({ kind: "add", restaurantId: rid, openedAt: Date.now() });
-            }}
-            className="shrink-0 min-w-[3rem] w-[3rem] sm:min-w-11 sm:w-11 flex items-center justify-center text-[1.35rem] sm:text-xl font-semibold leading-none touch-manipulation border-l border-gray-800/80 transition-colors bg-emerald-600/25 text-emerald-200 hover:bg-emerald-500/45 hover:text-white active:bg-emerald-500/55"
-          >
-            ＋
-          </button>
-        </div>
 
         <RestaurantPanel
           favoritesTabId={FAVORITES_TAB_ID}

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const NAME_MAX = 100;
 
-async function nextRestaurantDisplayOrder(
+export async function nextRestaurantDisplayOrder(
   supabase: SupabaseClient,
   userId: string
 ): Promise<number> {

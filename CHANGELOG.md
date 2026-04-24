@@ -20,6 +20,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.58.0] - 2026-04-24
+
+### Added
+
+- **Mobile / Today（[#303](https://github.com/kzkski/ketolog/issues/303)）**: 「お店を追加」を Web の Today と揃え、**手入力**（店名＋4カテゴリ）/ **JSONから新規インポート**（`importRestaurantData` と同じ Supabase 操作をクライアント実装）/ **プリセット**（`public/presets` 同梱、オフライン優先。Web 追加時は同梱の更新要）の3経路に対応。共有シーマ型は `@ketolog/domain/restaurant-import`。
+
 ## [1.57.0] - 2026-04-24
 
 ### Added

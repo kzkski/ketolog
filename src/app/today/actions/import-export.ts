@@ -2,22 +2,14 @@
 
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type { MenuItem, Restaurant } from "@/types/database";
+import type { ImportData, ImportRestaurantEntry } from "@ketolog/domain/restaurant-import";
 import type { MenuShareImportItem } from "@ketolog/domain/menu-share-qr";
 import { ensureFavoriteEntryForMenuItem } from "./favorites";
 import { nextRestaurantDisplayOrder } from "./restaurant";
 
 export type ImportRestaurantItem = MenuShareImportItem;
 
-export type ImportRestaurantEntry = {
-  name: string;
-  category: string;
-  menuItems: ImportRestaurantItem[];
-};
-
-export type ImportData = {
-  version: number;
-  restaurants: ImportRestaurantEntry[];
-};
+export type { ImportData, ImportRestaurantEntry };
 
 export async function importRestaurantData(data: ImportData): Promise<{
   added: number;

@@ -14,6 +14,7 @@
     "./standard-food-meta": "./src/standard-food-meta.ts",
     "./menu-share-qr": "./src/menu-share-qr.ts",
     "./restaurant-json-v1": "./src/restaurant-json-v1.ts",
+    "./restaurant-import": "./src/restaurant-import.ts",
     "./insights": "./src/insights.ts"
   }
 }

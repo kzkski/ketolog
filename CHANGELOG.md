@@ -22,6 +22,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.60.0] - 2026-04-25
+
+### Changed
+
+- **Mobile / Today（[#310](https://github.com/kzkski/ketolog/issues/310)）**: 画面全体の外側 `ScrollView` を廃止し、`topHeader`・日付ナビ・フェーズ・PFC・記録パネルを固定表示にした。`TodayMenuPanel` はモード/店舗タブ/検索を固定し、メニュー行エリアのみを縦スクロール化して pull-to-refresh を移設。カートドック展開時でも末尾操作がしやすいように下余白を追加した。
+
 ## [1.59.0] - 2026-04-24
 
 ### Fixed

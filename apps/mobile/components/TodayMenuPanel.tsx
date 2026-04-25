@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -163,6 +164,9 @@ type Props = {
   onToast?: (message: string) => void;
   /** 店舗削除後（カートの該当行除去など） */
   onRestaurantDeleted?: (restaurantId: string) => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  menuBottomInset?: number;
 };
 
 /** Web `compareMenuItemsForListOrder` / `sortMenuItemsForListOrder` と同順 */
@@ -335,6 +339,9 @@ export function TodayMenuPanel({
   onPickStandardFoodForMenu,
   onToast,
   onRestaurantDeleted,
+  refreshing = false,
+  onRefresh,
+  menuBottomInset = 24,
 }: Props) {
   const [tab, setTab] = useState<BrowseTab>("favorites");
   const [restaurants, setRestaurants] = useState<RestaurantRow[]>([]);
@@ -829,23 +836,43 @@ export function TodayMenuPanel({
         style={styles.search}
       />
 
-      {tab === "composition" ? (
-        <StandardFoodCompositionPanel
-          supabase={supabase}
-          searchQuery={compositionQuery}
-          onPickFood={(row) => {
-            onPickStandardFoodForMenu?.(row, null);
-          }}
-        />
-      ) : loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#10b981" />
-        </View>
-      ) : error ? (
-        <Text style={styles.error}>{error}</Text>
-      ) : (
-        <View style={styles.list}>
-          {menuGroups.map((group) => {
+      <View style={styles.contentArea}>
+        {tab === "composition" ? (
+          <View style={styles.compositionArea}>
+            <StandardFoodCompositionPanel
+              supabase={supabase}
+              searchQuery={compositionQuery}
+              onPickFood={(row) => {
+                onPickStandardFoodForMenu?.(row, null);
+              }}
+            />
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.menuScroll}
+            contentContainerStyle={[
+              styles.list,
+              {
+                paddingBottom: menuBottomInset,
+              },
+            ]}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+            refreshControl={
+              onRefresh ? (
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              ) : undefined
+            }
+          >
+            {loading ? (
+              <View style={styles.center}>
+                <ActivityIndicator color="#10b981" />
+              </View>
+            ) : error ? (
+              <Text style={styles.error}>{error}</Text>
+            ) : (
+              <>
+                {menuGroups.map((group) => {
             if (group.groupName === null) {
               return (
                 <Fragment key={group.sectionKey}>
@@ -903,82 +930,85 @@ export function TodayMenuPanel({
                   : null}
               </View>
             );
-          })}
-          {tab === "shops" &&
-          selectedRestaurantId &&
-          onOpenMenuEditorAdd &&
-          restaurants.length > 0 ? (
-            <Pressable
-              onPress={() => onOpenMenuEditorAdd(selectedRestaurantId)}
-              style={({ pressed }) => [styles.addMenuItemRow, pressed && { opacity: 0.9 }]}
-              accessibilityLabel="メニューを追加"
-            >
-              <Text style={styles.addMenuItemText}>＋ メニューを追加</Text>
-            </Pressable>
-          ) : null}
-          {tab === "shops" && selectedShop && restaurants.length > 0 ? (
-            <View style={styles.shopActionsBlock}>
-              <View style={styles.jsonBtnRow}>
-                <Pressable
-                  onPress={() => {
-                    void handleDownloadRestaurantJson();
-                  }}
-                  style={({ pressed }) => [styles.jsonBtn, pressed && { opacity: 0.88 }]}
-                >
-                  <Text style={styles.jsonBtnText}>JSONでエクスポート</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setImportMenuOpen(true)}
-                  style={({ pressed }) => [styles.jsonBtn, pressed && { opacity: 0.88 }]}
-                >
-                  <Text style={styles.jsonBtnText}>JSONでメニューを追加</Text>
-                </Pressable>
-              </View>
-              {confirmDeleteRestaurant ? (
-                <View style={styles.delConfirmRow}>
+                })}
+                {tab === "shops" &&
+                selectedRestaurantId &&
+                onOpenMenuEditorAdd &&
+                restaurants.length > 0 ? (
                   <Pressable
-                    onPress={() => setConfirmDeleteRestaurant(false)}
-                    style={({ pressed }) => [styles.delCancelBtn, pressed && { opacity: 0.9 }]}
+                    onPress={() => onOpenMenuEditorAdd(selectedRestaurantId)}
+                    style={({ pressed }) => [styles.addMenuItemRow, pressed && { opacity: 0.9 }]}
+                    accessibilityLabel="メニューを追加"
                   >
-                    <Text style={styles.delCancelText}>キャンセル</Text>
+                    <Text style={styles.addMenuItemText}>＋ メニューを追加</Text>
                   </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      void handleDeleteRestaurant();
-                    }}
-                    disabled={deletingRestaurant}
-                    style={({ pressed }) => [
-                      styles.delGoBtn,
-                      (deletingRestaurant || pressed) && { opacity: 0.85 },
-                      deletingRestaurant && { opacity: 0.5 },
-                    ]}
-                  >
-                    <Text style={styles.delGoText}>
-                      {deletingRestaurant ? "削除中..." : "削除する"}
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable
-                  onPress={() => setConfirmDeleteRestaurant(true)}
-                  style={({ pressed }) => [styles.delHintBtn, pressed && { opacity: 0.88 }]}
-                >
-                  <Text style={styles.delHintText}>このお店を削除</Text>
-                </Pressable>
-              )}
-            </View>
-          ) : null}
-          {tab === "favorites" && menuGroups.length === 0 ? (
-            <Text style={styles.empty}>お気に入りがありません</Text>
-          ) : null}
-          {tab === "shops" && restaurants.length === 0 ? (
-            <Text style={styles.empty}>店舗がありません</Text>
-          ) : null}
-          {tab === "shops" && restaurants.length > 0 && menuGroups.length === 0 ? (
-            <Text style={styles.empty}>この店舗にメニューがありません</Text>
-          ) : null}
-        </View>
-      )}
+                ) : null}
+                {tab === "shops" && selectedShop && restaurants.length > 0 ? (
+                  <View style={styles.shopActionsBlock}>
+                    <View style={styles.jsonBtnRow}>
+                      <Pressable
+                        onPress={() => {
+                          void handleDownloadRestaurantJson();
+                        }}
+                        style={({ pressed }) => [styles.jsonBtn, pressed && { opacity: 0.88 }]}
+                      >
+                        <Text style={styles.jsonBtnText}>JSONでエクスポート</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setImportMenuOpen(true)}
+                        style={({ pressed }) => [styles.jsonBtn, pressed && { opacity: 0.88 }]}
+                      >
+                        <Text style={styles.jsonBtnText}>JSONでメニューを追加</Text>
+                      </Pressable>
+                    </View>
+                    {confirmDeleteRestaurant ? (
+                      <View style={styles.delConfirmRow}>
+                        <Pressable
+                          onPress={() => setConfirmDeleteRestaurant(false)}
+                          style={({ pressed }) => [styles.delCancelBtn, pressed && { opacity: 0.9 }]}
+                        >
+                          <Text style={styles.delCancelText}>キャンセル</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            void handleDeleteRestaurant();
+                          }}
+                          disabled={deletingRestaurant}
+                          style={({ pressed }) => [
+                            styles.delGoBtn,
+                            (deletingRestaurant || pressed) && { opacity: 0.85 },
+                            deletingRestaurant && { opacity: 0.5 },
+                          ]}
+                        >
+                          <Text style={styles.delGoText}>
+                            {deletingRestaurant ? "削除中..." : "削除する"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={() => setConfirmDeleteRestaurant(true)}
+                        style={({ pressed }) => [styles.delHintBtn, pressed && { opacity: 0.88 }]}
+                      >
+                        <Text style={styles.delHintText}>このお店を削除</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ) : null}
+                {tab === "favorites" && menuGroups.length === 0 ? (
+                  <Text style={styles.empty}>お気に入りがありません</Text>
+                ) : null}
+                {tab === "shops" && restaurants.length === 0 ? (
+                  <Text style={styles.empty}>店舗がありません</Text>
+                ) : null}
+                {tab === "shops" && restaurants.length > 0 && menuGroups.length === 0 ? (
+                  <Text style={styles.empty}>この店舗にメニューがありません</Text>
+                ) : null}
+              </>
+            )}
+          </ScrollView>
+        )}
+      </View>
 
       <RenameRestaurantModal
         visible={renameRestaurantTarget != null}
@@ -1012,6 +1042,8 @@ export function TodayMenuPanel({
 const styles = StyleSheet.create({
   /** TodayScreen の PFC ブロックと同じ全幅ストリップ（左右の余白カードはやめる） */
   wrap: {
+    flex: 1,
+    minHeight: 0,
     marginTop: 0,
     marginHorizontal: 0,
     paddingHorizontal: 10,
@@ -1020,6 +1052,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#1f2937",
     gap: 10,
+  },
+  contentArea: {
+    flex: 1,
+    minHeight: 0,
+  },
+  compositionArea: {
+    flex: 1,
+    minHeight: 0,
+  },
+  menuScroll: {
+    flex: 1,
+    minHeight: 0,
   },
   switchRow: { flexDirection: "row", alignItems: "stretch", gap: 4, minWidth: 0 },
   /** お気に入り・成分表を店舗タブ行の左に詰めて並べる（枠ボタンは使わない） */
@@ -1190,7 +1234,7 @@ const styles = StyleSheet.create({
   },
   center: { alignItems: "center", paddingVertical: 20 },
   error: { color: "#fecaca", fontSize: 12, paddingVertical: 8 },
-  list: { gap: 7 },
+  list: { gap: 7, paddingBottom: 24 },
   /** Web `MenuItemList` のグループ見出しに近い */
   menuGroupHeader: {
     marginHorizontal: -10,

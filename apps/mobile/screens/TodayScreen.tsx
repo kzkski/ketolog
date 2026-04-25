@@ -4,7 +4,6 @@ import {
   Alert,
   Image,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -792,13 +791,6 @@ export function TodayScreen() {
         </View>
 
         <View style={styles.bodyColumn}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
           {loadError ? <Text style={styles.inlineError}>{loadError}</Text> : null}
           {snapshotError && !snapshotRestaurantId ? (
             <Text style={styles.inlineWarn}>
@@ -1028,27 +1020,33 @@ export function TodayScreen() {
             </View>
           </View>
 
-          <TodayMenuPanel
-            supabase={supabase}
-            userId={userId}
-            reloadNonce={dataNonce}
-            onAddToCart={addToCartFromItem}
-            onEditMenuItem={openMenuEditorEdit}
-            onOpenRestaurantAdd={() => setRestaurantAddOpen(true)}
-            onOpenMenuEditorAdd={openMenuEditorAdd}
-            selectRestaurantIdAfterAdd={selectRestaurantIdAfterAdd}
-            onSelectRestaurantIdAfterAddConsumed={onSelectRestaurantIdAfterAddConsumed}
-            macroTargets={{
-              protein_target_g: activeProfile.protein_target_g,
-              fat_target_g: activeProfile.fat_target_g,
-            }}
-            browseTabRequest={menuBrowseTabRequest}
-            onBrowseTabRequestConsumed={onBrowseTabRequestConsumed}
-            onPickStandardFoodForMenu={openMenuEditorFromStandardFood}
-            onToast={showToast}
-            onRestaurantDeleted={clearCartForRestaurant}
-          />
-        </ScrollView>
+          <View style={styles.menuPanelSlot}>
+            <TodayMenuPanel
+              supabase={supabase}
+              userId={userId}
+              reloadNonce={dataNonce}
+              onAddToCart={addToCartFromItem}
+              onEditMenuItem={openMenuEditorEdit}
+              onOpenRestaurantAdd={() => setRestaurantAddOpen(true)}
+              onOpenMenuEditorAdd={openMenuEditorAdd}
+              selectRestaurantIdAfterAdd={selectRestaurantIdAfterAdd}
+              onSelectRestaurantIdAfterAddConsumed={onSelectRestaurantIdAfterAddConsumed}
+              macroTargets={{
+                protein_target_g: activeProfile.protein_target_g,
+                fat_target_g: activeProfile.fat_target_g,
+              }}
+              browseTabRequest={menuBrowseTabRequest}
+              onBrowseTabRequestConsumed={onBrowseTabRequestConsumed}
+              onPickStandardFoodForMenu={openMenuEditorFromStandardFood}
+              onToast={showToast}
+              onRestaurantDeleted={clearCartForRestaurant}
+              refreshing={refreshing}
+              onRefresh={() => {
+                void onRefresh();
+              }}
+              menuBottomInset={cartExpanded ? 180 : 108}
+            />
+          </View>
 
         <TodayCartDock
           lines={cartLinesSorted}
@@ -1155,9 +1153,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
-  scroll: { flex: 1 },
-  scrollContent: {
-    paddingBottom: 32,
+  menuPanelSlot: {
+    flex: 1,
+    minHeight: 0,
   },
   centeredFill: {
     flex: 1,

@@ -1155,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   menuPanelSlot: {
     flex: 1,
-    minHeight: 0,
+    minHeight: 220,
   },
   centeredFill: {
     flex: 1,

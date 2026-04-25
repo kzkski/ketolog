@@ -822,23 +822,20 @@ export function TodayMenuPanel({
         ) : null}
       </View>
 
-      <TextInput
-        value={tab === "composition" ? compositionQuery : query}
-        onChangeText={tab === "composition" ? setCompositionQuery : setQuery}
-        placeholder={
-          tab === "favorites"
-            ? "お気に入りを検索"
-            : tab === "composition"
-              ? "成分表を検索（例: さけ 生）"
-              : "メニューを検索"
-        }
-        placeholderTextColor="#6b7280"
-        style={styles.search}
-      />
-
       <View style={styles.contentArea}>
         {tab === "composition" ? (
-          <View style={styles.compositionArea}>
+          <ScrollView
+            style={styles.menuScroll}
+            contentContainerStyle={styles.compositionScrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <TextInput
+              value={compositionQuery}
+              onChangeText={setCompositionQuery}
+              placeholder="成分表を検索（例: さけ 生）"
+              placeholderTextColor="#6b7280"
+              style={styles.search}
+            />
             <StandardFoodCompositionPanel
               supabase={supabase}
               searchQuery={compositionQuery}
@@ -846,7 +843,7 @@ export function TodayMenuPanel({
                 onPickStandardFoodForMenu?.(row, null);
               }}
             />
-          </View>
+          </ScrollView>
         ) : (
           <ScrollView
             style={styles.menuScroll}
@@ -864,6 +861,13 @@ export function TodayMenuPanel({
               ) : undefined
             }
           >
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={tab === "favorites" ? "お気に入りを検索" : "メニューを検索"}
+              placeholderTextColor="#6b7280"
+              style={styles.search}
+            />
             {loading ? (
               <View style={styles.center}>
                 <ActivityIndicator color="#10b981" />
@@ -1057,13 +1061,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
-  compositionArea: {
-    flex: 1,
-    minHeight: 0,
-  },
   menuScroll: {
     flex: 1,
     minHeight: 0,
+  },
+  compositionScrollContent: {
+    paddingBottom: 24,
   },
   switchRow: { flexDirection: "row", alignItems: "stretch", gap: 4, minWidth: 0 },
   /** お気に入り・成分表を店舗タブ行の左に詰めて並べる（枠ボタンは使わない） */

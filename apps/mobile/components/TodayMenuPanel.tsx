@@ -15,11 +15,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import DraggableFlatList, {
-  ScaleDecorator,
-  type DragEndParams,
-  type RenderItemParams,
-} from "react-native-draggable-flatlist";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   addMenuItemToFavoritesMobile,
@@ -49,7 +44,6 @@ import { RenameRestaurantModal } from "./RenameRestaurantModal";
 import { StandardFoodCompositionPanel } from "./StandardFoodCompositionPanel";
 import { ImportMenuItemsModal } from "./ImportMenuItemsModal";
 import { deleteRestaurantMobile } from "../lib/delete-restaurant-mobile";
-import { reorderRestaurantsMobile } from "../lib/reorder-restaurants-mobile";
 import { shareUtf8JsonFile } from "../lib/share-json-mobile";
 
 type BrowseTab = "favorites" | "shops" | "composition";
@@ -451,79 +445,6 @@ export function TodayMenuPanel({
     [loadFavorites]
   );
 
-  const handleRestaurantDragEnd = useCallback(
-    ({ data }: DragEndParams<RestaurantRow>) => {
-      const next = data.map((r, index) => ({ ...r, display_order: index }));
-      setRestaurants(next);
-      void (async () => {
-        const { error } = await reorderRestaurantsMobile(
-          supabase,
-          userId,
-          next.map((r) => r.id)
-        );
-        if (error) {
-          setError(error);
-          await loadRestaurants();
-        }
-      })();
-    },
-    [supabase, userId, loadRestaurants]
-  );
-
-  const renderRestaurantDraggableItem = useCallback(
-    ({ item, drag, isActive }: RenderItemParams<RestaurantRow>) => {
-      const selected = tab === "shops" && selectedRestaurantId === item.id;
-      return (
-        <ScaleDecorator>
-          <View
-            style={[
-              styles.restaurantTabStrip,
-              selected ? styles.restaurantTabStripOn : null,
-              isActive ? styles.restaurantTabStripDragging : null,
-            ]}
-          >
-            <Pressable
-              onLongPress={drag}
-              delayLongPress={220}
-              disabled={isActive}
-              style={({ pressed }) => [
-                styles.restaurantDragHandle,
-                (pressed || isActive) && { opacity: 0.78 },
-              ]}
-              accessibilityLabel={`${item.name}の表示順を変更`}
-              hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
-            >
-              <Text style={styles.restaurantDragHandleGlyph}>⣿</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setTab("shops");
-                setSelectedRestaurantId(item.id);
-              }}
-              onLongPress={() => openRestaurantTabMenu(item)}
-              delayLongPress={520}
-              disabled={isActive}
-              style={({ pressed }) => [styles.restaurantNameHit, pressed && { opacity: 0.88 }]}
-              accessibilityLabel={item.name}
-              accessibilityHint="長押しで名前を変更"
-            >
-              <Text
-                style={[
-                  styles.restaurantNameText,
-                  selected ? styles.restaurantNameTextOn : null,
-                ]}
-                numberOfLines={1}
-              >
-                {item.name}
-              </Text>
-            </Pressable>
-          </View>
-        </ScaleDecorator>
-      );
-    },
-    [tab, selectedRestaurantId, openRestaurantTabMenu]
-  );
-
   const loadMenus = useCallback(async () => {
     if (!selectedRestaurantId) {
       setMenuItems([]);
@@ -798,17 +719,42 @@ export function TodayMenuPanel({
 
         {/* flex 行で FlatList は minWidth:0 無しだと幅を取りすぎて右の「＋」が画面外へ押し出される */}
         <View style={styles.restaurantListSlot}>
-          <DraggableFlatList
+          <ScrollView
             horizontal
-            data={restaurants}
-            keyExtractor={(r) => r.id}
-            renderItem={renderRestaurantDraggableItem}
-            onDragEnd={handleRestaurantDragEnd}
-            activationDistance={10}
             showsHorizontalScrollIndicator={false}
             style={styles.restaurantScroll}
             contentContainerStyle={styles.restaurantTabRowContent}
-          />
+            keyboardShouldPersistTaps="handled"
+          >
+            {restaurants.map((item) => {
+              const selected = tab === "shops" && selectedRestaurantId === item.id;
+              return (
+                <View
+                  key={item.id}
+                  style={[styles.restaurantTabStrip, selected ? styles.restaurantTabStripOn : null]}
+                >
+                  <Pressable
+                    onPress={() => {
+                      setTab("shops");
+                      setSelectedRestaurantId(item.id);
+                    }}
+                    onLongPress={() => openRestaurantTabMenu(item)}
+                    delayLongPress={520}
+                    style={({ pressed }) => [styles.restaurantNameHit, pressed && { opacity: 0.88 }]}
+                    accessibilityLabel={item.name}
+                    accessibilityHint="長押しで名前を変更"
+                  >
+                    <Text
+                      style={[styles.restaurantNameText, selected ? styles.restaurantNameTextOn : null]}
+                      numberOfLines={1}
+                    >
+                      {item.name}
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </ScrollView>
         </View>
         {onOpenRestaurantAdd ? (
           <Pressable
@@ -1112,7 +1058,7 @@ const styles = StyleSheet.create({
     maxWidth: 76,
   },
   modeTabLabelOn: { color: "#e5e7eb" },
-  /** DraggableFlatList が親幅いっぱいに広がらないようにする */
+  /** 店舗タブ行が右端の「＋」を押し出さないようにする */
   restaurantListSlot: { flex: 1, minWidth: 0, overflow: "hidden" },
   restaurantPlusBtn: {
     width: 40,
@@ -1176,7 +1122,7 @@ const styles = StyleSheet.create({
   delHintBtn: { paddingVertical: 6, alignItems: "center" },
   delHintText: { color: "#f87171", fontSize: 11, fontWeight: "500" },
   restaurantScroll: { flex: 1 },
-  /** Web `SortableRestaurantTabs` に近い: 下線で選択、左に並べ替え用ハンドル */
+  /** 下線で選択表示 */
   restaurantTabRowContent: {
     paddingRight: 8,
     alignItems: "stretch",
@@ -1194,27 +1140,11 @@ const styles = StyleSheet.create({
   restaurantTabStripOn: {
     borderBottomColor: "#10b981",
   },
-  restaurantTabStripDragging: {
-    opacity: 0.92,
-  },
-  restaurantDragHandle: {
-    paddingLeft: 2,
-    paddingRight: 2,
-    justifyContent: "center",
-    alignItems: "center",
-    minWidth: 28,
-  },
-  restaurantDragHandleGlyph: {
-    color: "#6b7280",
-    fontSize: 13,
-    lineHeight: 16,
-    fontWeight: "600",
-  },
   restaurantNameHit: {
     flexShrink: 1,
     justifyContent: "center",
-    paddingRight: 6,
-    paddingLeft: 2,
+    paddingRight: 8,
+    paddingLeft: 6,
     minWidth: 0,
   },
   restaurantNameText: {

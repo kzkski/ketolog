@@ -22,6 +22,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.62.0] - 2026-04-26
+
+### Added
+
+- **Web / Mobile / 分析（[#314](https://github.com/kzkski/ketolog/issues/314)）**: 分析画面に「すべて・朝食・昼食・夕食・間食」の食事タイプフィルタを追加し、選択タイプだけで平均PFC・日次推移・日別一覧・Top10を再集計できるようにした。期間JSONのエクスポート/共有にも選択中 `mealTypes` を含め、Webとモバイルで同じ条件を再現できるようにした。
+
 ## [1.61.0] - 2026-04-26
 
 ### Changed

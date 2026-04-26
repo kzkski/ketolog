@@ -44,10 +44,18 @@ const MEAL_LABEL_FULL: Record<MealType, string> = {
   dinner: "夕食",
   snack: "間食",
 };
+const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
+const MEAL_FILTER_ON: Record<MealType, { borderColor: string; backgroundColor: string }> = {
+  breakfast: { borderColor: "#fb7185", backgroundColor: "rgba(244, 63, 94, 0.22)" },
+  lunch: { borderColor: "#38bdf8", backgroundColor: "rgba(14, 165, 233, 0.22)" },
+  dinner: { borderColor: "#a78bfa", backgroundColor: "rgba(139, 92, 246, 0.22)" },
+  snack: { borderColor: "#2dd4bf", backgroundColor: "rgba(20, 184, 166, 0.22)" },
+};
 
 const CUSTOM_RANGE_MAX_DAYS = 90;
 
 type Preset = "7d" | "30d" | "custom";
+type MealFilter = MealType | "all";
 
 function fmtNum(v: number): string {
   return v.toFixed(1);
@@ -80,6 +88,7 @@ export function InsightsScreen() {
   const preset7 = useMemo(() => getPresetRange(today, 7), [today]);
 
   const [preset, setPreset] = useState<Preset>("7d");
+  const [mealFilter, setMealFilter] = useState<MealFilter>("all");
   const [start, setStart] = useState(preset7.start);
   const [end, setEnd] = useState(preset7.end);
   const [entries, setEntries] = useState<InsightFoodLogEntry[]>([]);
@@ -91,15 +100,22 @@ export function InsightsScreen() {
   const [outboxHasUnsent, setOutboxHasUnsent] = useState(false);
 
   const loadRange = useCallback(
-    async (nextStart: string, nextEnd: string, nextPreset: Preset) => {
+    async (
+      nextStart: string,
+      nextEnd: string,
+      nextPreset: Preset,
+      nextMealFilter: MealFilter = mealFilter
+    ) => {
       if (!userId) return;
       setLoading(true);
       setError(null);
+      const mealTypes = nextMealFilter === "all" ? undefined : [nextMealFilter];
       const result = await fetchInsightsFoodLogForDateRange(
         supabase,
         userId,
         nextStart,
-        nextEnd
+        nextEnd,
+        mealTypes
       );
       setLoading(false);
       if (result.error) {
@@ -107,12 +123,13 @@ export function InsightsScreen() {
         return;
       }
       setPreset(nextPreset);
+      setMealFilter(nextMealFilter);
       setStart(nextStart);
       setEnd(nextEnd);
       setEntries(result.entries);
       setExpanded(new Set());
     },
-    [supabase, userId]
+    [supabase, userId, mealFilter]
   );
 
   useEffect(() => {
@@ -130,13 +147,6 @@ export function InsightsScreen() {
     setOutboxLoaded(true);
   }, [userId]);
 
-  useEffect(() => {
-    if (!userId) {
-      setOutboxLoaded(false);
-      setOutboxHasUnsent(false);
-    }
-  }, [userId]);
-
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
@@ -145,8 +155,11 @@ export function InsightsScreen() {
   );
 
   const insight = useMemo(
-    () => buildInsights(entries, start, end),
-    [entries, start, end]
+    () =>
+      buildInsights(entries, start, end, {
+        mealTypes: mealFilter === "all" ? undefined : [mealFilter],
+      }),
+    [entries, start, end, mealFilter]
   );
   const avgTotal =
     insight.summary.avgProtein + insight.summary.avgFat + insight.summary.avgCarbs;
@@ -167,7 +180,12 @@ export function InsightsScreen() {
     const payload = {
       kind: "ketolog_insights_export",
       version: 1,
-      period: { start, end, preset },
+      period: {
+        start,
+        end,
+        preset,
+        mealTypes: mealFilter === "all" ? [...MEAL_TYPES] : [mealFilter],
+      },
       exportedAt: new Date().toISOString(),
       entries,
     };
@@ -210,7 +228,6 @@ export function InsightsScreen() {
             <Text style={styles.closeBtnText}>閉じる</Text>
           </Pressable>
         </View>
-        <Text style={styles.sub}>JST の日付で集計します</Text>
       </View>
 
       {outboxLoaded && outboxHasUnsent ? (
@@ -279,6 +296,53 @@ export function InsightsScreen() {
           </View>
           <Text style={styles.hint}>カスタムは最大{CUSTOM_RANGE_MAX_DAYS}日</Text>
           {shareErr ? <Text style={styles.errSmall}>{shareErr}</Text> : null}
+          <View style={styles.mealFilterRow}>
+            <Pressable
+              onPress={() => {
+                void loadRange(start, end, preset, "all");
+              }}
+              disabled={loading}
+              style={({ pressed }) => [
+                styles.mealFilterBtn,
+                mealFilter === "all" && styles.mealFilterBtnOn,
+                pressed && { opacity: 0.85 },
+                loading && { opacity: 0.5 },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.mealFilterBtnText,
+                  mealFilter === "all" && styles.mealFilterBtnTextOn,
+                ]}
+              >
+                すべて
+              </Text>
+            </Pressable>
+            {MEAL_TYPES.map((mealType) => (
+              <Pressable
+                key={mealType}
+                onPress={() => {
+                  void loadRange(start, end, preset, mealType);
+                }}
+                disabled={loading}
+                style={({ pressed }) => [
+                  styles.mealFilterBtn,
+                  mealFilter === mealType && MEAL_FILTER_ON[mealType],
+                  pressed && { opacity: 0.85 },
+                  loading && { opacity: 0.5 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.mealFilterBtnText,
+                    mealFilter === mealType && { color: MEAL_FILTER_ON[mealType].borderColor },
+                  ]}
+                >
+                  {MEAL_LABEL_FULL[mealType]}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
           <View style={styles.dateRow}>
             <View style={styles.dateField}>
@@ -481,7 +545,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.btnBg,
   },
   closeBtnText: { color: COLORS.text, fontSize: 13, fontWeight: "600" },
-  sub: { color: COLORS.muted, fontSize: 11, marginTop: 6 },
   outboxBanner: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -530,6 +593,30 @@ const styles = StyleSheet.create({
   },
   shareBtnText: { color: COLORS.text, fontSize: 13, fontWeight: "600" },
   hint: { color: COLORS.muted, fontSize: 10, marginTop: 8 },
+  mealFilterRow: {
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    gap: 6,
+    marginTop: 10,
+    alignItems: "center",
+  },
+  mealFilterBtn: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.btnBg,
+    alignItems: "center",
+  },
+  mealFilterBtnOn: {
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.accent,
+  },
+  mealFilterBtnText: { color: COLORS.text, fontSize: 12, fontWeight: "600" },
+  mealFilterBtnTextOn: { color: "#fff" },
   errSmall: { color: COLORS.err, fontSize: 11, marginTop: 6 },
   dateRow: { flexDirection: "row", gap: 8, marginTop: 12, alignItems: "flex-end" },
   dateField: { flex: 1, minWidth: 0 },

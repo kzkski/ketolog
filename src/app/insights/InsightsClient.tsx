@@ -10,7 +10,7 @@ import {
   type InsightFoodLogEntry,
 } from "@/lib/insights";
 import { getInsightsFoodLogForDateRange } from "./actions";
-import { MEAL_LABELS, MEAL_TYPES } from "@/lib/constants/meal";
+import { MEAL_LABELS, MEAL_TAB_STYLES, MEAL_TYPES } from "@/lib/constants/meal";
 import type { MealType } from "@ketolog/types";
 
 const InsightsChart = dynamic(() => import("./InsightsChart"), {
@@ -42,6 +42,21 @@ function jstDateLabel(date: string): string {
 
 function toIsoNow() {
   return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function mealFilterButtonClass(mealFilter: MealFilter, target: MealFilter): string {
+  const base =
+    "w-full rounded-lg border px-1 py-1.5 text-center text-[11px] font-medium transition-colors sm:px-2 sm:py-2 sm:text-sm";
+  if (target === "all") {
+    return mealFilter === "all"
+      ? `${base} border-emerald-500 bg-emerald-600 text-white`
+      : `${base} border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700`;
+  }
+  if (mealFilter === target) {
+    const style = MEAL_TAB_STYLES[target];
+    return `${base} ${style.row} ${style.label}`;
+  }
+  return `${base} border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700`;
 }
 
 export default function InsightsClient({
@@ -183,16 +198,12 @@ export default function InsightsClient({
               DL
             </button>
           </div>
-          <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:overflow-visible">
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={() => void loadRange(start, end, preset, "all")}
               disabled={loading}
-              className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition-colors sm:px-3 sm:py-2 sm:text-sm ${
-                mealFilter === "all"
-                  ? "border-emerald-500 bg-emerald-600 text-white"
-                  : "border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700"
-              }`}
+              className={mealFilterButtonClass(mealFilter, "all")}
             >
               すべて
             </button>
@@ -202,11 +213,7 @@ export default function InsightsClient({
                 type="button"
                 onClick={() => void loadRange(start, end, preset, mealType)}
                 disabled={loading}
-                className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition-colors sm:px-3 sm:py-2 sm:text-sm ${
-                  mealFilter === mealType
-                    ? "border-emerald-500 bg-emerald-600 text-white"
-                    : "border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700"
-                }`}
+                className={mealFilterButtonClass(mealFilter, mealType)}
               >
                 {MEAL_LABELS[mealType]}
               </button>

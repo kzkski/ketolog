@@ -29,7 +29,15 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies (workspaces)
-        run: npm ci
+        run: |
+          for i in 1 2 3; do
+            npm ci && exit 0
+            echo "npm ci failed (attempt $i/3); retrying..."
+            rm -rf node_modules
+            sleep 5
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Run mobile typecheck
         run: npm run mobile:typecheck

@@ -45,6 +45,12 @@ const MEAL_LABEL_FULL: Record<MealType, string> = {
   snack: "間食",
 };
 const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
+const MEAL_FILTER_ON: Record<MealType, { borderColor: string; backgroundColor: string }> = {
+  breakfast: { borderColor: "#fb7185", backgroundColor: "rgba(244, 63, 94, 0.22)" },
+  lunch: { borderColor: "#38bdf8", backgroundColor: "rgba(14, 165, 233, 0.22)" },
+  dinner: { borderColor: "#a78bfa", backgroundColor: "rgba(139, 92, 246, 0.22)" },
+  snack: { borderColor: "#2dd4bf", backgroundColor: "rgba(20, 184, 166, 0.22)" },
+};
 
 const CUSTOM_RANGE_MAX_DAYS = 90;
 
@@ -322,7 +328,7 @@ export function InsightsScreen() {
                 disabled={loading}
                 style={({ pressed }) => [
                   styles.mealFilterBtn,
-                  mealFilter === mealType && styles.mealFilterBtnOn,
+                  mealFilter === mealType && MEAL_FILTER_ON[mealType],
                   pressed && { opacity: 0.85 },
                   loading && { opacity: 0.5 },
                 ]}
@@ -330,7 +336,7 @@ export function InsightsScreen() {
                 <Text
                   style={[
                     styles.mealFilterBtnText,
-                    mealFilter === mealType && styles.mealFilterBtnTextOn,
+                    mealFilter === mealType && { color: MEAL_FILTER_ON[mealType].borderColor },
                   ]}
                 >
                   {MEAL_LABEL_FULL[mealType]}
@@ -591,18 +597,21 @@ const styles = StyleSheet.create({
   hint: { color: COLORS.muted, fontSize: 10, marginTop: 8 },
   mealFilterRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+    flexWrap: "nowrap",
+    gap: 6,
     marginTop: 10,
     alignItems: "center",
   },
   mealFilterBtn: {
-    paddingHorizontal: 10,
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 6,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.btnBg,
+    alignItems: "center",
   },
   mealFilterBtnOn: {
     borderColor: COLORS.accent,

@@ -10,7 +10,7 @@ import {
   type InsightFoodLogEntry,
 } from "@/lib/insights";
 import { getInsightsFoodLogForDateRange } from "./actions";
-import { MEAL_LABELS } from "@/lib/constants/meal";
+import { MEAL_LABELS, MEAL_TYPES } from "@/lib/constants/meal";
 import type { MealType } from "@ketolog/types";
 
 const InsightsChart = dynamic(() => import("./InsightsChart"), {
@@ -21,6 +21,7 @@ const InsightsChart = dynamic(() => import("./InsightsChart"), {
 const CUSTOM_RANGE_MAX_DAYS = 90;
 
 type Preset = "7d" | "30d" | "custom";
+type MealFilter = MealType | "all";
 
 function fmtNum(v: number): string {
   return v.toFixed(1);
@@ -55,20 +56,34 @@ export default function InsightsClient({
   const [start, setStart] = useState(preset7.start);
   const [end, setEnd] = useState(preset7.end);
   const [entries, setEntries] = useState(initialEntries);
+  const [mealFilter, setMealFilter] = useState<MealFilter>("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const selectedMealTypes = useMemo(
+    () => (mealFilter === "all" ? undefined : [mealFilter]),
+    [mealFilter]
+  );
 
-  const insight = useMemo(() => buildInsights(entries, start, end), [entries, start, end]);
+  const insight = useMemo(
+    () => buildInsights(entries, start, end, { mealTypes: selectedMealTypes }),
+    [entries, start, end, selectedMealTypes]
+  );
   const avgTotal = insight.summary.avgProtein + insight.summary.avgFat + insight.summary.avgCarbs;
   const avgProteinPct = avgTotal > 0 ? (insight.summary.avgProtein / avgTotal) * 100 : 0;
   const avgFatPct = avgTotal > 0 ? (insight.summary.avgFat / avgTotal) * 100 : 0;
   const avgCarbsPct = avgTotal > 0 ? (insight.summary.avgCarbs / avgTotal) * 100 : 0;
 
-  async function loadRange(nextStart: string, nextEnd: string, nextPreset: Preset) {
+  async function loadRange(
+    nextStart: string,
+    nextEnd: string,
+    nextPreset: Preset,
+    nextMealFilter: MealFilter = mealFilter
+  ) {
     setLoading(true);
     setError(null);
-    const result = await getInsightsFoodLogForDateRange(nextStart, nextEnd);
+    const mealTypes = nextMealFilter === "all" ? undefined : [nextMealFilter];
+    const result = await getInsightsFoodLogForDateRange(nextStart, nextEnd, mealTypes);
     setLoading(false);
     if (result.error) {
       setError(result.error);
@@ -77,6 +92,7 @@ export default function InsightsClient({
     setPreset(nextPreset);
     setStart(nextStart);
     setEnd(nextEnd);
+    setMealFilter(nextMealFilter);
     setEntries(result.entries);
     setExpanded(new Set());
   }
@@ -102,7 +118,7 @@ export default function InsightsClient({
     const payload = {
       kind: "ketolog_insights_export",
       version: 1,
-      period: { start, end, preset },
+      period: { start, end, preset, mealTypes: selectedMealTypes ?? [...MEAL_TYPES] },
       exportedAt: new Date().toISOString(),
       entries,
     };
@@ -166,6 +182,35 @@ export default function InsightsClient({
             >
               DL
             </button>
+          </div>
+          <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:overflow-visible">
+            <button
+              type="button"
+              onClick={() => void loadRange(start, end, preset, "all")}
+              disabled={loading}
+              className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition-colors sm:px-3 sm:py-2 sm:text-sm ${
+                mealFilter === "all"
+                  ? "border-emerald-500 bg-emerald-600 text-white"
+                  : "border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700"
+              }`}
+            >
+              すべて
+            </button>
+            {MEAL_TYPES.map((mealType) => (
+              <button
+                key={mealType}
+                type="button"
+                onClick={() => void loadRange(start, end, preset, mealType)}
+                disabled={loading}
+                className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition-colors sm:px-3 sm:py-2 sm:text-sm ${
+                  mealFilter === mealType
+                    ? "border-emerald-500 bg-emerald-600 text-white"
+                    : "border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700"
+                }`}
+              >
+                {MEAL_LABELS[mealType]}
+              </button>
+            ))}
           </div>
 
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">

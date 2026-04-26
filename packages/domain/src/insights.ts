@@ -1,5 +1,6 @@
 import { addDaysJst, eachDate, toJstDateString } from "./date";
 import { sumPfc } from "./pfc";
+import type { MealType } from "@ketolog/types";
 
 export { addDaysJst };
 
@@ -54,7 +55,8 @@ function toNum(v: number | null): number {
 export function buildInsights(
   entries: InsightFoodLogEntry[],
   start: string,
-  end: string
+  end: string,
+  options?: { mealTypes?: MealType[] }
 ): {
   daily: DailyInsight[];
   summary: { avgProtein: number; avgFat: number; avgCarbs: number };
@@ -62,12 +64,16 @@ export function buildInsights(
   chart: Array<{ date: string; protein: number; fat: number; carbs: number }>;
 } {
   const days = eachDate(start, end);
+  const mealTypeSet =
+    options?.mealTypes && options.mealTypes.length > 0 ? new Set(options.mealTypes) : null;
+  const filteredEntries =
+    mealTypeSet == null ? entries : entries.filter((entry) => mealTypeSet.has(entry.meal_type as MealType));
   const byDate = new Map<string, DailyInsight>();
   for (const day of days) {
     byDate.set(day, { date: day, protein: 0, fat: 0, carbs: 0, entries: [] });
   }
 
-  for (const entry of entries) {
+  for (const entry of filteredEntries) {
     const bucket = byDate.get(entry.date);
     if (!bucket) continue;
     const merged = sumPfc(
@@ -101,7 +107,7 @@ export function buildInsights(
   const sumCarbs = periodTotals.c;
 
   const topMap = new Map<string, TopItem>();
-  for (const entry of entries) {
+  for (const entry of filteredEntries) {
     const key = entry.menu_item_id
       ? `menu:${entry.menu_item_id}`
       : `name:${normalizeName(entry.item_name)}`;

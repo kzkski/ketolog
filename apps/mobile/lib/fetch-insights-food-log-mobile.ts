@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { InsightFoodLogEntry } from "@ketolog/domain/insights";
+import type { MealType } from "@ketolog/types";
 
 const INSIGHTS_PAGE_SIZE = 1000;
 
@@ -7,13 +8,14 @@ export async function fetchInsightsFoodLogForDateRange(
   supabase: SupabaseClient,
   userId: string,
   start: string,
-  end: string
+  end: string,
+  mealTypes?: MealType[]
 ): Promise<{ entries: InsightFoodLogEntry[]; error: string | null }> {
   const entries: InsightFoodLogEntry[] = [];
   let offset = 0;
 
   for (;;) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("food_log")
       .select(
         "id, date, meal_type, eaten_at, item_name, grams, protein_g, fat_g, carbs_g, source, menu_item_id, created_at"
@@ -25,6 +27,10 @@ export async function fetchInsightsFoodLogForDateRange(
       .order("eaten_at", { ascending: true })
       .order("created_at", { ascending: true })
       .range(offset, offset + INSIGHTS_PAGE_SIZE - 1);
+    if (mealTypes && mealTypes.length > 0) {
+      query = query.in("meal_type", mealTypes);
+    }
+    const { data, error } = await query;
 
     if (error) return { entries: [], error: error.message };
 

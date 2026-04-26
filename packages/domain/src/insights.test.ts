@@ -54,4 +54,49 @@ describe("buildInsights", () => {
     expect(insight.chart).toHaveLength(1);
     expect(insight.chart[0]!.protein).toBeCloseTo(15);
   });
+
+  it("filters entries by selected meal types", () => {
+    const insight = buildInsights(
+      [
+        {
+          id: "1",
+          date: "2026-04-20",
+          meal_type: "breakfast",
+          eaten_at: "2026-04-20T08:00:00Z",
+          item_name: "ヨーグルト",
+          grams: 100,
+          protein_g: 4,
+          fat_g: 3,
+          carbs_g: 6,
+          source: "manual",
+          menu_item_id: null,
+          created_at: "2026-04-20T08:00:01Z",
+        },
+        {
+          id: "2",
+          date: "2026-04-20",
+          meal_type: "dinner",
+          eaten_at: "2026-04-20T18:00:00Z",
+          item_name: "鶏むね肉",
+          grams: 150,
+          protein_g: 30,
+          fat_g: 4,
+          carbs_g: 0,
+          source: "manual",
+          menu_item_id: null,
+          created_at: "2026-04-20T18:00:01Z",
+        },
+      ],
+      "2026-04-20",
+      "2026-04-20",
+      { mealTypes: ["breakfast"] }
+    );
+    expect(insight.summary.avgProtein).toBeCloseTo(4);
+    expect(insight.summary.avgFat).toBeCloseTo(3);
+    expect(insight.summary.avgCarbs).toBeCloseTo(6);
+    expect(insight.daily[0]!.entries).toHaveLength(1);
+    expect(insight.daily[0]!.entries[0]!.meal_type).toBe("breakfast");
+    expect(insight.top10).toHaveLength(1);
+    expect(insight.top10[0]!.label).toBe("ヨーグルト");
+  });
 });

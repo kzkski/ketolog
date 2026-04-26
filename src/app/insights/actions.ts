@@ -2,12 +2,14 @@
 
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type { InsightFoodLogEntry } from "@/lib/insights";
+import type { MealType } from "@ketolog/types";
 
 const INSIGHTS_PAGE_SIZE = 1000;
 
 export async function getInsightsFoodLogForDateRange(
   start: string,
-  end: string
+  end: string,
+  mealTypes?: MealType[]
 ): Promise<{ entries: InsightFoodLogEntry[]; error: string | null }> {
   const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { entries: [], error: "認証が必要です" };
@@ -16,7 +18,7 @@ export async function getInsightsFoodLogForDateRange(
   let offset = 0;
 
   for (;;) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("food_log")
       .select(
         "id, date, meal_type, eaten_at, item_name, grams, protein_g, fat_g, carbs_g, source, menu_item_id, created_at"
@@ -28,6 +30,10 @@ export async function getInsightsFoodLogForDateRange(
       .order("eaten_at", { ascending: true })
       .order("created_at", { ascending: true })
       .range(offset, offset + INSIGHTS_PAGE_SIZE - 1);
+    if (mealTypes && mealTypes.length > 0) {
+      query = query.in("meal_type", mealTypes);
+    }
+    const { data, error } = await query;
 
     if (error) return { entries: [], error: error.message };
 

@@ -228,7 +228,6 @@ export function InsightsScreen() {
             <Text style={styles.closeBtnText}>閉じる</Text>
           </Pressable>
         </View>
-        <Text style={styles.sub}>JST の日付で集計します</Text>
       </View>
 
       {outboxLoaded && outboxHasUnsent ? (
@@ -546,7 +545,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.btnBg,
   },
   closeBtnText: { color: COLORS.text, fontSize: 13, fontWeight: "600" },
-  sub: { color: COLORS.muted, fontSize: 11, marginTop: 6 },
   outboxBanner: {
     flexDirection: "row",
     alignItems: "flex-start",

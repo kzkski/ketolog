@@ -152,7 +152,6 @@ export function MenuItemEditorModal({
   onRequestOpenStandardFoodComposition,
 }: Props) {
   const isEdit = state?.kind === "edit";
-  const hasLockedSharedBarcode = isEdit && Boolean(loadedEdit?.shared_barcode);
 
   const [name, setName] = useState("");
   const [protein, setProtein] = useState("");
@@ -178,6 +177,7 @@ export function MenuItemEditorModal({
   const [groupSuggestOpen, setGroupSuggestOpen] = useState(false);
 
   const [loadedEdit, setLoadedEdit] = useState<MenuRow | null>(null);
+  const hasLockedSharedBarcode = isEdit && Boolean(loadedEdit?.shared_barcode);
   const [editLoading, setEditLoading] = useState(false);
 
   const [formError, setFormError] = useState<string | null>(null);

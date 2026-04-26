@@ -69,6 +69,17 @@ const COLORS = {
   danger: "#ef4444",
 };
 
+function mapMenuItemSaveError(message: string | null | undefined): string | null {
+  if (!message) return null;
+  if (
+    message.includes("menu_item_barcode_exists") ||
+    message.includes("menu_items_user_id_restaurant_id_shared_barcode_key")
+  ) {
+    return "このお店に同じバーコードのメニューがあります";
+  }
+  return message;
+}
+
 function to100g(val: string, gramsStr: string): string {
   const v = parseFloat(val);
   const g = parseFloat(gramsStr);
@@ -141,6 +152,7 @@ export function MenuItemEditorModal({
   onRequestOpenStandardFoodComposition,
 }: Props) {
   const isEdit = state?.kind === "edit";
+  const hasLockedSharedBarcode = isEdit && Boolean(loadedEdit?.shared_barcode);
 
   const [name, setName] = useState("");
   const [protein, setProtein] = useState("");
@@ -368,6 +380,16 @@ export function MenuItemEditorModal({
       setRawF(null);
       setRawC(null);
       setLogMeal(mealTypeForLog);
+      setSharedBarcode(row.shared_barcode ?? null);
+      setStandardFoodCode(row.standard_food_code ?? null);
+      setScanError(null);
+      setScanLoading(false);
+      setCameraOn(false);
+      setCameraResult(null);
+      setManualSharedProductPending(false);
+      setLastLookup(null);
+      setServingHint(null);
+      setMenuQrImportDone(null);
     })();
     return () => {
       cancelled = true;
@@ -390,8 +412,8 @@ export function MenuItemEditorModal({
       rank,
       notes: notes.trim() || null,
       group_name: groupName.trim() || null,
-      shared_barcode: isEdit ? (loadedEdit?.shared_barcode ?? null) : sharedBarcode,
-      standard_food_code: isEdit ? (loadedEdit?.standard_food_code ?? null) : standardFoodCode,
+      shared_barcode: sharedBarcode,
+      standard_food_code: standardFoodCode,
     };
   }, [
     name,
@@ -402,8 +424,6 @@ export function MenuItemEditorModal({
     rank,
     notes,
     groupName,
-    loadedEdit,
-    isEdit,
     sharedBarcode,
     standardFoodCode,
   ]);
@@ -556,6 +576,11 @@ export function MenuItemEditorModal({
         return;
       }
       if (trimmed.startsWith("{")) {
+        if (isEdit) {
+          setScanLoading(false);
+          setScanError("メニュー編集ではQR読み取りは利用できません。バーコードのみ読み取れます。");
+          return;
+        }
         const parsed = parseMenuSharePayload(trimmed);
         if (!parsed.ok) {
           setScanLoading(false);
@@ -581,6 +606,7 @@ export function MenuItemEditorModal({
     [
       applyImportRestaurantItemToForm,
       canRegisterMenu,
+      isEdit,
       lookupOffProductBarcode,
       registerRestaurants.length,
     ]
@@ -628,7 +654,7 @@ export function MenuItemEditorModal({
         "user_id",
         userId
       );
-      return { error: error?.message ?? null };
+      return { error: mapMenuItemSaveError(error?.message) ?? null };
     },
     [supabase, userId]
   );
@@ -768,8 +794,9 @@ export function MenuItemEditorModal({
 
     setBusy(false);
     if (error) {
-      setFormError(error.message);
-      onToast(`メニュー登録に失敗しました: ${error.message}`);
+      const mapped = mapMenuItemSaveError(error.message) ?? error.message;
+      setFormError(mapped);
+      onToast(`メニュー登録に失敗しました: ${mapped}`);
       return;
     }
     onToast("メニューに登録しました");
@@ -942,16 +969,33 @@ export function MenuItemEditorModal({
                 />
               </View>
 
-              {!isEdit ? (
+              <View style={styles.barcodeSection}>
+                <Text style={styles.label}>バーコード</Text>
+                {sharedBarcode ? (
+                  <Text style={styles.barcodeValue}>{sharedBarcode}</Text>
+                ) : (
+                  <Text style={styles.hint}>未登録</Text>
+                )}
                 <MenuBarcodeSection
                   cameraOn={cameraOn}
                   onToggleCamera={() => {
+                    if (hasLockedSharedBarcode) {
+                      setScanError("このメニューはバーコード登録済みのため、編集画面では再登録できません。");
+                      return;
+                    }
                     setScanError(null);
                     setCameraResult(null);
                     setServingHint(null);
                     setMenuQrImportDone(null);
                     setCameraOn((v) => !v);
                   }}
+                  scanDisabled={hasLockedSharedBarcode}
+                  scanDisabledReason={
+                    hasLockedSharedBarcode
+                      ? "このメニューはバーコード登録済みのため、再登録はできません。"
+                      : undefined
+                  }
+                  acceptQr={!isEdit}
                   scanLoading={scanLoading}
                   scanError={scanError}
                   cameraResult={
@@ -967,7 +1011,7 @@ export function MenuItemEditorModal({
                   onRuntimeError={(message) => setScanError(message)}
                   onCameraClosed={() => setCameraOn(false)}
                   onOpenStandardFoodSearch={
-                    onRequestOpenStandardFoodComposition
+                    !isEdit && onRequestOpenStandardFoodComposition
                       ? () => {
                           if (registerRestaurants.length === 0) {
                             setFormError("先にお店を追加してください。");
@@ -979,7 +1023,7 @@ export function MenuItemEditorModal({
                       : undefined
                   }
                 />
-              ) : null}
+              </View>
 
               <View style={styles.field}>
                 <View style={styles.gramsModeRow}>
@@ -1339,6 +1383,19 @@ const styles = StyleSheet.create({
   },
   scrollPad: { paddingBottom: 32 },
   field: { marginBottom: 14 },
+  barcodeSection: { marginBottom: 14 },
+  barcodeValue: {
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    backgroundColor: "#0f172a",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: COLORS.text,
+    fontSize: 14,
+    fontVariant: ["tabular-nums"],
+  },
   label: {
     color: COLORS.textMuted,
     fontSize: 12,

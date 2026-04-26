@@ -13,6 +13,9 @@ const COLORS = {
 export type MenuBarcodeSectionProps = {
   cameraOn: boolean;
   onToggleCamera: () => void;
+  scanDisabled?: boolean;
+  scanDisabledReason?: string;
+  acceptQr?: boolean;
   scanLoading: boolean;
   scanError: string | null;
   cameraResult: { barcode: string; product_name: string } | null;
@@ -29,6 +32,9 @@ export type MenuBarcodeSectionProps = {
 export function MenuBarcodeSection({
   cameraOn,
   onToggleCamera,
+  scanDisabled = false,
+  scanDisabledReason,
+  acceptQr = true,
   scanLoading,
   scanError,
   cameraResult,
@@ -62,6 +68,7 @@ export function MenuBarcodeSection({
       onToggleCamera();
       return;
     }
+    if (scanDisabled) return;
     if (!permission?.granted) {
       const res = await requestPermission();
       if (!res.granted) {
@@ -71,13 +78,21 @@ export function MenuBarcodeSection({
     }
     handledRef.current = null;
     onToggleCamera();
-  }, [cameraOn, onToggleCamera, onRuntimeError, permission?.granted, requestPermission]);
+  }, [cameraOn, onToggleCamera, onRuntimeError, permission?.granted, requestPermission, scanDisabled]);
 
   return (
     <View style={styles.wrap}>
-      <Pressable onPress={() => void toggle()} style={styles.scanBtn}>
+      <Pressable
+        onPress={() => void toggle()}
+        disabled={scanDisabled}
+        style={[styles.scanBtn, scanDisabled && styles.scanBtnDisabled]}
+      >
         <Text style={styles.scanBtnText}>
-          {cameraOn ? "■ 読み取りを停止" : "|||  バーコード / QR を読み取り"}
+          {cameraOn
+            ? "■ 読み取りを停止"
+            : acceptQr
+              ? "|||  バーコード / QR を読み取り"
+              : "|||  バーコードを読み取り"}
         </Text>
       </Pressable>
 
@@ -86,7 +101,9 @@ export function MenuBarcodeSection({
           style={styles.camera}
           facing="back"
           barcodeScannerSettings={{
-            barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e"],
+            barcodeTypes: acceptQr
+              ? ["qr", "ean13", "ean8", "upc_a", "upc_e"]
+              : ["ean13", "ean8", "upc_a", "upc_e"],
           }}
           onBarcodeScanned={({ data }) => {
             void handleBarcode(data);
@@ -112,8 +129,11 @@ export function MenuBarcodeSection({
         </Text>
       ) : null}
       {servingHint ? <Text style={styles.amberSm}>{servingHint}</Text> : null}
+      {scanDisabled && scanDisabledReason ? <Text style={styles.footnote}>{scanDisabledReason}</Text> : null}
       <Text style={styles.footnote}>
-        市販品バーコードは Open Food Facts (ODbL) を参照します。Ketolog のメニュー共有 QR も読み取れます。
+        {acceptQr
+          ? "市販品バーコードは Open Food Facts (ODbL) を参照します。Ketolog のメニュー共有 QR も読み取れます。"
+          : "市販品バーコードは Open Food Facts (ODbL) を参照します。"}
       </Text>
       {onOpenStandardFoodSearch ? (
         <Pressable onPress={onOpenStandardFoodSearch} style={styles.secondaryBtn}>
@@ -134,6 +154,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: "center",
+  },
+  scanBtnDisabled: {
+    opacity: 0.55,
   },
   scanBtnText: { color: COLORS.text, fontSize: 14, fontWeight: "600" },
   camera: {

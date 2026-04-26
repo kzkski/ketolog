@@ -8,6 +8,9 @@ export type BarcodeScannerProps = {
   cameraSupported: boolean;
   cameraOn: boolean;
   onToggleScan: () => void;
+  scanDisabled?: boolean;
+  scanDisabledReason?: string;
+  acceptQr?: boolean;
   scanLoading: boolean;
   scanError: string | null;
   cameraResult: SharedProduct | null;
@@ -25,6 +28,9 @@ export function BarcodeScanner({
   cameraSupported,
   cameraOn,
   onToggleScan,
+  scanDisabled = false,
+  scanDisabledReason,
+  acceptQr = true,
   scanLoading,
   scanError,
   cameraResult,
@@ -111,7 +117,9 @@ export function BarcodeScanner({
           let detector: InstanceType<BarcodeDetectorCtor>;
           try {
             detector = new Detector({
-              formats: ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e"],
+              formats: acceptQr
+                ? ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e"]
+                : ["ean_13", "ean_8", "upc_a", "upc_e"],
             });
           } catch {
             detector = new Detector();
@@ -146,11 +154,11 @@ export function BarcodeScanner({
           }
           const hints = new Map<DecodeHintType, BarcodeFormat[]>();
           hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-            BarcodeFormat.QR_CODE,
             BarcodeFormat.EAN_13,
             BarcodeFormat.EAN_8,
             BarcodeFormat.UPC_A,
             BarcodeFormat.UPC_E,
+            ...(acceptQr ? [BarcodeFormat.QR_CODE] : []),
           ]);
           const reader = new BrowserMultiFormatReader(hints);
           const controls = reader.scan(video, (result, _err, ctrls) => {
@@ -178,17 +186,25 @@ export function BarcodeScanner({
       stopZxing = null;
       if (stream) stream.getTracks().forEach((t) => t.stop());
     };
-  }, [cameraOn, cameraSupported, onDecoded, onRuntimeError, onCameraClosed]);
+  }, [cameraOn, cameraSupported, onDecoded, onRuntimeError, onCameraClosed, acceptQr]);
 
   return (
     <div className="space-y-2">
       <button
         type="button"
         onClick={onToggleScan}
-        className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm rounded-lg transition-colors inline-flex items-center justify-center gap-2"
+        disabled={scanDisabled}
+        title={scanDisabled ? scanDisabledReason : undefined}
+        className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-55 text-gray-200 text-sm rounded-lg transition-colors inline-flex items-center justify-center gap-2"
       >
         <span aria-hidden="true">{cameraOn ? "■" : "|||:"}</span>
-        <span>{cameraOn ? "読み取りを停止" : "バーコード / QR を読み取り"}</span>
+        <span>
+          {cameraOn
+            ? "読み取りを停止"
+            : acceptQr
+              ? "バーコード / QR を読み取り"
+              : "バーコードを読み取り"}
+        </span>
       </button>
       {cameraOn && (
         <video
@@ -215,8 +231,13 @@ export function BarcodeScanner({
         </p>
       )}
       {servingHint && <p className="text-xs text-amber-300">{servingHint}</p>}
+      {scanDisabled && scanDisabledReason && (
+        <p className="text-xs text-gray-500">{scanDisabledReason}</p>
+      )}
       <p className="text-[11px] text-gray-500">
-        市販品バーコードは Open Food Facts (ODbL) を参照します。Ketolog のメニュー共有 QR も読み取れます。
+        {acceptQr
+          ? "市販品バーコードは Open Food Facts (ODbL) を参照します。Ketolog のメニュー共有 QR も読み取れます。"
+          : "市販品バーコードは Open Food Facts (ODbL) を参照します。"}
       </p>
       {onOpenStandardFoodSearch && (
         <button

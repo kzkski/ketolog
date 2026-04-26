@@ -183,6 +183,7 @@ export function MenuItemDrawer({
   const groupSuggestionTriggerRef = useRef<"pointer" | "keyboard" | "unknown">("unknown");
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isGroupSuggestionsOpen, setIsGroupSuggestionsOpen] = useState(false);
+  const hasLockedSharedBarcode = isEdit && Boolean(existing?.shared_barcode);
   const cameraSupported =
     typeof window !== "undefined" &&
     Boolean(navigator.mediaDevices?.getUserMedia) &&
@@ -390,6 +391,12 @@ export function MenuItemDrawer({
         return;
       }
       if (trimmed.startsWith("{")) {
+        if (isEdit) {
+          setCameraOn(false);
+          setScanLoading(false);
+          setScanError("メニュー編集ではQR読み取りは利用できません。バーコードのみ読み取れます。");
+          return;
+        }
         const parsed = parseMenuSharePayload(trimmed);
         if (!parsed.ok) {
           setCameraOn(false);
@@ -413,7 +420,7 @@ export function MenuItemDrawer({
       }
       await lookupOffProductBarcode(trimmed);
     },
-    [canRegisterMenu, registerDisabledReason, applyImportRestaurantItemToForm, lookupOffProductBarcode]
+    [isEdit, canRegisterMenu, registerDisabledReason, applyImportRestaurantItemToForm, lookupOffProductBarcode]
   );
 
   const closeBarcodeCamera = useCallback(() => {
@@ -425,6 +432,10 @@ export function MenuItemDrawer({
   }, []);
 
   const toggleBarcodeScan = useCallback(() => {
+    if (hasLockedSharedBarcode) {
+      setScanError("このメニューはバーコード登録済みのため、編集画面では再登録できません。");
+      return;
+    }
     if (!cameraOn && !cameraSupported) {
       setScanError(
         "この環境ではカメラを利用できません。HTTPS で開いているか、ブラウザのカメラ権限を確認してください。"
@@ -436,7 +447,7 @@ export function MenuItemDrawer({
     setServingHint(null);
     setMenuQrImportDone(null);
     setCameraOn((v) => !v);
-  }, [cameraOn, cameraSupported]);
+  }, [cameraOn, cameraSupported, hasLockedSharedBarcode]);
 
   useEffect(() => {
     if (isEdit) return;
@@ -641,11 +652,26 @@ export function MenuItemDrawer({
             />
           </div>
 
-          {!isEdit && (
+          <div className="space-y-2 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-3">
+            <p className="text-xs text-gray-400">バーコード</p>
+            {sharedBarcode ? (
+              <p className="rounded-md border border-gray-700 bg-gray-900 px-2 py-1.5 font-mono text-sm text-gray-100">
+                {sharedBarcode}
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500">未登録</p>
+            )}
             <BarcodeScanner
               cameraSupported={cameraSupported}
               cameraOn={cameraOn}
               onToggleScan={toggleBarcodeScan}
+              scanDisabled={hasLockedSharedBarcode}
+              scanDisabledReason={
+                hasLockedSharedBarcode
+                  ? "このメニューはバーコード登録済みのため、再登録はできません。"
+                  : undefined
+              }
+              acceptQr={!isEdit}
               scanLoading={scanLoading}
               scanError={scanError}
               cameraResult={cameraResult}
@@ -656,9 +682,9 @@ export function MenuItemDrawer({
               onDecoded={handleDecodedScan}
               onRuntimeError={reportBarcodeRuntimeError}
               onCameraClosed={closeBarcodeCamera}
-              onOpenStandardFoodSearch={onOpenStandardFoodSearch}
+              onOpenStandardFoodSearch={!isEdit ? onOpenStandardFoodSearch : undefined}
             />
-          )}
+          </div>
 
           <div>
             <label className="block text-xs text-gray-400 mb-1">1回の量（g）</label>

@@ -30,6 +30,17 @@ function isMissingColumnError(error: { message?: string } | null | undefined): b
   return msg.includes("column") && msg.includes("does not exist");
 }
 
+function mapMenuItemSaveError(message: string | null | undefined): string | null {
+  if (!message) return null;
+  if (
+    message.includes("menu_item_barcode_exists") ||
+    message.includes("menu_items_user_id_restaurant_id_shared_barcode_key")
+  ) {
+    return "このお店に同じバーコードのメニューがあります";
+  }
+  return message;
+}
+
 export type BarcodeLookupResult = {
   status: "ok" | "not_found" | "error";
   product: SharedProduct | null;
@@ -416,7 +427,7 @@ export async function updateMenuItem(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: mapMenuItemSaveError(error.message) ?? "保存に失敗しました" };
   return { data: row as MenuItem, error: null };
 }
 
@@ -447,7 +458,7 @@ export async function addMenuItem(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: mapMenuItemSaveError(error.message) ?? "追加に失敗しました" };
   return { data: row as MenuItem, error: null };
 }
 

@@ -775,7 +775,7 @@ export function MenuItemDrawer({
               )}
             </div>
               {existingGroupNames.length > 0 && isGroupSuggestionsOpen && (
-                <ul className="absolute z-20 mt-1 max-h-44 w-full overflow-y-auto rounded-lg border border-gray-700 bg-gray-900/95 p-1 shadow-lg">
+                <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-700 bg-gray-900/95 p-1 shadow-lg">
                   {groupSuggestions.length > 0 ? (
                     groupSuggestions.map((g) => (
                       <li key={g}>

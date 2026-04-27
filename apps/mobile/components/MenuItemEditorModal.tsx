@@ -1598,7 +1598,7 @@ const styles = StyleSheet.create({
   candidateBtnText: { color: COLORS.text, fontSize: 12 },
   suggestBox: {
     marginTop: 8,
-    maxHeight: 176,
+    maxHeight: 280,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 8,
@@ -1606,7 +1606,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   suggestScroll: {
-    maxHeight: 176,
+    maxHeight: 280,
   },
   suggestRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   suggestRowText: { color: COLORS.text, fontSize: 14 },

@@ -96,7 +96,7 @@ function CartBarHeader({
           disabled={clearingDisabled}
           className="px-2 py-1 rounded-md border border-gray-700 bg-gray-900/70 text-[11px] font-semibold text-gray-300 hover:text-white disabled:opacity-50"
         >
-          空にする
+          🗑 空にする
         </button>
         <button
           type="button"

@@ -148,7 +148,7 @@ export function TodayCartDock({
             style={({ pressed }) => [styles.clearBtn, (pressed || saving) && { opacity: 0.75 }]}
             accessibilityLabel="カートを空にする"
           >
-            <Text style={styles.clearBtnText}>空にする</Text>
+            <Text style={styles.clearBtnText}>🗑 空にする</Text>
           </Pressable>
           <Pressable
             onPress={onToggleExpanded}

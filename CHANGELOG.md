@@ -22,6 +22,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.62.1] - 2026-04-27
+
+### Fixed
+
+- **Web / Mobile / 共有商品（[#317](https://github.com/kzkski/ketolog/issues/317) / [#318](https://github.com/kzkski/ketolog/issues/318)）**: Open Food Facts の `fields` に `serving_size` を含め、`shared_products` の serving 列に反映されるようにした。手動登録（OFF 未ヒット）ではフォームの「1回の量 (g)」を `shared_products` の serving へ引き渡す。既存メニュー編集で同条件下にバーコードを付けて保存するとき、先に `shared_products` を作ってから `menu_items` を更新する RPC を追加し、外部キー違反で失敗しなくした。
+
 ## [1.62.0] - 2026-04-26
 
 ### Added

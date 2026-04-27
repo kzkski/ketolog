@@ -45,7 +45,7 @@ export async function fetchOpenFoodFactsProduct(
   options?: { apiBase?: string; userAgent?: string }
 ): Promise<OpenFoodFactsProduct | null> {
   const base = (options?.apiBase ?? DEFAULT_OFF_API_BASE).replace(/\/$/, "");
-  const url = `${base}/api/v2/product/${barcode}.json?fields=code,product_name,brands,nutriments`;
+  const url = `${base}/api/v2/product/${barcode}.json?fields=code,product_name,brands,nutriments,serving_size`;
   const res = await fetch(url, {
     method: "GET",
     headers: { "User-Agent": options?.userAgent ?? getDefaultOffUserAgent("dev") },

@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { manualSharedProductServingFromDefaultGrams } from "@ketolog/domain/manual-shared-product-serving";
 import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
 import type { MealType } from "@ketolog/types";
 import {
@@ -677,6 +678,96 @@ export function MenuItemEditorModal({
     }
 
     if (state.kind === "edit") {
+      if (manualSharedProductPending && sharedBarcode) {
+        const trimmedName = data.name.trim();
+        if (!trimmedName) {
+          setBusy(false);
+          setFormError("名前を入力してください");
+          return;
+        }
+        if (data.standard_food_code) {
+          setBusy(false);
+          setFormError("標準成分表とバーコードの同時指定はできません");
+          return;
+        }
+        const rankVal = data.rank;
+        if (!Number.isFinite(rankVal) || rankVal < 1 || rankVal > 4) {
+          setBusy(false);
+          setFormError("ランクの値が不正です");
+          return;
+        }
+        const { data: current, error: fetchErr } = await supabase
+          .from("menu_items")
+          .select("restaurant_id, group_name, group_order")
+          .eq("id", state.menuItemId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (fetchErr || !current) {
+          setBusy(false);
+          const err = fetchErr?.message ?? "メニューが見つかりません";
+          setFormError(err);
+          onToast(`保存に失敗しました: ${err}`);
+          return;
+        }
+        const prevGroupName =
+          current.group_name == null ? null : String(current.group_name).trim() || null;
+        const nextGroupName = data.group_name?.trim() || null;
+        const groupOrder =
+          prevGroupName === nextGroupName
+            ? (typeof current.group_order === "number" ? current.group_order : 0)
+            : await resolveMenuItemGroupOrder(
+                supabase,
+                userId,
+                current.restaurant_id as string,
+                nextGroupName
+              );
+        const notesRpc = data.notes?.trim() || MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES;
+        const serving = manualSharedProductServingFromDefaultGrams(data.default_grams);
+        const { error: rpcError } = await supabase.rpc(
+          "update_menu_item_with_manual_shared_product",
+          {
+            p_menu_item_id: state.menuItemId,
+            p_barcode: sharedBarcode,
+            p_shared_product_name: trimmedName,
+            p_shared_brand: null,
+            p_shared_protein: data.protein_per_100g,
+            p_shared_fat: data.fat_per_100g,
+            p_shared_carbs: data.carbs_per_100g,
+            p_shared_serving_size: serving.serving_size,
+            p_shared_serving_size_grams: serving.serving_size_grams,
+            p_menu_name: trimmedName,
+            p_menu_protein: data.protein_per_100g,
+            p_menu_fat: data.fat_per_100g,
+            p_menu_carbs: data.carbs_per_100g,
+            p_default_grams: data.default_grams,
+            p_rank: rankVal,
+            p_notes: notesRpc,
+            p_group_name: nextGroupName,
+            p_group_order: groupOrder,
+          }
+        );
+        setBusy(false);
+        if (rpcError) {
+          const msg = rpcError.message ?? "";
+          if (msg.includes("menu_item_barcode_exists")) {
+            setFormError("このお店に同じバーコードのメニューがあります");
+            onToast("このお店に同じバーコードのメニューがあります");
+            return;
+          }
+          if (msg.includes("menu not found")) {
+            setFormError("メニューが見つかりません");
+            return;
+          }
+          setFormError(msg);
+          onToast(`保存に失敗しました: ${msg}`);
+          return;
+        }
+        onToast("保存しました");
+        onClose();
+        await onSaved();
+        return;
+      }
+
       const { error } = await applyMenuUpdate(state.menuItemId, data);
       setBusy(false);
       if (error) {
@@ -727,6 +818,7 @@ export function MenuItemEditorModal({
         return;
       }
       const notesRpc = data.notes?.trim() || MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES;
+      const addServing = manualSharedProductServingFromDefaultGrams(data.default_grams);
       const { data: menuId, error: rpcError } = await supabase.rpc(
         "add_menu_item_with_manual_shared_product",
         {
@@ -737,8 +829,8 @@ export function MenuItemEditorModal({
           p_shared_protein: data.protein_per_100g,
           p_shared_fat: data.fat_per_100g,
           p_shared_carbs: data.carbs_per_100g,
-          p_shared_serving_size: null,
-          p_shared_serving_size_grams: null,
+          p_shared_serving_size: addServing.serving_size,
+          p_shared_serving_size_grams: addServing.serving_size_grams,
           p_menu_name: trimmedName,
           p_menu_protein: data.protein_per_100g,
           p_menu_fat: data.fat_per_100g,

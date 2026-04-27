@@ -107,12 +107,12 @@ export function TodayCartDock({
 }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const expandedMaxHeight = useMemo(
-    () => Math.max(250, Math.min(420, Math.floor(windowHeight * 0.52))),
+    () => Math.max(220, Math.min(360, Math.floor(windowHeight * 0.44))),
     [windowHeight]
   );
   /** `expanded` に固定高がないと `flex:1` だけの領域は 0 高になる。行一覧は明示 maxHeight で確保する */
   const lineListMaxHeight = useMemo(
-    () => Math.max(160, Math.min(320, Math.floor(windowHeight * 0.36))),
+    () => Math.max(120, Math.min(220, Math.floor(windowHeight * 0.26))),
     [windowHeight]
   );
 

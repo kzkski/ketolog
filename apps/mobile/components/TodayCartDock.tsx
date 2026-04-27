@@ -110,6 +110,11 @@ export function TodayCartDock({
     () => Math.max(250, Math.min(420, Math.floor(windowHeight * 0.52))),
     [windowHeight]
   );
+  /** `expanded` に固定高がないと `flex:1` だけの領域は 0 高になる。行一覧は明示 maxHeight で確保する */
+  const lineListMaxHeight = useMemo(
+    () => Math.max(160, Math.min(320, Math.floor(windowHeight * 0.36))),
+    [windowHeight]
+  );
 
   if (lines.length === 0) return null;
 
@@ -164,52 +169,54 @@ export function TodayCartDock({
             })}
           </View>
 
-          <View style={styles.lineArea}>
-            <ScrollView style={styles.lineScroll} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
-              {lines.map((line) => {
-                const totalGrams = line.gramsPerServing * line.count;
-                const v = pfcGramsFromNullablePer100(
-                  line.protein_per_100g,
-                  line.fat_per_100g,
-                  line.carbs_per_100g,
-                  totalGrams
-                );
-                return (
-                  <View key={line.menuItemId} style={styles.lineRow}>
-                    <View style={styles.lineBody}>
-                      <Text style={styles.lineName} numberOfLines={2}>
-                        {line.name}
-                        <Text style={styles.countGrams}>
-                          {" "}
-                          ×{line.count}（{totalGrams}g）
-                        </Text>
+          <ScrollView
+            style={[styles.lineScroll, { maxHeight: lineListMaxHeight }]}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
+            {lines.map((line) => {
+              const totalGrams = line.gramsPerServing * line.count;
+              const v = pfcGramsFromNullablePer100(
+                line.protein_per_100g,
+                line.fat_per_100g,
+                line.carbs_per_100g,
+                totalGrams
+              );
+              return (
+                <View key={line.menuItemId} style={styles.lineRow}>
+                  <View style={styles.lineBody}>
+                    <Text style={styles.lineName} numberOfLines={2}>
+                      {line.name}
+                      <Text style={styles.countGrams}>
+                        {" "}
+                        ×{line.count}（{totalGrams}g）
                       </Text>
-                      <Text style={styles.linePfc}>
-                        P{fmtMacroGrams(v.p)} F{fmtMacroGrams(v.f)} C{fmtMacroGrams(v.c)}
-                      </Text>
-                    </View>
-                    <View style={styles.gramsCol}>
-                      <Text style={styles.gramsLabel}>1回</Text>
-                      <CartGramsEditor
-                        grams={line.gramsPerServing}
-                        disabled={saving}
-                        onCommit={(n) => onUpdateGramsPerServing(line.menuItemId, n)}
-                      />
-                    </View>
-                    <Pressable
-                      onPress={() => onRemoveLine(line.menuItemId)}
-                      disabled={saving}
-                      hitSlop={8}
-                      style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.75 }]}
-                      accessibilityLabel="カートから外す"
-                    >
-                      <Text style={styles.removeBtnText}>×</Text>
-                    </Pressable>
+                    </Text>
+                    <Text style={styles.linePfc}>
+                      P{fmtMacroGrams(v.p)} F{fmtMacroGrams(v.f)} C{fmtMacroGrams(v.c)}
+                    </Text>
                   </View>
-                );
-              })}
-            </ScrollView>
-          </View>
+                  <View style={styles.gramsCol}>
+                    <Text style={styles.gramsLabel}>1回</Text>
+                    <CartGramsEditor
+                      grams={line.gramsPerServing}
+                      disabled={saving}
+                      onCommit={(n) => onUpdateGramsPerServing(line.menuItemId, n)}
+                    />
+                  </View>
+                  <Pressable
+                    onPress={() => onRemoveLine(line.menuItemId)}
+                    disabled={saving}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.75 }]}
+                    accessibilityLabel="カートから外す"
+                  >
+                    <Text style={styles.removeBtnText}>×</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </ScrollView>
 
           <View style={styles.footerRow}>
             <Text style={styles.totalPfc} numberOfLines={2}>
@@ -297,8 +304,7 @@ const styles = StyleSheet.create({
   },
   mealChipText: { fontSize: 11, fontWeight: "700" },
   mealChipTextOff: { color: "#6b7280" },
-  lineArea: { flex: 1, minHeight: 0, marginBottom: 8 },
-  lineScroll: { flex: 1 },
+  lineScroll: { marginBottom: 8 },
   lineRow: {
     flexDirection: "row",
     alignItems: "center",

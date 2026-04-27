@@ -22,6 +22,13 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.62.2] - 2026-04-27
+
+### Fixed
+
+- **Mobile / Today（[#319](https://github.com/kzkski/ketolog/issues/319)）**: メニュー追加モーダルのグループ名候補を内側 `ScrollView` で縦スクロールできるようにし、候補ボックスを `overflow: hidden` でクリップしてメモ欄との重なり表示を防いだ。
+- **Mobile / Today（[#320](https://github.com/kzkski/ketolog/issues/320)）**: 展開カートに画面高ベースの `maxHeight` を導入し、行一覧のみを `flex` + `ScrollView` でスクロールする構造へ変更。小さい画面でも下部の「記録する」ボタンへ到達しやすくした。
+
 ## [1.62.1] - 2026-04-27
 
 ### Fixed

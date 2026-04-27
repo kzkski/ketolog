@@ -67,40 +67,47 @@ function CartBarHeader({
   cartExpanded,
   onToggle,
   cartEntryCount,
-  cartPFC,
-  mealType,
+  onClearAll,
+  clearingDisabled,
 }: {
   cartExpanded: boolean;
   onToggle: () => void;
   cartEntryCount: number;
-  cartPFC: PfcGrams;
-  mealType: MealType;
+  onClearAll: () => void;
+  clearingDisabled: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full flex items-center justify-between gap-2 px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0 text-left"
-    >
-      <div className="flex flex-col items-start min-w-0 flex-1 gap-0.5">
+    <div className="w-full flex items-center justify-between gap-2 px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="min-w-0 flex-1 text-left"
+      >
+      <div className="flex flex-col items-start min-w-0 flex-1">
         <span className="text-base sm:text-sm font-medium text-white">
           カート（{cartEntryCount}品）
         </span>
-        <span
-          className={`text-[11px] sm:text-xs leading-snug ${MEAL_TAB_STYLES[mealType].label}`}
+      </div>
+      </button>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button
+          type="button"
+          onClick={onClearAll}
+          disabled={clearingDisabled}
+          className="px-2 py-1 rounded-md border border-gray-700 bg-gray-900/70 text-[11px] font-semibold text-gray-300 hover:text-white disabled:opacity-50"
         >
-          {MEAL_LABELS[mealType]}に記録
-        </span>
-      </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <span className="text-sm sm:text-xs text-gray-400 tabular-nums">
-          P{fmt(cartPFC.p)} F{fmt(cartPFC.f)} C{fmt(cartPFC.c)}
-        </span>
-        <span className="text-gray-400 text-sm sm:text-xs" aria-hidden>
+          🗑 空にする
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="text-gray-400 text-sm sm:text-xs px-1.5 py-1 rounded-md hover:bg-gray-800/70"
+          aria-label={cartExpanded ? "カートを閉じる" : "カートを開く"}
+        >
           {cartExpanded ? "▼" : "▲"}
-        </span>
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -131,7 +138,6 @@ function CartExpandedBody({
   return (
     <>
       <div className="px-3 pt-1 pb-2 border-t border-gray-800/70">
-        <p className="text-[10px] text-gray-500 mb-1.5 px-0.5">記録する食事</p>
         <div className="flex gap-1">
           {(Object.keys(MEAL_LABELS) as MealType[]).map((t) => (
             <button
@@ -224,6 +230,7 @@ export type CartPanelProps = {
   cartPfc: PfcGrams;
   saving: boolean;
   onSave: () => void | Promise<void>;
+  onClearAll: () => void;
   onRemoveCartLine: (mapKey: string) => void;
 };
 
@@ -236,6 +243,7 @@ export function CartPanel({
   cartPfc,
   saving,
   onSave,
+  onClearAll,
   onRemoveCartLine,
 }: CartPanelProps) {
   if (cartEntries.length === 0) return null;
@@ -249,8 +257,8 @@ export function CartPanel({
           cartExpanded={cartExpanded}
           onToggle={() => onCartExpandedChange(!cartExpanded)}
           cartEntryCount={cartEntries.length}
-          cartPFC={cartPfc}
-          mealType={mealType}
+          onClearAll={onClearAll}
+          clearingDisabled={saving}
         />
       </div>
 
@@ -277,8 +285,8 @@ export function CartPanel({
               cartExpanded={cartExpanded}
               onToggle={() => onCartExpandedChange(!cartExpanded)}
               cartEntryCount={cartEntries.length}
-              cartPFC={cartPfc}
-              mealType={mealType}
+              onClearAll={onClearAll}
+              clearingDisabled={saving}
             />
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <CartExpandedBody
@@ -303,8 +311,8 @@ export function CartPanel({
           cartExpanded={cartExpanded}
           onToggle={() => onCartExpandedChange(!cartExpanded)}
           cartEntryCount={cartEntries.length}
-          cartPFC={cartPfc}
-          mealType={mealType}
+          onClearAll={onClearAll}
+          clearingDisabled={saving}
         />
         {cartExpanded && (
           <CartExpandedBody

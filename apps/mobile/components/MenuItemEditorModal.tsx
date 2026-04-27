@@ -1227,18 +1227,24 @@ export function MenuItemEditorModal({
                 </View>
                 {existingGroupNames.length > 0 && groupSuggestOpen ? (
                   <View style={styles.suggestBox}>
-                    {existingGroupNames.map((g) => (
-                      <Pressable
-                        key={g}
-                        onPress={() => {
-                          setGroupName(g);
-                          setGroupSuggestOpen(false);
-                        }}
-                        style={styles.suggestRow}
-                      >
-                        <Text style={styles.suggestRowText}>{g}</Text>
-                      </Pressable>
-                    ))}
+                    <ScrollView
+                      style={styles.suggestScroll}
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled
+                    >
+                      {existingGroupNames.map((g) => (
+                        <Pressable
+                          key={g}
+                          onPress={() => {
+                            setGroupName(g);
+                            setGroupSuggestOpen(false);
+                          }}
+                          style={styles.suggestRow}
+                        >
+                          <Text style={styles.suggestRowText}>{g}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
                   </View>
                 ) : null}
               </View>
@@ -1592,11 +1598,15 @@ const styles = StyleSheet.create({
   candidateBtnText: { color: COLORS.text, fontSize: 12 },
   suggestBox: {
     marginTop: 8,
-    maxHeight: 176,
+    maxHeight: 280,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 8,
     backgroundColor: "#0f172a",
+    overflow: "hidden",
+  },
+  suggestScroll: {
+    maxHeight: 280,
   },
   suggestRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   suggestRowText: { color: COLORS.text, fontSize: 14 },

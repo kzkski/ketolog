@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import type { MealType } from "@ketolog/types";
@@ -88,6 +89,7 @@ type Props = {
   onMealType: (m: MealType) => void;
   saving: boolean;
   onSave: () => void;
+  onClearAll: () => void;
   onRemoveLine: (menuItemId: string) => void;
   onUpdateGramsPerServing: (menuItemId: string, grams: number) => void;
 };
@@ -101,9 +103,21 @@ export function TodayCartDock({
   onMealType,
   saving,
   onSave,
+  onClearAll,
   onRemoveLine,
   onUpdateGramsPerServing,
 }: Props) {
+  const { height: windowHeight } = useWindowDimensions();
+  const expandedMaxHeight = useMemo(
+    () => Math.max(220, Math.min(360, Math.floor(windowHeight * 0.44))),
+    [windowHeight]
+  );
+  /** `expanded` に固定高がないと `flex:1` だけの領域は 0 高になる。行一覧は明示 maxHeight で確保する */
+  const lineListMaxHeight = useMemo(
+    () => Math.max(120, Math.min(220, Math.floor(windowHeight * 0.26))),
+    [windowHeight]
+  );
+
   if (lines.length === 0) return null;
 
   const nItems = lines.reduce((s, l) => s + l.count, 0);
@@ -117,23 +131,38 @@ export function TodayCartDock({
       ]}
       accessibilityLabel="カート"
     >
-      <Pressable
-        onPress={onToggleExpanded}
-        style={({ pressed }) => [styles.headerBar, pressed && { opacity: 0.88 }]}
-      >
-        <View style={styles.headerMain}>
-          <Text style={styles.headerTitle}>カート（{nItems}）</Text>
-          <Text style={styles.headerSub}>
-            {CART_MEAL_LABEL[mealType]}に記録 · P{fmtMacroGrams(cartPfc.p)} F{fmtMacroGrams(cartPfc.f)}{" "}
-            C{fmtMacroGrams(cartPfc.c)}
-          </Text>
+      <View style={styles.headerBar}>
+        <Pressable
+          onPress={onToggleExpanded}
+          style={({ pressed }) => [styles.headerMainTap, pressed && { opacity: 0.88 }]}
+        >
+          <View style={styles.headerMain}>
+            <Text style={styles.headerTitle}>カート（{nItems}）</Text>
+          </View>
+        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={onClearAll}
+            disabled={saving}
+            hitSlop={8}
+            style={({ pressed }) => [styles.clearBtn, (pressed || saving) && { opacity: 0.75 }]}
+            accessibilityLabel="カートを空にする"
+          >
+            <Text style={styles.clearBtnText}>🗑 空にする</Text>
+          </Pressable>
+          <Pressable
+            onPress={onToggleExpanded}
+            hitSlop={8}
+            style={({ pressed }) => [styles.chevBtn, pressed && { opacity: 0.75 }]}
+            accessibilityLabel={expanded ? "カートを閉じる" : "カートを開く"}
+          >
+            <Text style={styles.chev}>{expanded ? "▼" : "▲"}</Text>
+          </Pressable>
         </View>
-        <Text style={styles.chev}>{expanded ? "▼" : "▲"}</Text>
-      </Pressable>
+      </View>
 
       {expanded ? (
-        <View style={styles.expanded}>
-          <Text style={styles.mealLabel}>記録する食事</Text>
+        <View style={[styles.expanded, { maxHeight: expandedMaxHeight }]}>
           <View style={styles.mealRow}>
             {CART_MEAL_ORDER.map((m) => {
               const on = mealType === m;
@@ -157,7 +186,11 @@ export function TodayCartDock({
             })}
           </View>
 
-          <ScrollView style={styles.lineScroll} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+          <ScrollView
+            style={[styles.lineScroll, { maxHeight: lineListMaxHeight }]}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
             {lines.map((line) => {
               const totalGrams = line.gramsPerServing * line.count;
               const v = pfcGramsFromNullablePer100(
@@ -236,41 +269,43 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingLeft: 14,
+    paddingRight: 10,
+    paddingVertical: 8,
     minHeight: 48,
   },
+  headerMainTap: { flex: 1, minWidth: 0, paddingVertical: 2 },
   headerMain: { flex: 1, minWidth: 0, paddingRight: 8 },
   headerTitle: {
     color: "#f9fafb",
     fontSize: 16,
     fontWeight: "700",
   },
-  headerSub: {
-    color: "#9ca3af",
-    fontSize: 11,
-    marginTop: 3,
-    lineHeight: 15,
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
+  clearBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#374151",
+    backgroundColor: "rgba(17, 24, 39, 0.7)",
   },
+  clearBtnText: { color: "#d1d5db", fontSize: 11, fontWeight: "600" },
+  chevBtn: { paddingHorizontal: 6, paddingVertical: 6, borderRadius: 8 },
   chev: { color: "#6b7280", fontSize: 14, paddingLeft: 4 },
   expanded: {
     paddingHorizontal: 12,
     paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#1f2937",
-  },
-  mealLabel: {
-    color: "#6b7280",
-    fontSize: 10,
-    fontWeight: "600",
-    marginTop: 8,
-    marginBottom: 6,
+    overflow: "hidden",
   },
   mealRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 8,
   },
   mealChip: {
     flex: 1,
@@ -287,7 +322,7 @@ const styles = StyleSheet.create({
   },
   mealChipText: { fontSize: 11, fontWeight: "700" },
   mealChipTextOff: { color: "#6b7280" },
-  lineScroll: { maxHeight: 200, marginBottom: 8 },
+  lineScroll: { marginBottom: 8 },
   lineRow: {
     flexDirection: "row",
     alignItems: "center",

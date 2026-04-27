@@ -9,6 +9,7 @@ import {
   normalizeBarcode,
 } from "@ketolog/domain/open-food-facts";
 import { STANDARD_FOOD_SEARCH_PAGE_SIZE } from "@ketolog/domain/standard-food-meta";
+import { manualSharedProductServingFromDefaultGrams } from "@ketolog/domain/manual-shared-product-serving";
 import {
   MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
   SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
@@ -266,6 +267,7 @@ export async function addMenuItemWithManualSharedProduct(
   );
 
   const notes = data.notes?.trim() || MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES;
+  const serving = manualSharedProductServingFromDefaultGrams(data.default_grams);
 
   const { data: menuId, error: rpcError } = await supabase.rpc(
     "add_menu_item_with_manual_shared_product",
@@ -277,8 +279,8 @@ export async function addMenuItemWithManualSharedProduct(
       p_shared_protein: data.protein_per_100g,
       p_shared_fat: data.fat_per_100g,
       p_shared_carbs: data.carbs_per_100g,
-      p_shared_serving_size: null,
-      p_shared_serving_size_grams: null,
+      p_shared_serving_size: serving.serving_size,
+      p_shared_serving_size_grams: serving.serving_size_grams,
       p_menu_name: trimmedName,
       p_menu_protein: data.protein_per_100g,
       p_menu_fat: data.fat_per_100g,
@@ -313,6 +315,109 @@ export async function addMenuItemWithManualSharedProduct(
 
   if (fetchErr || !row) {
     return { data: null, error: fetchErr?.message ?? "メニューの取得に失敗しました" };
+  }
+  return { data: row as MenuItem, error: null };
+}
+
+/**
+ * 既存メニューに OFF 未ヒットのバーコードを手入力で付与するとき、
+ * `shared_products` を先に作ってから `menu_items` を更新（Issue #318）。
+ */
+export async function updateMenuItemWithManualSharedProduct(
+  menuItemId: string,
+  barcodeRaw: string,
+  data: MenuItemUpdate
+): Promise<{ data: MenuItem | null; error: string | null }> {
+  const { supabase, user } = await getSupabaseAuthForRequest();
+  if (!user) return { data: null, error: "認証が必要です" };
+
+  const barcode = normalizeBarcode(barcodeRaw);
+  if (!barcode) return { data: null, error: "バーコードが不正です" };
+
+  const trimmedName = data.name.trim();
+  if (!trimmedName) return { data: null, error: "名前を入力してください" };
+
+  if (data.standard_food_code) {
+    return { data: null, error: "標準成分表とバーコードの同時指定はできません" };
+  }
+
+  const rank = data.rank;
+  if (!Number.isFinite(rank) || rank < 1 || rank > 4) {
+    return { data: null, error: "ランクの値が不正です" };
+  }
+
+  const { data: current, error: fetchErr } = await supabase
+    .from("menu_items")
+    .select("restaurant_id, group_name, group_order")
+    .eq("id", menuItemId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (fetchErr || !current) {
+    return { data: null, error: fetchErr?.message ?? "メニューが見つかりません" };
+  }
+
+  const prevGroupName = current.group_name?.trim() || null;
+  const nextGroupName = data.group_name?.trim() || null;
+  const groupOrder =
+    prevGroupName === nextGroupName
+      ? (typeof current.group_order === "number" ? current.group_order : 0)
+      : await resolveMenuItemGroupOrder(
+          supabase,
+          user.id,
+          current.restaurant_id as string,
+          nextGroupName
+        );
+
+  const notes = data.notes?.trim() || MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES;
+  const serving = manualSharedProductServingFromDefaultGrams(data.default_grams);
+
+  const { data: outId, error: rpcError } = await supabase.rpc(
+    "update_menu_item_with_manual_shared_product",
+    {
+      p_menu_item_id: menuItemId,
+      p_barcode: barcode,
+      p_shared_product_name: trimmedName,
+      p_shared_brand: null,
+      p_shared_protein: data.protein_per_100g,
+      p_shared_fat: data.fat_per_100g,
+      p_shared_carbs: data.carbs_per_100g,
+      p_shared_serving_size: serving.serving_size,
+      p_shared_serving_size_grams: serving.serving_size_grams,
+      p_menu_name: trimmedName,
+      p_menu_protein: data.protein_per_100g,
+      p_menu_fat: data.fat_per_100g,
+      p_menu_carbs: data.carbs_per_100g,
+      p_default_grams: data.default_grams,
+      p_rank: rank,
+      p_notes: notes,
+      p_group_name: nextGroupName,
+      p_group_order: groupOrder,
+    }
+  );
+
+  if (rpcError) {
+    const msg = rpcError.message ?? "";
+    if (msg.includes("menu_item_barcode_exists")) {
+      return { data: null, error: "このお店に同じバーコードのメニューがあります" };
+    }
+    if (msg.includes("menu not found") || msg.includes("restaurant not found")) {
+      return { data: null, error: "メニューが見つかりません" };
+    }
+    return { data: null, error: msg };
+  }
+
+  if (!outId) return { data: null, error: "保存に失敗しました" };
+
+  const { data: row, error: afterErr } = await supabase
+    .from("menu_items")
+    .select("*")
+    .eq("id", menuItemId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (afterErr || !row) {
+    return { data: null, error: afterErr?.message ?? "メニューの取得に失敗しました" };
   }
   return { data: row as MenuItem, error: null };
 }

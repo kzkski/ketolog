@@ -17,6 +17,7 @@ import {
   deleteMenuItem,
   lookupSharedProductByBarcode,
   updateMenuItem,
+  updateMenuItemWithManualSharedProduct,
   type MenuItemUpdate,
 } from "../actions/menu-item";
 import { saveMealToLog, type SaveItem } from "../actions/food-log";
@@ -537,7 +538,10 @@ export function MenuItemDrawer({
     const data = buildMenuPayload();
 
     if (isEdit && existing) {
-      const result = await updateMenuItem(existing.id, data);
+      const result =
+        manualSharedProductPending && sharedBarcode
+          ? await updateMenuItemWithManualSharedProduct(existing.id, sharedBarcode, data)
+          : await updateMenuItem(existing.id, data);
       if (result.error || !result.data) {
         setError(result.error ?? "保存に失敗しました");
         setSaving(false);

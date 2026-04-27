@@ -106,14 +106,15 @@ export function TodayCartDock({
   onUpdateGramsPerServing,
 }: Props) {
   const { height: windowHeight } = useWindowDimensions();
-  if (lines.length === 0) return null;
-
-  const nItems = lines.reduce((s, l) => s + l.count, 0);
-  const shell = CART_MEAL_CHIP_ACTIVE[mealType];
   const expandedMaxHeight = useMemo(
     () => Math.max(250, Math.min(420, Math.floor(windowHeight * 0.52))),
     [windowHeight]
   );
+
+  if (lines.length === 0) return null;
+
+  const nItems = lines.reduce((s, l) => s + l.count, 0);
+  const shell = CART_MEAL_CHIP_ACTIVE[mealType];
 
   return (
     <View

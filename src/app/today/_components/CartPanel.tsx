@@ -67,26 +67,47 @@ function CartBarHeader({
   cartExpanded,
   onToggle,
   cartEntryCount,
+  onClearAll,
+  clearingDisabled,
 }: {
   cartExpanded: boolean;
   onToggle: () => void;
   cartEntryCount: number;
+  onClearAll: () => void;
+  clearingDisabled: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full flex items-center justify-between gap-2 px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0 text-left"
-    >
+    <div className="w-full flex items-center justify-between gap-2 px-4 py-3.5 sm:py-2.5 min-h-12 sm:min-h-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="min-w-0 flex-1 text-left"
+      >
       <div className="flex flex-col items-start min-w-0 flex-1">
         <span className="text-base sm:text-sm font-medium text-white">
           カート（{cartEntryCount}品）
         </span>
       </div>
-      <span className="text-gray-400 text-sm sm:text-xs shrink-0" aria-hidden>
-        {cartExpanded ? "▼" : "▲"}
-      </span>
-    </button>
+      </button>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button
+          type="button"
+          onClick={onClearAll}
+          disabled={clearingDisabled}
+          className="px-2 py-1 rounded-md border border-gray-700 bg-gray-900/70 text-[11px] font-semibold text-gray-300 hover:text-white disabled:opacity-50"
+        >
+          全削除
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="text-gray-400 text-sm sm:text-xs px-1.5 py-1 rounded-md hover:bg-gray-800/70"
+          aria-label={cartExpanded ? "カートを閉じる" : "カートを開く"}
+        >
+          {cartExpanded ? "▼" : "▲"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -209,6 +230,7 @@ export type CartPanelProps = {
   cartPfc: PfcGrams;
   saving: boolean;
   onSave: () => void | Promise<void>;
+  onClearAll: () => void;
   onRemoveCartLine: (mapKey: string) => void;
 };
 
@@ -221,6 +243,7 @@ export function CartPanel({
   cartPfc,
   saving,
   onSave,
+  onClearAll,
   onRemoveCartLine,
 }: CartPanelProps) {
   if (cartEntries.length === 0) return null;
@@ -234,6 +257,8 @@ export function CartPanel({
           cartExpanded={cartExpanded}
           onToggle={() => onCartExpandedChange(!cartExpanded)}
           cartEntryCount={cartEntries.length}
+          onClearAll={onClearAll}
+          clearingDisabled={saving}
         />
       </div>
 
@@ -260,6 +285,8 @@ export function CartPanel({
               cartExpanded={cartExpanded}
               onToggle={() => onCartExpandedChange(!cartExpanded)}
               cartEntryCount={cartEntries.length}
+              onClearAll={onClearAll}
+              clearingDisabled={saving}
             />
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <CartExpandedBody
@@ -284,6 +311,8 @@ export function CartPanel({
           cartExpanded={cartExpanded}
           onToggle={() => onCartExpandedChange(!cartExpanded)}
           cartEntryCount={cartEntries.length}
+          onClearAll={onClearAll}
+          clearingDisabled={saving}
         />
         {cartExpanded && (
           <CartExpandedBody

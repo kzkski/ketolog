@@ -89,6 +89,7 @@ type Props = {
   onMealType: (m: MealType) => void;
   saving: boolean;
   onSave: () => void;
+  onClearAll: () => void;
   onRemoveLine: (menuItemId: string) => void;
   onUpdateGramsPerServing: (menuItemId: string, grams: number) => void;
 };
@@ -102,6 +103,7 @@ export function TodayCartDock({
   onMealType,
   saving,
   onSave,
+  onClearAll,
   onRemoveLine,
   onUpdateGramsPerServing,
 }: Props) {
@@ -129,15 +131,35 @@ export function TodayCartDock({
       ]}
       accessibilityLabel="カート"
     >
-      <Pressable
-        onPress={onToggleExpanded}
-        style={({ pressed }) => [styles.headerBar, pressed && { opacity: 0.88 }]}
-      >
-        <View style={styles.headerMain}>
-          <Text style={styles.headerTitle}>カート（{nItems}）</Text>
+      <View style={styles.headerBar}>
+        <Pressable
+          onPress={onToggleExpanded}
+          style={({ pressed }) => [styles.headerMainTap, pressed && { opacity: 0.88 }]}
+        >
+          <View style={styles.headerMain}>
+            <Text style={styles.headerTitle}>カート（{nItems}）</Text>
+          </View>
+        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={onClearAll}
+            disabled={saving}
+            hitSlop={8}
+            style={({ pressed }) => [styles.clearBtn, (pressed || saving) && { opacity: 0.75 }]}
+            accessibilityLabel="カートを空にする"
+          >
+            <Text style={styles.clearBtnText}>全削除</Text>
+          </Pressable>
+          <Pressable
+            onPress={onToggleExpanded}
+            hitSlop={8}
+            style={({ pressed }) => [styles.chevBtn, pressed && { opacity: 0.75 }]}
+            accessibilityLabel={expanded ? "カートを閉じる" : "カートを開く"}
+          >
+            <Text style={styles.chev}>{expanded ? "▼" : "▲"}</Text>
+          </Pressable>
         </View>
-        <Text style={styles.chev}>{expanded ? "▼" : "▲"}</Text>
-      </Pressable>
+      </View>
 
       {expanded ? (
         <View style={[styles.expanded, { maxHeight: expandedMaxHeight }]}>
@@ -247,16 +269,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingLeft: 14,
+    paddingRight: 10,
+    paddingVertical: 8,
     minHeight: 48,
   },
+  headerMainTap: { flex: 1, minWidth: 0, paddingVertical: 2 },
   headerMain: { flex: 1, minWidth: 0, paddingRight: 8 },
   headerTitle: {
     color: "#f9fafb",
     fontSize: 16,
     fontWeight: "700",
   },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
+  clearBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#374151",
+    backgroundColor: "rgba(17, 24, 39, 0.7)",
+  },
+  clearBtnText: { color: "#d1d5db", fontSize: 11, fontWeight: "600" },
+  chevBtn: { paddingHorizontal: 6, paddingVertical: 6, borderRadius: 8 },
   chev: { color: "#6b7280", fontSize: 14, paddingLeft: 4 },
   expanded: {
     paddingHorizontal: 12,

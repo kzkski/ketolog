@@ -27,7 +27,7 @@
 ### Fixed
 
 - **Mobile / Today（[#319](https://github.com/kzkski/ketolog/issues/319)）**: メニュー追加モーダルのグループ名候補を内側 `ScrollView` で縦スクロールできるようにし、候補ボックスを `overflow: hidden` でクリップしてメモ欄との重なり表示を防いだ。
-- **Mobile / Today（[#320](https://github.com/kzkski/ketolog/issues/320)）**: 展開カートに画面高ベースの `maxHeight` を導入し、行一覧のみを `flex` + `ScrollView` でスクロールする構造へ変更。小さい画面でも下部の「記録する」ボタンへ到達しやすくした。空カート時の早期 return の後に `useMemo` を置いていたため初回投入で「Rendered more hooks than during the previous render.」になる不具合を修正した（フック呼び出し順を一定にした）。展開パネルに固定高がない状態で行一覧に `flex: 1` を使っていたため一覧の高さが 0 になり行が見えない問題を、行 `ScrollView` に画面高に応じた明示 `maxHeight` を与える形に改めた。加えて `TodayScreen` 側の `menuPanelSlot` の `minHeight` を 0 にして、展開カート表示時にメニュー領域が縮まずフッターが画面外へ押し出されるレイアウトを解消した。モバイル / Web ともにカート上部の重複情報（「〜に記録」「PFC サマリ」「記録する食事」ラベル）を整理し、一覧表示領域を優先した。
+- **Mobile / Today（[#320](https://github.com/kzkski/ketolog/issues/320)）**: 展開カートに画面高ベースの `maxHeight` を導入し、行一覧のみを `flex` + `ScrollView` でスクロールする構造へ変更。小さい画面でも下部の「記録する」ボタンへ到達しやすくした。空カート時の早期 return の後に `useMemo` を置いていたため初回投入で「Rendered more hooks than during the previous render.」になる不具合を修正した（フック呼び出し順を一定にした）。展開パネルに固定高がない状態で行一覧に `flex: 1` を使っていたため一覧の高さが 0 になり行が見えない問題を、行 `ScrollView` に画面高に応じた明示 `maxHeight` を与える形に改めた。加えて `TodayScreen` 側の `menuPanelSlot` の `minHeight` を 0 にして、展開カート表示時にメニュー領域が縮まずフッターが画面外へ押し出されるレイアウトを解消した。モバイル / Web ともにカート上部の重複情報（「〜に記録」「PFC サマリ」「記録する食事」ラベル）を整理し、一覧表示領域を優先した。あわせてヘッダー右上に「全削除」を追加し、カート内容を一括で空にできるようにした。
 
 ## [1.62.1] - 2026-04-27
 

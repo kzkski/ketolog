@@ -1560,6 +1560,11 @@ export default function TodayClient({
     });
   }
 
+  function clearCartAll() {
+    setCart(new Map());
+    setCartExpanded(false);
+  }
+
   function updateGrams(itemId: string, grams: number) {
     setCart((prev) => {
       const next = new Map(prev);
@@ -1925,6 +1930,7 @@ export default function TodayClient({
           cartPfc={cartPFC}
           saving={saving}
           onSave={handleSave}
+          onClearAll={clearCartAll}
           onRemoveCartLine={removeCartLine}
         />
       </div>

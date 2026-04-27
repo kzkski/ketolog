@@ -389,6 +389,11 @@ export function TodayScreen() {
     });
   }, []);
 
+  const clearCartAll = useCallback(() => {
+    setCart(new Map());
+    setCartExpanded(false);
+  }, []);
+
   const updateCartGramsPerServing = useCallback((menuItemId: string, grams: number) => {
     setCart((prev) => {
       const next = new Map(prev);
@@ -1059,6 +1064,7 @@ export function TodayScreen() {
           onSave={() => {
             void saveCartToLog();
           }}
+          onClearAll={clearCartAll}
           onRemoveLine={removeCartLine}
           onUpdateGramsPerServing={updateCartGramsPerServing}
         />

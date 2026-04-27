@@ -135,17 +135,12 @@ export function TodayCartDock({
       >
         <View style={styles.headerMain}>
           <Text style={styles.headerTitle}>カート（{nItems}）</Text>
-          <Text style={styles.headerSub}>
-            {CART_MEAL_LABEL[mealType]}に記録 · P{fmtMacroGrams(cartPfc.p)} F{fmtMacroGrams(cartPfc.f)}{" "}
-            C{fmtMacroGrams(cartPfc.c)}
-          </Text>
         </View>
         <Text style={styles.chev}>{expanded ? "▼" : "▲"}</Text>
       </Pressable>
 
       {expanded ? (
         <View style={[styles.expanded, { maxHeight: expandedMaxHeight }]}>
-          <Text style={styles.mealLabel}>記録する食事</Text>
           <View style={styles.mealRow}>
             {CART_MEAL_ORDER.map((m) => {
               const on = mealType === m;
@@ -262,12 +257,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
-  headerSub: {
-    color: "#9ca3af",
-    fontSize: 11,
-    marginTop: 3,
-    lineHeight: 15,
-  },
   chev: { color: "#6b7280", fontSize: 14, paddingLeft: 4 },
   expanded: {
     paddingHorizontal: 12,
@@ -276,18 +265,12 @@ const styles = StyleSheet.create({
     borderTopColor: "#1f2937",
     overflow: "hidden",
   },
-  mealLabel: {
-    color: "#6b7280",
-    fontSize: 10,
-    fontWeight: "600",
-    marginTop: 8,
-    marginBottom: 6,
-  },
   mealRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 8,
   },
   mealChip: {
     flex: 1,

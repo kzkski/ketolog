@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { MenuItem } from "@/types/database";
 import type { MealType, PfcGrams } from "@ketolog/types";
-import { MEAL_LABELS, MEAL_TAB_STYLES } from "@/lib/constants/meal";
+import { MEAL_LABELS } from "@/lib/constants/meal";
 
 /** カート内「記録する食事」セグメントの選択中スタイル（タブと同色） */
 const MEAL_CART_SEGMENT_ACTIVE: Record<MealType, string> = {
@@ -63,6 +64,57 @@ function pfcFromPer100(
   };
 }
 
+/** カート行の「1回あたり g」— 数値入力とブラウザ標準の step スピナー（1g 単位）に任せる */
+function CartLineGramsEditor({
+  gramsPerServing,
+  disabled,
+  onCommit,
+}: {
+  gramsPerServing: number;
+  disabled: boolean;
+  onCommit: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(gramsPerServing));
+  useEffect(() => {
+    setDraft(String(gramsPerServing));
+  }, [gramsPerServing]);
+
+  function commitDraft() {
+    const n = Number.parseFloat(draft.replace(/,/g, ""));
+    if (Number.isFinite(n) && n > 0) {
+      onCommit(n);
+    } else {
+      setDraft(String(gramsPerServing));
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-0.5 shrink-0">
+      <span className="text-[9px] text-gray-500 leading-none">1回</span>
+      <input
+        type="number"
+        min={1}
+        step={1}
+        value={draft}
+        disabled={disabled}
+        onChange={(e) => {
+          const v = e.target.value;
+          setDraft(v);
+          if (v === "") return;
+          const n = Number.parseFloat(v);
+          if (Number.isFinite(n) && n > 0) {
+            onCommit(n);
+          }
+        }}
+        onBlur={commitDraft}
+        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+        className="w-[3.75rem] sm:w-16 text-center text-xs sm:text-sm bg-gray-800 border border-emerald-600/80 rounded px-0.5 py-1 text-white tabular-nums shrink-0"
+        aria-label="1回あたりのグラム数"
+      />
+    </div>
+  );
+}
+
 function CartBarHeader({
   cartExpanded,
   onToggle,
@@ -117,6 +169,7 @@ function CartExpandedBody({
   cartEntries,
   cartPFC,
   removeCartLine,
+  onUpdateGramsPerServing,
   onSave,
   saving,
   layout = "inline",
@@ -126,6 +179,7 @@ function CartExpandedBody({
   cartEntries: CartEntry[];
   cartPFC: PfcGrams;
   removeCartLine: (key: string) => void;
+  onUpdateGramsPerServing: (lineKey: string, grams: number) => void;
   onSave: () => void | Promise<void>;
   saving: boolean;
   /** モバイルのオーバーレイでは一覧を縦に伸ばす */
@@ -178,9 +232,9 @@ function CartExpandedBody({
           return (
             <div
               key={lineKey}
-              className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-800/50"
+              className="flex flex-wrap items-center gap-x-2 gap-y-2 px-4 py-1.5 border-b border-gray-800/50"
             >
-              <span className="text-sm text-gray-200 truncate flex-1 min-w-0">
+              <span className="text-sm text-gray-200 truncate flex-1 min-w-[10rem]">
                 {title}
                 {snapshotTag}
                 <span className="text-gray-500 ml-1 text-xs whitespace-nowrap">
@@ -190,6 +244,11 @@ function CartExpandedBody({
               <span className="text-xs text-gray-400 shrink-0 tabular-nums">
                 P{fmt(v.p)} F{fmt(v.f)} C{fmt(v.c)}
               </span>
+              <CartLineGramsEditor
+                gramsPerServing={entry.gramsPerServing}
+                disabled={saving}
+                onCommit={(g) => onUpdateGramsPerServing(lineKey, g)}
+              />
               <button
                 type="button"
                 aria-label="カートから外す"
@@ -232,6 +291,7 @@ export type CartPanelProps = {
   onSave: () => void | Promise<void>;
   onClearAll: () => void;
   onRemoveCartLine: (mapKey: string) => void;
+  onUpdateGramsPerServing: (lineKey: string, grams: number) => void;
 };
 
 export function CartPanel({
@@ -245,6 +305,7 @@ export function CartPanel({
   onSave,
   onClearAll,
   onRemoveCartLine,
+  onUpdateGramsPerServing,
 }: CartPanelProps) {
   if (cartEntries.length === 0) return null;
 
@@ -296,6 +357,7 @@ export function CartPanel({
                 cartEntries={cartEntries}
                 cartPFC={cartPfc}
                 removeCartLine={onRemoveCartLine}
+                onUpdateGramsPerServing={onUpdateGramsPerServing}
                 onSave={onSave}
                 saving={saving}
               />
@@ -321,6 +383,7 @@ export function CartPanel({
             cartEntries={cartEntries}
             cartPFC={cartPfc}
             removeCartLine={onRemoveCartLine}
+            onUpdateGramsPerServing={onUpdateGramsPerServing}
             onSave={onSave}
             saving={saving}
           />

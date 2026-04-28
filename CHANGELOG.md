@@ -12,8 +12,9 @@
 
 ### Changed
 
-- **ドキュメント / アーキテクチャ**: Web の食事ログ（楽観 UI・ロールバック）とモバイル（接続時は DB 反映待ち、オフラインは outbox 再送）の対比を `docs/architecture/food-log-sync.md` に整理し、主要実装箇所へ短い案内コメントを追加した（[#304](https://github.com/kzkski/ketolog/issues/304)）。
+- **Web / Today**: カート内の 1 回あたり g 編集を、横並びの ± ボタン群ではなく `type="number"`（`min` / `step`）の入力とブラウザのスピナーに整理した（モバイルの専用シートは変更なし）。
 
+- **ドキュメント / アーキテクチャ**: Web の食事ログ（楽観 UI・ロールバック）とモバイル（接続時は DB 反映待ち、オフラインは outbox 再送）の対比を `docs/architecture/food-log-sync.md` に整理し、主要実装箇所へ短い案内コメントを追加した（[#304](https://github.com/kzkski/ketolog/issues/304)）。
 - **ドキュメント / Native PoC**: `docs/release/v3-native-feasibility.md` に #272 向けの実証 KPI（体感速度・操作完了率・クラッシュ・開発効率）と固定計測手順、暫定評価、Go/No-Go の記録枠を追加した。
 - **ドキュメント / Native PoC**: 実証完了に伴い Go を **継続** とし、**デスクトップは Web（ネイティブ対象外）・モバイルは Expo ネイティブ前提**の製品方針を `v3-native-feasibility.md` に追記した（[#263](https://github.com/kzkski/ketolog/issues/263) / [#272](https://github.com/kzkski/ketolog/issues/272)）。
 - **ドキュメント / 開発運用**: `CONTRIBUTING.md` と `docs/release/README.md` に Issue ラベル運用の最小ルール（`platform` / `type` / `priority` の必須系統、`epic:*` / `track:*` の推奨運用）を追加した（[#274](https://github.com/kzkski/ketolog/issues/274)）。
@@ -21,6 +22,13 @@
 - **ドキュメント**: `ROADMAP.md` を公開向けのマイルストーン構成（v1/v2/v3）へ再編し、市場調査は公開サマリー中心に整理した。詳細な戦略レポートは公開リポジトリ管理の対象外にした。
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
+
+## [1.63.0] - 2026-04-28
+
+### Added
+
+- **Web / Today（[#325](https://github.com/kzkski/ketolog/issues/325)）**: カート展開一覧から「1回あたり」のグラム数を変更できるようにした（±1・±5 と数値入力）。スナップショット行も同様に更新できるよう `TodayClient` のカート更新を拡張した。
+- **Mobile / Today（[#325](https://github.com/kzkski/ketolog/issues/325)）**: カート内の g はインライン入力ではなく、タップで開くボトムシートで ±1・±5・数値入力・確定できるようにした。Today 画面に `KeyboardAvoidingView` を入れ、メニューなどの入力時にソフトキーボードで下部が隠れにくくした。
 
 ## [1.62.3] - 2026-04-28
 

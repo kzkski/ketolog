@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -717,6 +719,11 @@ export function TodayScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right", "bottom"]}>
+      <KeyboardAvoidingView
+        style={styles.kavRoot}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
       <View style={styles.root}>
         <View style={styles.topHeader}>
           <View style={styles.brandBlock}>
@@ -1070,6 +1077,7 @@ export function TodayScreen() {
         />
         </View>
       </View>
+      </KeyboardAvoidingView>
 
       <FoodLogEntryModal
         visible={entryModalOpen}
@@ -1151,6 +1159,9 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.bg,
+  },
+  kavRoot: {
+    flex: 1,
   },
   root: {
     flex: 1,

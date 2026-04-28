@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { MenuItem } from "@/types/database";
 import type { MealType, PfcGrams } from "@ketolog/types";
-import { MEAL_LABELS, MEAL_TAB_STYLES } from "@/lib/constants/meal";
+import { MEAL_LABELS } from "@/lib/constants/meal";
 
 /** カート内「記録する食事」セグメントの選択中スタイル（タブと同色） */
 const MEAL_CART_SEGMENT_ACTIVE: Record<MealType, string> = {
@@ -63,6 +64,93 @@ function pfcFromPer100(
   };
 }
 
+/** カート行の「1回あたり g」（±・直接入力。メニュー行の g 編集と同趣旨） */
+function CartLineGramsEditor({
+  gramsPerServing,
+  disabled,
+  onCommit,
+}: {
+  gramsPerServing: number;
+  disabled: boolean;
+  onCommit: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(gramsPerServing));
+  useEffect(() => {
+    setDraft(String(gramsPerServing));
+  }, [gramsPerServing]);
+
+  function applyDelta(delta: number) {
+    const next = Math.max(1, gramsPerServing + delta);
+    onCommit(next);
+  }
+
+  function commitDraft() {
+    const n = Number.parseFloat(draft.replace(/,/g, ""));
+    if (Number.isFinite(n) && n > 0) {
+      onCommit(n);
+    } else {
+      setDraft(String(gramsPerServing));
+    }
+  }
+
+  const btnClass =
+    "min-h-9 min-w-9 sm:min-h-8 sm:min-w-8 flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800 text-gray-200 text-xs font-semibold disabled:opacity-40 touch-manipulation shrink-0";
+
+  return (
+    <div className="flex flex-col items-end gap-0.5 shrink-0">
+      <span className="text-[9px] text-gray-500 leading-none">1回</span>
+      <div className="flex items-center gap-0.5 flex-wrap justify-end">
+        <button
+          type="button"
+          className={btnClass}
+          disabled={disabled || gramsPerServing <= 1}
+          onClick={() => applyDelta(-5)}
+          aria-label="5グラム減らす"
+        >
+          −5
+        </button>
+        <button
+          type="button"
+          className={btnClass}
+          disabled={disabled || gramsPerServing <= 1}
+          onClick={() => applyDelta(-1)}
+          aria-label="1グラム減らす"
+        >
+          −
+        </button>
+        <input
+          type="number"
+          value={draft}
+          disabled={disabled}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitDraft}
+          onKeyDown={(e) => e.key === "Enter" && commitDraft()}
+          className="w-[3.25rem] sm:w-14 text-center text-xs sm:text-sm bg-gray-800 border border-emerald-600/80 rounded px-0.5 py-1 text-white tabular-nums shrink-0"
+          aria-label="1回あたりのグラム数"
+        />
+        <button
+          type="button"
+          className={btnClass}
+          disabled={disabled}
+          onClick={() => applyDelta(1)}
+          aria-label="1グラム増やす"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          className={btnClass}
+          disabled={disabled}
+          onClick={() => applyDelta(5)}
+          aria-label="5グラム増やす"
+        >
+          +5
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CartBarHeader({
   cartExpanded,
   onToggle,
@@ -117,6 +205,7 @@ function CartExpandedBody({
   cartEntries,
   cartPFC,
   removeCartLine,
+  onUpdateGramsPerServing,
   onSave,
   saving,
   layout = "inline",
@@ -126,6 +215,7 @@ function CartExpandedBody({
   cartEntries: CartEntry[];
   cartPFC: PfcGrams;
   removeCartLine: (key: string) => void;
+  onUpdateGramsPerServing: (lineKey: string, grams: number) => void;
   onSave: () => void | Promise<void>;
   saving: boolean;
   /** モバイルのオーバーレイでは一覧を縦に伸ばす */
@@ -178,9 +268,9 @@ function CartExpandedBody({
           return (
             <div
               key={lineKey}
-              className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-800/50"
+              className="flex flex-wrap items-center gap-x-2 gap-y-2 px-4 py-1.5 border-b border-gray-800/50"
             >
-              <span className="text-sm text-gray-200 truncate flex-1 min-w-0">
+              <span className="text-sm text-gray-200 truncate flex-1 min-w-[10rem]">
                 {title}
                 {snapshotTag}
                 <span className="text-gray-500 ml-1 text-xs whitespace-nowrap">
@@ -190,6 +280,11 @@ function CartExpandedBody({
               <span className="text-xs text-gray-400 shrink-0 tabular-nums">
                 P{fmt(v.p)} F{fmt(v.f)} C{fmt(v.c)}
               </span>
+              <CartLineGramsEditor
+                gramsPerServing={entry.gramsPerServing}
+                disabled={saving}
+                onCommit={(g) => onUpdateGramsPerServing(lineKey, g)}
+              />
               <button
                 type="button"
                 aria-label="カートから外す"
@@ -232,6 +327,7 @@ export type CartPanelProps = {
   onSave: () => void | Promise<void>;
   onClearAll: () => void;
   onRemoveCartLine: (mapKey: string) => void;
+  onUpdateGramsPerServing: (lineKey: string, grams: number) => void;
 };
 
 export function CartPanel({
@@ -245,6 +341,7 @@ export function CartPanel({
   onSave,
   onClearAll,
   onRemoveCartLine,
+  onUpdateGramsPerServing,
 }: CartPanelProps) {
   if (cartEntries.length === 0) return null;
 
@@ -296,6 +393,7 @@ export function CartPanel({
                 cartEntries={cartEntries}
                 cartPFC={cartPfc}
                 removeCartLine={onRemoveCartLine}
+                onUpdateGramsPerServing={onUpdateGramsPerServing}
                 onSave={onSave}
                 saving={saving}
               />
@@ -321,6 +419,7 @@ export function CartPanel({
             cartEntries={cartEntries}
             cartPFC={cartPfc}
             removeCartLine={onRemoveCartLine}
+            onUpdateGramsPerServing={onUpdateGramsPerServing}
             onSave={onSave}
             saving={saving}
           />

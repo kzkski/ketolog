@@ -1565,14 +1565,24 @@ export default function TodayClient({
     setCartExpanded(false);
   }
 
-  function updateGrams(itemId: string, grams: number) {
+  /** カート行キー（メニューは `item.id`、スナップショットは `cartKey`）で 1回あたり g を更新 */
+  function updateCartGramsPerServing(lineKey: string, grams: number) {
+    if (!Number.isFinite(grams) || grams <= 0) return;
     setCart((prev) => {
       const next = new Map(prev);
-      const existing = next.get(itemId);
-      if (!existing || existing.kind !== "menu") return prev;
-      next.set(itemId, { ...existing, gramsPerServing: grams });
+      const existing = next.get(lineKey);
+      if (!existing) return prev;
+      if (existing.kind === "menu") {
+        next.set(lineKey, { ...existing, gramsPerServing: grams });
+      } else if (existing.kind === "snapshot") {
+        next.set(lineKey, { ...existing, gramsPerServing: grams });
+      }
       return next;
     });
+  }
+
+  function updateGrams(itemId: string, grams: number) {
+    updateCartGramsPerServing(itemId, grams);
   }
 
   // ── メニューアイテム保存後 ──────────────────────────────────────────────────
@@ -1932,6 +1942,7 @@ export default function TodayClient({
           onSave={handleSave}
           onClearAll={clearCartAll}
           onRemoveCartLine={removeCartLine}
+          onUpdateGramsPerServing={updateCartGramsPerServing}
         />
       </div>
 

@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +13,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { MealType } from "@ketolog/types";
 import { pfcGramsFromNullablePer100, type PfcGrams } from "@ketolog/domain/pfc";
 
@@ -48,38 +53,6 @@ function fmtMacroGrams(n: number) {
   return n < 10 ? n.toFixed(1) : String(Math.round(n));
 }
 
-function CartGramsEditor({
-  grams,
-  disabled,
-  onCommit,
-}: {
-  grams: number;
-  disabled: boolean;
-  onCommit: (n: number) => void;
-}) {
-  const [local, setLocal] = useState(String(grams));
-  useEffect(() => {
-    setLocal(String(grams));
-  }, [grams]);
-  return (
-    <TextInput
-      value={local}
-      onChangeText={setLocal}
-      onBlur={() => {
-        const n = Number.parseFloat(local.replace(/,/g, ""));
-        if (Number.isFinite(n) && n > 0) {
-          onCommit(n);
-        } else {
-          setLocal(String(grams));
-        }
-      }}
-      keyboardType="decimal-pad"
-      editable={!disabled}
-      style={styles.gramsInput}
-    />
-  );
-}
-
 type Props = {
   lines: CartLineState[];
   expanded: boolean;
@@ -107,7 +80,50 @@ export function TodayCartDock({
   onRemoveLine,
   onUpdateGramsPerServing,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
+  const [gramsSheetForId, setGramsSheetForId] = useState<string | null>(null);
+  const [sheetDraft, setSheetDraft] = useState("");
+
+  const sheetLine = useMemo(
+    () => (gramsSheetForId ? lines.find((l) => l.menuItemId === gramsSheetForId) : undefined),
+    [gramsSheetForId, lines]
+  );
+
+  /** カートから該当行が消えたらモーダルを閉じる（状態リセットは次に開くときに上書き） */
+  const gramsSheetVisible =
+    gramsSheetForId != null && lines.some((l) => l.menuItemId === gramsSheetForId);
+
+  function openGramsSheet(menuItemId: string) {
+    if (saving) return;
+    const line = lines.find((l) => l.menuItemId === menuItemId);
+    setSheetDraft(line ? String(line.gramsPerServing) : "");
+    setGramsSheetForId(menuItemId);
+  }
+
+  function closeGramsSheet() {
+    Keyboard.dismiss();
+    setGramsSheetForId(null);
+  }
+
+  function applySheetDelta(delta: number) {
+    const v = Number.parseFloat(sheetDraft.replace(/,/g, ""));
+    const base = Number.isFinite(v) && v > 0 ? v : 1;
+    setSheetDraft(String(Math.max(1, base + delta)));
+  }
+
+  function commitGramsSheet() {
+    if (!gramsSheetForId || saving) return;
+    const n = Number.parseFloat(sheetDraft.replace(/,/g, ""));
+    if (!Number.isFinite(n) || n <= 0) {
+      if (sheetLine) setSheetDraft(String(sheetLine.gramsPerServing));
+      return;
+    }
+    onUpdateGramsPerServing(gramsSheetForId, n);
+    Keyboard.dismiss();
+    setGramsSheetForId(null);
+  }
+
   const expandedMaxHeight = useMemo(
     () => Math.max(220, Math.min(360, Math.floor(windowHeight * 0.44))),
     [windowHeight]
@@ -124,7 +140,119 @@ export function TodayCartDock({
   const shell = CART_MEAL_CHIP_ACTIVE[mealType];
 
   return (
-    <View
+    <>
+      <Modal
+        visible={gramsSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeGramsSheet}
+      >
+        <View style={styles.modalOuter}>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={closeGramsSheet}
+            accessibilityLabel="閉じる"
+          />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={0}
+            style={styles.modalKav}
+          >
+          <View
+            style={[
+              styles.gramsSheet,
+              { paddingBottom: Math.max(insets.bottom, 12) + 8 },
+            ]}
+          >
+            <Text style={styles.gramsSheetTitle} numberOfLines={2}>
+              {sheetLine?.name ?? ""}
+            </Text>
+            <Text style={styles.gramsSheetSubtitle}>1回あたり（g）</Text>
+            <View style={styles.gramsStepRow}>
+              <Pressable
+                onPress={() => applySheetDelta(-5)}
+                disabled={saving}
+                style={({ pressed }) => [
+                  styles.stepBtn,
+                  pressed && { opacity: 0.85 },
+                  saving && { opacity: 0.45 },
+                ]}
+              >
+                <Text style={styles.stepBtnText}>−5</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => applySheetDelta(-1)}
+                disabled={saving}
+                style={({ pressed }) => [
+                  styles.stepBtn,
+                  pressed && { opacity: 0.85 },
+                  saving && { opacity: 0.45 },
+                ]}
+              >
+                <Text style={styles.stepBtnText}>−</Text>
+              </Pressable>
+              <TextInput
+                value={sheetDraft}
+                onChangeText={setSheetDraft}
+                keyboardType="decimal-pad"
+                editable={!saving}
+                selectTextOnFocus
+                style={styles.gramsSheetInput}
+                accessibilityLabel="1回あたりのグラム数"
+              />
+              <Pressable
+                onPress={() => applySheetDelta(1)}
+                disabled={saving}
+                style={({ pressed }) => [
+                  styles.stepBtn,
+                  pressed && { opacity: 0.85 },
+                  saving && { opacity: 0.45 },
+                ]}
+              >
+                <Text style={styles.stepBtnText}>+</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => applySheetDelta(5)}
+                disabled={saving}
+                style={({ pressed }) => [
+                  styles.stepBtn,
+                  pressed && { opacity: 0.85 },
+                  saving && { opacity: 0.45 },
+                ]}
+              >
+                <Text style={styles.stepBtnText}>+5</Text>
+              </Pressable>
+            </View>
+            <View style={styles.gramsSheetActions}>
+              <Pressable
+                onPress={closeGramsSheet}
+                disabled={saving}
+                style={({ pressed }) => [
+                  styles.cancelBtn,
+                  pressed && { opacity: 0.88 },
+                  saving && { opacity: 0.45 },
+                ]}
+              >
+                <Text style={styles.cancelBtnText}>キャンセル</Text>
+              </Pressable>
+              <Pressable
+                onPress={commitGramsSheet}
+                disabled={saving}
+                style={({ pressed }) => [
+                  styles.confirmBtn,
+                  pressed && { opacity: 0.92 },
+                  saving && { opacity: 0.45 },
+                ]}
+              >
+                <Text style={styles.confirmBtnText}>確定</Text>
+              </Pressable>
+            </View>
+          </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <View
       style={[
         styles.shell,
         { borderTopColor: shell.border, backgroundColor: "rgba(15, 23, 42, 0.98)" },
@@ -213,14 +341,19 @@ export function TodayCartDock({
                       P{fmtMacroGrams(v.p)} F{fmtMacroGrams(v.f)} C{fmtMacroGrams(v.c)}
                     </Text>
                   </View>
-                  <View style={styles.gramsCol}>
+                  <Pressable
+                    onPress={() => openGramsSheet(line.menuItemId)}
+                    disabled={saving}
+                    style={({ pressed }) => [
+                      styles.gramsCol,
+                      pressed && { opacity: 0.88 },
+                      saving && { opacity: 0.45 },
+                    ]}
+                    accessibilityLabel="1回あたりのグラムを編集"
+                  >
                     <Text style={styles.gramsLabel}>1回</Text>
-                    <CartGramsEditor
-                      grams={line.gramsPerServing}
-                      disabled={saving}
-                      onCommit={(n) => onUpdateGramsPerServing(line.menuItemId, n)}
-                    />
-                  </View>
+                    <Text style={styles.gramsTapValue}>{fmtMacroGrams(line.gramsPerServing)}g</Text>
+                  </Pressable>
                   <Pressable
                     onPress={() => onRemoveLine(line.menuItemId)}
                     disabled={saving}
@@ -256,6 +389,7 @@ export function TodayCartDock({
         </View>
       ) : null}
     </View>
+    </>
   );
 }
 
@@ -341,19 +475,110 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontVariant: ["tabular-nums"],
   },
-  gramsCol: { alignItems: "center", width: 52 },
+  gramsCol: { alignItems: "center", justifyContent: "center", width: 56, minHeight: 44 },
   gramsLabel: { color: "#6b7280", fontSize: 9, marginBottom: 2 },
-  gramsInput: {
-    width: 50,
+  gramsTapValue: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+  },
+  modalOuter: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  modalKav: {
+    width: "100%",
+  },
+  gramsSheet: {
+    backgroundColor: "#111827",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: "#374151",
+  },
+  gramsSheetTitle: {
+    color: "#f9fafb",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  gramsSheetSubtitle: {
+    color: "#9ca3af",
+    fontSize: 12,
+    marginBottom: 12,
+  },
+  gramsStepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+  stepBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#4b5563",
+    backgroundColor: "#1f2937",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepBtnText: {
+    color: "#e5e7eb",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  gramsSheetInput: {
+    minWidth: 72,
     textAlign: "center",
     color: "#fff",
-    fontSize: 13,
-    fontWeight: "600",
-    paddingVertical: 6,
-    borderRadius: 8,
+    fontSize: 18,
+    fontWeight: "700",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#10b981",
-    backgroundColor: "#111827",
+    borderColor: "#059669",
+    backgroundColor: "#0f172a",
+    fontVariant: ["tabular-nums"],
+  },
+  gramsSheetActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  cancelBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  cancelBtnText: {
+    color: "#9ca3af",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  confirmBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 10,
+    backgroundColor: "#059669",
+    minWidth: 100,
+    alignItems: "center",
+  },
+  confirmBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
   removeBtn: {
     width: 40,

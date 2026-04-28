@@ -6,6 +6,7 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  Keyboard,
   Platform,
   Pressable,
   RefreshControl,
@@ -195,6 +196,12 @@ function fmtPfc(n: number) {
   return n < 10 ? n.toFixed(1) : String(Math.round(n));
 }
 
+/** メニュー行の g 入力・onBlur・「+」で共通（カンマ除去・正の有限値のみ） */
+function parseMenuLineGrams(raw: string): number | null {
+  const n = Number.parseFloat(raw.replace(/,/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function MenuLineRow({
   item,
   starred,
@@ -240,6 +247,23 @@ function MenuLineRow({
           macroTargets
         )
       : { highlightP: false, highlightF: false };
+
+  const handleAddToCart = () => {
+    let resolved = grams;
+    if (editing) {
+      const n = parseMenuLineGrams(gramsStr);
+      if (n != null) {
+        resolved = n;
+        setGrams(n);
+        setGramsStr(String(n));
+      } else {
+        setGramsStr(String(grams));
+      }
+    }
+    setEditing(false);
+    onAdd(resolved);
+    Keyboard.dismiss();
+  };
 
   return (
     <View style={styles.row}>
@@ -298,8 +322,8 @@ function MenuLineRow({
           value={gramsStr}
           onChangeText={setGramsStr}
           onBlur={() => {
-            const n = Number.parseFloat(gramsStr.replace(/,/g, ""));
-            if (Number.isFinite(n) && n > 0) {
+            const n = parseMenuLineGrams(gramsStr);
+            if (n != null) {
               setGrams(n);
               setGramsStr(String(n));
             } else {
@@ -316,7 +340,7 @@ function MenuLineRow({
           <Text style={styles.gramsTapText}>{grams}g</Text>
         </Pressable>
       )}
-      <Pressable onPress={() => onAdd(grams)} style={styles.plusBtn}>
+      <Pressable onPress={handleAddToCart} style={styles.plusBtn}>
         <Text style={styles.plusBtnText}>+</Text>
       </Pressable>
     </View>
@@ -560,7 +584,7 @@ export function TodayMenuPanel({
 
   useEffect(() => {
     void loadMenus();
-  }, [loadMenus]);
+  }, [loadMenus, reloadNonce]);
 
   useEffect(() => {
     if (!selectRestaurantIdAfterAdd) return;

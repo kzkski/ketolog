@@ -22,6 +22,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.62.3] - 2026-04-28
+
+### Fixed
+
+- **Mobile / Today（[#323](https://github.com/kzkski/ketolog/issues/323)）**: メニュー行で重量を編集したまま「+」でカート投入すると、未 blur のためデフォルト重量しか渡らなかった問題を修正（入力文字列を確定してから投入し、Web の `MenuItemRow` と同趣旨にした）。投入後は `Keyboard.dismiss()` でソフトキーボードを閉じ、カート操作しやすくした。新規メニュー保存後に `reloadNonce` で店舗の `menu_items` を再取得するようし、タブを行き来しなくても一覧が更新されるようにした。
+
 ## [1.62.2] - 2026-04-27
 
 ### Fixed

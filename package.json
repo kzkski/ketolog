@@ -1,6 +1,6 @@
 {
   "name": "ketolog",
-  "version": "1.62.2",
+  "version": "1.62.3",
   "private": true,
   "workspaces": [
     "apps/*",

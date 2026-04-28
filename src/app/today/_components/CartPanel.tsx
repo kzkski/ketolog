@@ -64,7 +64,7 @@ function pfcFromPer100(
   };
 }
 
-/** カート行の「1回あたり g」（±・直接入力。メニュー行の g 編集と同趣旨） */
+/** カート行の「1回あたり g」— 数値入力とブラウザ標準の step スピナー（1g 単位）に任せる */
 function CartLineGramsEditor({
   gramsPerServing,
   disabled,
@@ -79,11 +79,6 @@ function CartLineGramsEditor({
     setDraft(String(gramsPerServing));
   }, [gramsPerServing]);
 
-  function applyDelta(delta: number) {
-    const next = Math.max(1, gramsPerServing + delta);
-    onCommit(next);
-  }
-
   function commitDraft() {
     const n = Number.parseFloat(draft.replace(/,/g, ""));
     if (Number.isFinite(n) && n > 0) {
@@ -93,60 +88,29 @@ function CartLineGramsEditor({
     }
   }
 
-  const btnClass =
-    "min-h-9 min-w-9 sm:min-h-8 sm:min-w-8 flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800 text-gray-200 text-xs font-semibold disabled:opacity-40 touch-manipulation shrink-0";
-
   return (
     <div className="flex flex-col items-end gap-0.5 shrink-0">
       <span className="text-[9px] text-gray-500 leading-none">1回</span>
-      <div className="flex items-center gap-0.5 flex-wrap justify-end">
-        <button
-          type="button"
-          className={btnClass}
-          disabled={disabled || gramsPerServing <= 1}
-          onClick={() => applyDelta(-5)}
-          aria-label="5グラム減らす"
-        >
-          −5
-        </button>
-        <button
-          type="button"
-          className={btnClass}
-          disabled={disabled || gramsPerServing <= 1}
-          onClick={() => applyDelta(-1)}
-          aria-label="1グラム減らす"
-        >
-          −
-        </button>
-        <input
-          type="number"
-          value={draft}
-          disabled={disabled}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitDraft}
-          onKeyDown={(e) => e.key === "Enter" && commitDraft()}
-          className="w-[3.25rem] sm:w-14 text-center text-xs sm:text-sm bg-gray-800 border border-emerald-600/80 rounded px-0.5 py-1 text-white tabular-nums shrink-0"
-          aria-label="1回あたりのグラム数"
-        />
-        <button
-          type="button"
-          className={btnClass}
-          disabled={disabled}
-          onClick={() => applyDelta(1)}
-          aria-label="1グラム増やす"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          className={btnClass}
-          disabled={disabled}
-          onClick={() => applyDelta(5)}
-          aria-label="5グラム増やす"
-        >
-          +5
-        </button>
-      </div>
+      <input
+        type="number"
+        min={1}
+        step={1}
+        value={draft}
+        disabled={disabled}
+        onChange={(e) => {
+          const v = e.target.value;
+          setDraft(v);
+          if (v === "") return;
+          const n = Number.parseFloat(v);
+          if (Number.isFinite(n) && n > 0) {
+            onCommit(n);
+          }
+        }}
+        onBlur={commitDraft}
+        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+        className="w-[3.75rem] sm:w-16 text-center text-xs sm:text-sm bg-gray-800 border border-emerald-600/80 rounded px-0.5 py-1 text-white tabular-nums shrink-0"
+        aria-label="1回あたりのグラム数"
+      />
     </div>
   );
 }

@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Web / Mobile 分析（[#327](https://github.com/kzkski/ketolog/issues/327)）**: 平均PFCバランスと日次一覧の比率バーを、**カロリー比**（P4・F9・C4 kcal/g）と**重量比**で切り替え可能にした（デフォルトはカロリー比）。選択は端末に保存される。カロリー比時は平均の合計 kcal/日を表示する。
+
 ### Changed
 
 - **Web / Today**: カート内の 1 回あたり g 編集を、横並びの ± ボタン群ではなく `type="number"`（`min` / `step`）の入力とブラウザのスピナーに整理した（モバイルの専用シートは変更なし）。

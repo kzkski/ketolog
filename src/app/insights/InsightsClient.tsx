@@ -1,14 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import {
+  pfcRatioPercents,
+  pfcTotalKcal,
+  type PfcGrams,
+  type PfcRatioBasis,
+} from "@ketolog/domain/pfc";
 import {
   addDaysJst,
   buildInsights,
   getPresetRange,
   type InsightFoodLogEntry,
 } from "@/lib/insights";
+import {
+  readInsightsPfcRatioBasis,
+  writeInsightsPfcRatioBasis,
+} from "@/lib/insights-pfc-ratio-storage";
 import { getInsightsFoodLogForDateRange } from "./actions";
 import { MEAL_LABELS, MEAL_TAB_STYLES, MEAL_TYPES } from "@/lib/constants/meal";
 import type { MealType } from "@ketolog/types";
@@ -27,9 +37,18 @@ function fmtNum(v: number): string {
   return v.toFixed(1);
 }
 
-function ratioStyle(total: number, part: number): { width: string } {
-  if (total <= 0) return { width: "0%" };
-  return { width: `${Math.max(0, Math.min(100, (part / total) * 100))}%` };
+function ratioStyleFromPercents(pct: number): { width: string } {
+  return { width: `${Math.max(0, Math.min(100, pct))}%` };
+}
+
+function toPfcGrams(protein: number, fat: number, carbs: number): PfcGrams {
+  return { p: protein, f: fat, c: carbs };
+}
+
+function ratioBasisButtonClass(active: boolean): string {
+  return `rounded-md px-2 py-1 text-[10px] font-medium transition-colors sm:text-[11px] ${
+    active ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+  }`;
 }
 
 function jstDateLabel(date: string): string {
@@ -75,6 +94,17 @@ export default function InsightsClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [ratioBasis, setRatioBasis] = useState<PfcRatioBasis>("kcal");
+
+  useEffect(() => {
+    setRatioBasis(readInsightsPfcRatioBasis());
+  }, []);
+
+  function selectRatioBasis(next: PfcRatioBasis) {
+    setRatioBasis(next);
+    writeInsightsPfcRatioBasis(next);
+  }
+
   const selectedMealTypes = useMemo(
     () => (mealFilter === "all" ? undefined : [mealFilter]),
     [mealFilter]
@@ -84,10 +114,20 @@ export default function InsightsClient({
     () => buildInsights(entries, start, end, { mealTypes: selectedMealTypes }),
     [entries, start, end, selectedMealTypes]
   );
-  const avgTotal = insight.summary.avgProtein + insight.summary.avgFat + insight.summary.avgCarbs;
-  const avgProteinPct = avgTotal > 0 ? (insight.summary.avgProtein / avgTotal) * 100 : 0;
-  const avgFatPct = avgTotal > 0 ? (insight.summary.avgFat / avgTotal) * 100 : 0;
-  const avgCarbsPct = avgTotal > 0 ? (insight.summary.avgCarbs / avgTotal) * 100 : 0;
+  const avgGrams = useMemo(
+    () =>
+      toPfcGrams(
+        insight.summary.avgProtein,
+        insight.summary.avgFat,
+        insight.summary.avgCarbs
+      ),
+    [insight.summary.avgProtein, insight.summary.avgFat, insight.summary.avgCarbs]
+  );
+  const avgRatioPct = useMemo(
+    () => pfcRatioPercents(avgGrams, ratioBasis),
+    [avgGrams, ratioBasis]
+  );
+  const avgDailyKcal = useMemo(() => pfcTotalKcal(avgGrams), [avgGrams]);
 
   async function loadRange(
     nextStart: string,
@@ -262,29 +302,59 @@ export default function InsightsClient({
         </div>
 
         <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-3">
-          <h2 className="mb-2 text-sm font-medium text-white">平均PFCバランス</h2>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-white">平均PFCバランス</h2>
+            <div
+              className="flex shrink-0 rounded-lg border border-gray-800 bg-gray-950/80 p-0.5"
+              role="group"
+              aria-label="PFC比率の表示基準"
+            >
+              <button
+                type="button"
+                onClick={() => selectRatioBasis("kcal")}
+                className={ratioBasisButtonClass(ratioBasis === "kcal")}
+                aria-pressed={ratioBasis === "kcal"}
+              >
+                カロリー比
+              </button>
+              <button
+                type="button"
+                onClick={() => selectRatioBasis("gram")}
+                className={ratioBasisButtonClass(ratioBasis === "gram")}
+                aria-pressed={ratioBasis === "gram"}
+              >
+                重量比
+              </button>
+            </div>
+          </div>
+          {ratioBasis === "kcal" ? (
+            <p className="mb-2 text-[11px] text-gray-400">
+              平均 {fmtNum(avgDailyKcal)} kcal/日
+              <span className="text-gray-500"> · P4・F9・C4 kcal/g</span>
+            </p>
+          ) : null}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
               <p className="text-[11px] text-gray-400">たんぱく質 (P)</p>
               <p className="text-sm font-semibold text-blue-300">{fmtNum(insight.summary.avgProtein)} g</p>
-              <p className="text-[11px] text-blue-200/90">{fmtNum(avgProteinPct)}%</p>
+              <p className="text-[11px] text-blue-200/90">{fmtNum(avgRatioPct.p)}%</p>
             </div>
             <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
               <p className="text-[11px] text-gray-400">脂質 (F)</p>
               <p className="text-sm font-semibold text-yellow-300">{fmtNum(insight.summary.avgFat)} g</p>
-              <p className="text-[11px] text-yellow-200/90">{fmtNum(avgFatPct)}%</p>
+              <p className="text-[11px] text-yellow-200/90">{fmtNum(avgRatioPct.f)}%</p>
             </div>
             <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
               <p className="text-[11px] text-gray-400">糖質 (C)</p>
               <p className="text-sm font-semibold text-emerald-300">{fmtNum(insight.summary.avgCarbs)} g</p>
-              <p className="text-[11px] text-emerald-200/90">{fmtNum(avgCarbsPct)}%</p>
+              <p className="text-[11px] text-emerald-200/90">{fmtNum(avgRatioPct.c)}%</p>
             </div>
           </div>
           <div className="mt-2 h-2 w-full overflow-hidden rounded bg-gray-800">
             <div className="flex h-full w-full">
-              <div className="bg-blue-400" style={ratioStyle(avgTotal, insight.summary.avgProtein)} />
-              <div className="bg-yellow-400" style={ratioStyle(avgTotal, insight.summary.avgFat)} />
-              <div className="bg-emerald-400" style={ratioStyle(avgTotal, insight.summary.avgCarbs)} />
+              <div className="bg-blue-400" style={ratioStyleFromPercents(avgRatioPct.p)} />
+              <div className="bg-yellow-400" style={ratioStyleFromPercents(avgRatioPct.f)} />
+              <div className="bg-emerald-400" style={ratioStyleFromPercents(avgRatioPct.c)} />
             </div>
           </div>
         </div>
@@ -298,7 +368,8 @@ export default function InsightsClient({
           <h2 className="text-sm font-medium text-white">日ごとの食事一覧</h2>
           {insight.daily.map((day) => {
             const isOpen = expanded.has(day.date);
-            const total = day.protein + day.fat + day.carbs;
+            const dayGrams = toPfcGrams(day.protein, day.fat, day.carbs);
+            const dayRatioPct = pfcRatioPercents(dayGrams, ratioBasis);
             return (
               <div key={day.date} className="rounded-lg border border-gray-800 bg-gray-950/60">
                 <button
@@ -317,9 +388,9 @@ export default function InsightsClient({
                     </div>
                     <div className="mt-1.5 h-2 w-full overflow-hidden rounded bg-gray-800">
                       <div className="flex h-full w-full">
-                        <div className="bg-blue-400" style={ratioStyle(total, day.protein)} />
-                        <div className="bg-yellow-400" style={ratioStyle(total, day.fat)} />
-                        <div className="bg-emerald-400" style={ratioStyle(total, day.carbs)} />
+                        <div className="bg-blue-400" style={ratioStyleFromPercents(dayRatioPct.p)} />
+                        <div className="bg-yellow-400" style={ratioStyleFromPercents(dayRatioPct.f)} />
+                        <div className="bg-emerald-400" style={ratioStyleFromPercents(dayRatioPct.c)} />
                       </div>
                     </div>
                   </div>

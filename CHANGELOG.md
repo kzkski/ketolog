@@ -23,6 +23,12 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
+## [1.64.0] - 2026-05-19
+
+### Added
+
+- **Web / Mobile 分析（[#327](https://github.com/kzkski/ketolog/issues/327)）**: 平均PFCバランスと日次一覧の比率バーを、**カロリー比**（P4・F9・C4 kcal/g）と**重量比**で切り替え可能にした（デフォルトはカロリー比）。選択は端末に保存される。カロリー比時は平均の合計 kcal/日を表示する。
+
 ## [1.63.0] - 2026-04-28
 
 ### Added

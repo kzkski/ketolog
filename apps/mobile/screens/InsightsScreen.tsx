@@ -20,6 +20,16 @@ import {
   getTodayJstDate,
   type InsightFoodLogEntry,
 } from "@ketolog/domain/insights";
+import {
+  pfcRatioPercents,
+  pfcTotalKcal,
+  type PfcGrams,
+  type PfcRatioBasis,
+} from "@ketolog/domain/pfc";
+import {
+  readInsightsPfcRatioBasisNative,
+  writeInsightsPfcRatioBasisNative,
+} from "../lib/insights-pfc-ratio-storage";
 import { useAuthSessionContext } from "../contexts/AuthSessionContext";
 import { loadFoodLogOutbox } from "../lib/food-log-outbox";
 import { getSupabase } from "../lib/supabase";
@@ -61,9 +71,12 @@ function fmtNum(v: number): string {
   return v.toFixed(1);
 }
 
-function ratioFlex(total: number, part: number): { flex: number } {
-  if (total <= 0) return { flex: 0 };
-  return { flex: Math.max(0, Math.min(1, part / total)) };
+function toPfcGrams(protein: number, fat: number, carbs: number): PfcGrams {
+  return { p: protein, f: fat, c: carbs };
+}
+
+function ratioFlexFromPercents(pct: number): { flex: number } {
+  return { flex: Math.max(0, pct / 100) };
 }
 
 function jstDateLabel(date: string): string {
@@ -98,6 +111,7 @@ export function InsightsScreen() {
   const [shareErr, setShareErr] = useState<string | null>(null);
   const [outboxLoaded, setOutboxLoaded] = useState(false);
   const [outboxHasUnsent, setOutboxHasUnsent] = useState(false);
+  const [ratioBasis, setRatioBasis] = useState<PfcRatioBasis>("kcal");
 
   const loadRange = useCallback(
     async (
@@ -154,6 +168,15 @@ export function InsightsScreen() {
     }, [userId, refreshOutbox])
   );
 
+  useEffect(() => {
+    void readInsightsPfcRatioBasisNative().then(setRatioBasis);
+  }, []);
+
+  function selectRatioBasis(next: PfcRatioBasis) {
+    setRatioBasis(next);
+    void writeInsightsPfcRatioBasisNative(next);
+  }
+
   const insight = useMemo(
     () =>
       buildInsights(entries, start, end, {
@@ -161,11 +184,20 @@ export function InsightsScreen() {
       }),
     [entries, start, end, mealFilter]
   );
-  const avgTotal =
-    insight.summary.avgProtein + insight.summary.avgFat + insight.summary.avgCarbs;
-  const avgProteinPct = avgTotal > 0 ? (insight.summary.avgProtein / avgTotal) * 100 : 0;
-  const avgFatPct = avgTotal > 0 ? (insight.summary.avgFat / avgTotal) * 100 : 0;
-  const avgCarbsPct = avgTotal > 0 ? (insight.summary.avgCarbs / avgTotal) * 100 : 0;
+  const avgGrams = useMemo(
+    () =>
+      toPfcGrams(
+        insight.summary.avgProtein,
+        insight.summary.avgFat,
+        insight.summary.avgCarbs
+      ),
+    [insight.summary.avgProtein, insight.summary.avgFat, insight.summary.avgCarbs]
+  );
+  const avgRatioPct = useMemo(
+    () => pfcRatioPercents(avgGrams, ratioBasis),
+    [avgGrams, ratioBasis]
+  );
+  const avgDailyKcal = useMemo(() => pfcTotalKcal(avgGrams), [avgGrams]);
 
   function validateCustomRange(nextStart: string, nextEnd: string): string | null {
     if (nextStart > nextEnd) return "開始日は終了日以前にしてください。";
@@ -398,34 +430,92 @@ export function InsightsScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>平均PFCバランス</Text>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.cardTitle}>平均PFCバランス</Text>
+            <View style={styles.ratioBasisGroup} accessibilityRole="tablist">
+              <Pressable
+                onPress={() => selectRatioBasis("kcal")}
+                style={[styles.ratioBasisBtn, ratioBasis === "kcal" && styles.ratioBasisBtnOn]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: ratioBasis === "kcal" }}
+              >
+                <Text
+                  style={[
+                    styles.ratioBasisBtnText,
+                    ratioBasis === "kcal" && styles.ratioBasisBtnTextOn,
+                  ]}
+                >
+                  カロリー比
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => selectRatioBasis("gram")}
+                style={[styles.ratioBasisBtn, ratioBasis === "gram" && styles.ratioBasisBtnOn]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: ratioBasis === "gram" }}
+              >
+                <Text
+                  style={[
+                    styles.ratioBasisBtnText,
+                    ratioBasis === "gram" && styles.ratioBasisBtnTextOn,
+                  ]}
+                >
+                  重量比
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+          {ratioBasis === "kcal" ? (
+            <Text style={styles.avgKcalLine}>
+              平均 {fmtNum(avgDailyKcal)} kcal/日
+              <Text style={styles.avgKcalHint}> · P4・F9・C4 kcal/g</Text>
+            </Text>
+          ) : null}
           <View style={styles.avgGrid}>
             <View style={styles.avgCell}>
               <Text style={styles.avgCap}>たんぱく質 (P)</Text>
               <Text style={[styles.avgVal, { color: "#93c5fd" }]}>
                 {fmtNum(insight.summary.avgProtein)} g
               </Text>
-              <Text style={styles.avgPct}>{fmtNum(avgProteinPct)}%</Text>
+              <Text style={styles.avgPct}>{fmtNum(avgRatioPct.p)}%</Text>
             </View>
             <View style={styles.avgCell}>
               <Text style={styles.avgCap}>脂質 (F)</Text>
               <Text style={[styles.avgVal, { color: "#fde047" }]}>
                 {fmtNum(insight.summary.avgFat)} g
               </Text>
-              <Text style={styles.avgPct}>{fmtNum(avgFatPct)}%</Text>
+              <Text style={styles.avgPct}>{fmtNum(avgRatioPct.f)}%</Text>
             </View>
             <View style={styles.avgCell}>
               <Text style={styles.avgCap}>糖質 (C)</Text>
               <Text style={[styles.avgVal, { color: "#6ee7b7" }]}>
                 {fmtNum(insight.summary.avgCarbs)} g
               </Text>
-              <Text style={styles.avgPct}>{fmtNum(avgCarbsPct)}%</Text>
+              <Text style={styles.avgPct}>{fmtNum(avgRatioPct.c)}%</Text>
             </View>
           </View>
           <View style={styles.ratioBar}>
-            <View style={[styles.ratioSeg, { backgroundColor: "#60a5fa" }, ratioFlex(avgTotal, insight.summary.avgProtein)]} />
-            <View style={[styles.ratioSeg, { backgroundColor: "#facc15" }, ratioFlex(avgTotal, insight.summary.avgFat)]} />
-            <View style={[styles.ratioSeg, { backgroundColor: "#34d399" }, ratioFlex(avgTotal, insight.summary.avgCarbs)]} />
+            <View
+              style={[
+                styles.ratioSeg,
+                { backgroundColor: "#60a5fa" },
+                ratioFlexFromPercents(avgRatioPct.p),
+              ]}
+            />
+            <View
+              style={[
+                styles.ratioSeg,
+                { backgroundColor: "#facc15" },
+                ratioFlexFromPercents(avgRatioPct.f),
+              ]}
+            />
+            <View
+              style={[
+                styles.ratioSeg,
+                { backgroundColor: "#34d399" },
+                ratioFlexFromPercents(avgRatioPct.c),
+              ]}
+            />
           </View>
         </View>
 
@@ -438,7 +528,8 @@ export function InsightsScreen() {
           <Text style={styles.cardTitle}>日ごとの食事一覧</Text>
           {insight.daily.map((day) => {
             const isOpen = expanded.has(day.date);
-            const total = day.protein + day.fat + day.carbs;
+            const dayGrams = toPfcGrams(day.protein, day.fat, day.carbs);
+            const dayRatioPct = pfcRatioPercents(dayGrams, ratioBasis);
             return (
               <View key={day.date} style={styles.dayBlock}>
                 <Pressable onPress={() => toggleDate(day.date)} style={styles.dayHeader}>
@@ -452,9 +543,27 @@ export function InsightsScreen() {
                       <Text style={[styles.dayPfc, { color: "#6ee7b7" }]}>{fmtNum(day.carbs)}</Text>
                     </View>
                     <View style={styles.ratioBar}>
-                      <View style={[styles.ratioSeg, { backgroundColor: "#60a5fa" }, ratioFlex(total, day.protein)]} />
-                      <View style={[styles.ratioSeg, { backgroundColor: "#facc15" }, ratioFlex(total, day.fat)]} />
-                      <View style={[styles.ratioSeg, { backgroundColor: "#34d399" }, ratioFlex(total, day.carbs)]} />
+                      <View
+                        style={[
+                          styles.ratioSeg,
+                          { backgroundColor: "#60a5fa" },
+                          ratioFlexFromPercents(dayRatioPct.p),
+                        ]}
+                      />
+                      <View
+                        style={[
+                          styles.ratioSeg,
+                          { backgroundColor: "#facc15" },
+                          ratioFlexFromPercents(dayRatioPct.f),
+                        ]}
+                      />
+                      <View
+                        style={[
+                          styles.ratioSeg,
+                          { backgroundColor: "#34d399" },
+                          ratioFlexFromPercents(dayRatioPct.c),
+                        ]}
+                      />
                     </View>
                   </View>
                   <Text style={styles.dayCount}>{day.entries.length} 件</Text>
@@ -570,7 +679,32 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
-  cardTitle: { color: COLORS.text, fontSize: 14, fontWeight: "600", marginBottom: 10 },
+  cardTitle: { color: COLORS.text, fontSize: 14, fontWeight: "600" },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 10,
+  },
+  ratioBasisGroup: {
+    flexDirection: "row",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: "#0a0f1a",
+    padding: 2,
+  },
+  ratioBasisBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  ratioBasisBtnOn: { backgroundColor: COLORS.accent },
+  ratioBasisBtnText: { color: COLORS.muted, fontSize: 10, fontWeight: "600" },
+  ratioBasisBtnTextOn: { color: "#fff" },
+  avgKcalLine: { color: COLORS.muted, fontSize: 11, marginBottom: 8 },
+  avgKcalHint: { color: "#6b7280" },
   presetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   presetBtn: {
     paddingHorizontal: 12,

@@ -12,6 +12,20 @@
 
 ### Changed
 
+## [1.65.0] - 2026-07-01
+
+### Added
+
+- **Mobile / Today（[#330](https://github.com/kzkski/ketolog/issues/330)）**: メニュー・お気に入り・成分表の検索フィールドに、Web と同様の一括クリア（×）ボタンを追加した。
+
+## [1.64.2] - 2026-07-01
+
+### Fixed
+
+- **Web / Today**: 記録パネルをモバイルに揃え、件数 0 でも「今日の記録」を常時表示し「手入力」からメニュー追加ドロワーを開けるようにした。店舗タブの「＋ メニューを追加」は一覧下のみ（お気に入り・成分表では非表示）とし、空状態の文言もモバイルと同じにした。
+
+### Changed
+
 - **Web / Today**: カート内の 1 回あたり g 編集を、横並びの ± ボタン群ではなく `type="number"`（`min` / `step`）の入力とブラウザのスピナーに整理した（モバイルの専用シートは変更なし）。
 
 - **ドキュメント / アーキテクチャ**: Web の食事ログ（楽観 UI・ロールバック）とモバイル（接続時は DB 反映待ち、オフラインは outbox 再送）の対比を `docs/architecture/food-log-sync.md` に整理し、主要実装箇所へ短い案内コメントを追加した（[#304](https://github.com/kzkski/ketolog/issues/304)）。
@@ -23,11 +37,11 @@
 - **ドキュメント / リリース運用**: `docs/release/README.md` を v2-v3 の運用ハブとして再編し、`beta-checklist.md` / `quality-and-ci.md` に Tracking ひな形（Status/Track/Issue/Owner/DoD）を追加した。v3 向けに `docs/release/v3-native-feasibility.md` を新設し、ネイティブアプリ化の判断観点を整理した。
 - **ドキュメント / ベータ運用**: `beta-checklist.md` に Ketovisor 連携向けデータ契約（`contractVersion`・スキーマ・互換ポリシー）を追加し、`docs/release/README.md` と `ROADMAP.md` の v2 優先トラックに反映した（[#248](https://github.com/kzkski/ketolog/issues/248)）。
 
-## [1.65.0] - 2026-07-01
+## [1.64.1] - 2026-07-01
 
-### Added
+### Fixed
 
-- **Mobile / Today（[#330](https://github.com/kzkski/ketolog/issues/330)）**: メニュー・お気に入り・成分表の検索フィールドに、Web と同様の一括クリア（×）ボタンを追加した。
+- **Web / Mobile / メニュー登録（[#329](https://github.com/kzkski/ketolog/issues/329)）**: PFC 入力で最後のフィールドを確定（フォーカス移動）せずに保存しても、入力中の栄養素値が DB に反映されるようにした。
 
 ## [1.64.0] - 2026-05-19
 

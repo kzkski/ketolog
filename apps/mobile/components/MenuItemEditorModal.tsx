@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { manualSharedProductServingFromDefaultGrams } from "@ketolog/domain/manual-shared-product-serving";
+import { resolveNutrientStoredValue } from "@ketolog/domain/nutrient-input";
 import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
 import type { MealType } from "@ketolog/types";
 import {
@@ -231,6 +232,21 @@ export function MenuItemEditorModal({
     [nutrientMode, grams]
   );
 
+  const effectiveNutrientStrings = useCallback(
+    () => ({
+      protein: resolveNutrientStoredValue(nutrientMode, grams, protein, rawP),
+      fat: resolveNutrientStoredValue(nutrientMode, grams, fat, rawF),
+      carbs: resolveNutrientStoredValue(nutrientMode, grams, carbs, rawC),
+    }),
+    [nutrientMode, grams, protein, fat, carbs, rawP, rawF, rawC]
+  );
+
+  const parsePer100g = useCallback((s: string): number | null => {
+    if (s.trim() === "") return null;
+    const v = parseFloat(s);
+    return Number.isFinite(v) ? v : null;
+  }, []);
+
   const resetAddForm = useCallback(() => {
     setName("");
     setProtein("");
@@ -399,16 +415,12 @@ export function MenuItemEditorModal({
 
   const buildMenuPayload = useCallback(() => {
     const gramsNum = parseFloat(grams) || 100;
-    const n = (s: string) => {
-      if (s.trim() === "") return null;
-      const v = parseFloat(s);
-      return Number.isFinite(v) ? v : null;
-    };
+    const n = effectiveNutrientStrings();
     return {
       name: name.trim(),
-      protein_per_100g: n(protein),
-      fat_per_100g: n(fat),
-      carbs_per_100g: n(carbs),
+      protein_per_100g: parsePer100g(n.protein),
+      fat_per_100g: parsePer100g(n.fat),
+      carbs_per_100g: parsePer100g(n.carbs),
       default_grams: gramsNum,
       rank,
       notes: notes.trim() || null,
@@ -418,9 +430,8 @@ export function MenuItemEditorModal({
     };
   }, [
     name,
-    protein,
-    fat,
-    carbs,
+    effectiveNutrientStrings,
+    parsePer100g,
     grams,
     rank,
     notes,
@@ -434,16 +445,12 @@ export function MenuItemEditorModal({
     if (!isEdit) return null;
     if (!name.trim()) return null;
     const gramsNum = parseFloat(grams) || 100;
-    const n = (s: string) => {
-      if (s.trim() === "") return null;
-      const v = parseFloat(s);
-      return Number.isFinite(v) ? v : null;
-    };
+    const n = effectiveNutrientStrings();
     return {
       name: name.trim(),
-      protein_per_100g: n(protein),
-      fat_per_100g: n(fat),
-      carbs_per_100g: n(carbs),
+      protein_per_100g: parsePer100g(n.protein),
+      fat_per_100g: parsePer100g(n.fat),
+      carbs_per_100g: parsePer100g(n.carbs),
       shared_barcode: loadedEdit?.shared_barcode ?? null,
       standard_food_code: loadedEdit?.standard_food_code ?? null,
       default_grams: gramsNum,
@@ -451,7 +458,7 @@ export function MenuItemEditorModal({
       notes: notes.trim() || null,
       group: groupName.trim() || null,
     };
-  }, [isEdit, name, protein, fat, carbs, grams, rank, notes, groupName, loadedEdit]);
+  }, [isEdit, name, effectiveNutrientStrings, parsePer100g, grams, rank, notes, groupName, loadedEdit]);
 
   const shareQrPayload = useMemo(() => {
     if (!shareQrImportItem) return null;
@@ -914,9 +921,10 @@ export function MenuItemEditorModal({
     if (!snapshotRestaurantId) return null;
     if (!name.trim()) return null;
     const gramsNum = parseFloat(grams) || 100;
-    const p100 = protein === "" ? null : parseFloat(protein);
-    const f100 = fat === "" ? null : parseFloat(fat);
-    const c100 = carbs === "" ? null : parseFloat(carbs);
+    const n = effectiveNutrientStrings();
+    const p100 = parsePer100g(n.protein);
+    const f100 = parsePer100g(n.fat);
+    const c100 = parsePer100g(n.carbs);
     const v = pfcGramsFromNullablePer100(
       p100 !== null && Number.isFinite(p100) ? p100 : null,
       f100 !== null && Number.isFinite(f100) ? f100 : null,
@@ -936,7 +944,7 @@ export function MenuItemEditorModal({
       menu_item_id: null,
       saved_at: new Date().toISOString(),
     };
-  }, [snapshotRestaurantId, name, grams, protein, fat, carbs, date, logMeal]);
+  }, [snapshotRestaurantId, name, grams, effectiveNutrientStrings, parsePer100g, date, logMeal]);
 
   const handleLogOnly = useCallback(async () => {
     const draft = buildSnapshotLogDraft();

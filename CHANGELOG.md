@@ -12,6 +12,12 @@
 
 ### Changed
 
+## [1.65.0] - 2026-07-01
+
+### Added
+
+- **Mobile / Today（[#330](https://github.com/kzkski/ketolog/issues/330)）**: メニュー・お気に入り・成分表の検索フィールドに、Web と同様の一括クリア（×）ボタンを追加した。
+
 ## [1.64.2] - 2026-07-01
 
 ### Fixed

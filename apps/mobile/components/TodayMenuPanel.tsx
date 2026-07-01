@@ -48,6 +48,7 @@ import {
 import type { StandardFoodSearchRow } from "../lib/search-standard-foods-mobile";
 import { RenameRestaurantModal } from "./RenameRestaurantModal";
 import { StandardFoodCompositionPanel } from "./StandardFoodCompositionPanel";
+import { MenuBrowseSearchField } from "./MenuBrowseSearchField";
 import { ImportMenuItemsModal } from "./ImportMenuItemsModal";
 import { deleteRestaurantMobile } from "../lib/delete-restaurant-mobile";
 import { reorderRestaurantsMobile } from "../lib/reorder-restaurants-mobile";
@@ -854,12 +855,11 @@ export function TodayMenuPanel({
             contentContainerStyle={styles.compositionScrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            <TextInput
+            <MenuBrowseSearchField
               value={compositionQuery}
               onChangeText={setCompositionQuery}
               placeholder="成分表を検索（例: さけ 生）"
-              placeholderTextColor="#6b7280"
-              style={styles.search}
+              accessibilityLabel="成分表を検索"
             />
             <StandardFoodCompositionPanel
               supabase={supabase}
@@ -886,12 +886,11 @@ export function TodayMenuPanel({
               ) : undefined
             }
           >
-            <TextInput
+            <MenuBrowseSearchField
               value={query}
               onChangeText={setQuery}
               placeholder={tab === "favorites" ? "お気に入りを検索" : "メニューを検索"}
-              placeholderTextColor="#6b7280"
-              style={styles.search}
+              accessibilityLabel={tab === "favorites" ? "お気に入りを検索" : "メニューを検索"}
             />
             {loading ? (
               <View style={styles.center}>
@@ -1250,15 +1249,6 @@ const styles = StyleSheet.create({
   },
   restaurantNameTextOn: {
     color: "#f9fafb",
-  },
-  search: {
-    borderWidth: 1,
-    borderColor: "#374151",
-    borderRadius: 0,
-    color: "#e5e7eb",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
   },
   center: { alignItems: "center", paddingVertical: 20 },
   error: { color: "#fecaca", fontSize: 12, paddingVertical: 8 },

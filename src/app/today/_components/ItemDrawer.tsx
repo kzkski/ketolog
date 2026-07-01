@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { MenuItem, Restaurant, SharedProduct } from "@/types/database";
 import type { MealType } from "@ketolog/types";
+import { resolveNutrientStoredValue } from "@ketolog/domain/nutrient-input";
 import { pfcGramsFromNullablePer100 } from "@/lib/menu-item-pfc";
 import {
   addMenuItem,
@@ -493,12 +494,27 @@ export function MenuItemDrawer({
     setIsGroupSuggestionsOpen((v) => !v);
   }
 
+  function effectiveNutrientStrings() {
+    return {
+      protein: resolveNutrientStoredValue(mode, grams, protein, rawP),
+      fat: resolveNutrientStoredValue(mode, grams, fat, rawF),
+      carbs: resolveNutrientStoredValue(mode, grams, carbs, rawC),
+    };
+  }
+
+  function parsePer100g(s: string): number | null {
+    if (s.trim() === "") return null;
+    const v = parseFloat(s);
+    return Number.isFinite(v) ? v : null;
+  }
+
   function buildMenuPayload(): MenuItemUpdate {
+    const n = effectiveNutrientStrings();
     return {
       name: name.trim(),
-      protein_per_100g: protein === "" ? null : parseFloat(protein),
-      fat_per_100g: fat === "" ? null : parseFloat(fat),
-      carbs_per_100g: carbs === "" ? null : parseFloat(carbs),
+      protein_per_100g: parsePer100g(n.protein),
+      fat_per_100g: parsePer100g(n.fat),
+      carbs_per_100g: parsePer100g(n.carbs),
       shared_barcode: sharedBarcode,
       standard_food_code: standardFoodCode,
       default_grams: parseFloat(grams) || 100,
@@ -512,9 +528,10 @@ export function MenuItemDrawer({
     if (!snapshotRestaurantId) return null;
     if (!name.trim()) return null;
     const gramsNum = parseFloat(grams) || 100;
-    const p100 = protein === "" ? null : parseFloat(protein);
-    const f100 = fat === "" ? null : parseFloat(fat);
-    const c100 = carbs === "" ? null : parseFloat(carbs);
+    const n = effectiveNutrientStrings();
+    const p100 = parsePer100g(n.protein);
+    const f100 = parsePer100g(n.fat);
+    const c100 = parsePer100g(n.carbs);
     const v = pfcGramsFromNullablePer100(
       p100 !== null && Number.isFinite(p100) ? p100 : null,
       f100 !== null && Number.isFinite(f100) ? f100 : null,
@@ -592,11 +609,12 @@ export function MenuItemDrawer({
       return;
     }
     const gramsNum = parseFloat(grams) || 100;
+    const n = effectiveNutrientStrings();
     onSnapshotCart({
       name: name.trim(),
-      protein_per_100g: protein === "" ? null : parseFloat(protein),
-      fat_per_100g: fat === "" ? null : parseFloat(fat),
-      carbs_per_100g: carbs === "" ? null : parseFloat(carbs),
+      protein_per_100g: parsePer100g(n.protein),
+      fat_per_100g: parsePer100g(n.fat),
+      carbs_per_100g: parsePer100g(n.carbs),
       grams: gramsNum,
       shared_barcode: sharedBarcode,
     });

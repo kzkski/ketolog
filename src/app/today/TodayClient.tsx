@@ -1384,6 +1384,27 @@ export default function TodayClient({
     handleDeleteEntry,
   } = useMealLog({ today, todayConsumed, initialLogEntries });
 
+  const openMenuItemAddDrawer = useCallback(
+    (restaurantIdHint?: string | null) => {
+      const rid =
+        (restaurantIdHint &&
+        tabRestaurants.some((r) => r.id === restaurantIdHint)
+          ? restaurantIdHint
+          : null) ??
+        menuAddRestaurantId ??
+        tabRestaurants[0]?.id ??
+        "";
+      if (!rid) {
+        alert(
+          "表示できるお店がありません。右の「＋」からお店を追加してください。"
+        );
+        return;
+      }
+      setItemDrawer({ kind: "add", restaurantId: rid, openedAt: Date.now() });
+    },
+    [menuAddRestaurantId, tabRestaurants]
+  );
+
   const drawerRestaurantId =
     itemDrawer?.kind === "add"
       ? itemDrawer.restaurantId
@@ -1788,37 +1809,81 @@ export default function TodayClient({
       />
 
       <div className="flex-1 flex flex-col min-h-0">
-        {/* 記録済みパネル */}
-        {logEntries.length > 0 && (
-          <div className="flex-none border-b border-gray-800">
+        <div className="flex-none border-y border-gray-800 bg-gray-950">
+          <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2 min-h-9">
             <button
               type="button"
               aria-expanded={showLogEntries}
               onClick={() => setShowLogEntries((v) => !v)}
-              className="w-full flex items-center justify-end gap-2 px-3 sm:px-4 py-1 sm:py-2 text-[11px] sm:text-xs text-gray-400 hover:text-white transition-colors min-h-7 sm:min-h-0 leading-none"
+              className="flex flex-1 items-center justify-between min-w-0 text-left touch-manipulation"
             >
-              <Link
-                href="/insights"
-                className="rounded-md border border-gray-700 px-1.5 py-1 text-[10px] text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                過去7日を見る
-              </Link>
-              <span className="font-medium text-gray-300 text-right">
-                この日の記録（{logEntries.length}件）
+              <span className="flex items-baseline gap-1 min-w-0">
+                <span className="text-xs font-semibold text-gray-300">
+                  {selectedDate === today ? "今日の記録" : "この日の記録"}
+                </span>
+                <span className="text-xs text-gray-400 tabular-nums">
+                  （{logEntries.length}件）
+                </span>
               </span>
-              <span className="text-gray-500 shrink-0 w-5 text-center" aria-hidden>
+              <span className="text-gray-500 shrink-0 w-5 text-center text-xs" aria-hidden>
                 {showLogEntries ? "▲" : "▼"}
               </span>
             </button>
-            {showLogEntries && (
-              <div className="max-h-60 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => openMenuItemAddDrawer(null)}
+              aria-label="メニュー追加・今すぐ記録・カート（店舗タブのメニュー追加と同じ）"
+              className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-700 bg-gray-900/60 text-xs font-semibold text-gray-200 hover:bg-gray-800 transition-colors touch-manipulation"
+            >
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+              手入力
+            </button>
+          </div>
+          {showLogEntries && (
+            logEntries.length === 0 ? (
+              <div className="border-t border-gray-800/90 px-3.5 sm:px-4 py-2.5 pb-3">
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  メニューまたはお気に入りの「＋」でカートに入れ、画面下のカートからまとめて記録するのがいちばん早いです。手入力で足すときは「手入力」から。
+                </p>
+                <Link
+                  href="/insights"
+                  className="inline-block mt-2 rounded-md border border-gray-700 px-1.5 py-1 text-[10px] text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                >
+                  過去7日を見る
+                </Link>
+              </div>
+            ) : (
+              <div className="max-h-60 overflow-y-auto border-t border-gray-800/90">
+                <div className="flex justify-end px-3 sm:px-4 py-1">
+                  <Link
+                    href="/insights"
+                    className="rounded-md border border-gray-700 px-1.5 py-1 text-[10px] text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                  >
+                    過去7日を見る
+                  </Link>
+                </div>
                 {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map((mt) => {
                   const items = logEntries.filter((e) => e.meal_type === mt);
                   if (!items.length) return null;
                   return (
                     <div key={mt}>
-                      <p className="px-3 sm:px-4 py-px sm:py-0.5 text-[11px] sm:text-xs text-gray-500 bg-gray-900/50 leading-none">{MEAL_LABELS[mt]}</p>
+                      <p className="px-3 sm:px-4 py-px sm:py-0.5 text-[11px] sm:text-xs text-gray-500 bg-gray-900/50 leading-none">
+                        {MEAL_LABELS[mt]}
+                      </p>
                       {items.map((entry) => (
                         <LogEntryRow
                           key={entry.id}
@@ -1831,9 +1896,9 @@ export default function TodayClient({
                   );
                 })}
               </div>
-            )}
-          </div>
-        )}
+            )
+          )}
+        </div>
 
         <RestaurantPanel
           favoritesTabId={FAVORITES_TAB_ID}
@@ -1896,9 +1961,7 @@ export default function TodayClient({
               },
             });
           }}
-          onOpenItemAddDrawer={(restaurantId) =>
-            setItemDrawer({ kind: "add", restaurantId, openedAt: Date.now() })
-          }
+          onOpenItemAddDrawer={(restaurantId) => openMenuItemAddDrawer(restaurantId)}
           menuGroupCollapseSessionKey={menuGroupCollapseSessionKey}
           collapsibleMenuSectionKeys={collapsibleMenuSectionKeys}
           menuGroups={menuGroups}

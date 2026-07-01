@@ -233,45 +233,51 @@ export function MenuItemList({
             )}
           </MenuGroupCollapseSession>
 
-          {selectedRestaurantIdResolved &&
-            selectedRestaurantIdResolved !== FAVORITES_TAB_ID && (
-              <div className="px-4 py-3 space-y-2 border-t border-gray-800/60 mt-1">
+          {isNormalRestaurantTab && tabRestaurants.length > 0 && (
+            <>
+              <div className="px-4 pt-2.5">
                 <button
+                  type="button"
                   onClick={() =>
                     onOpenItemAddDrawer(selectedRestaurantIdResolved)
                   }
-                  className="w-full py-2 border border-dashed border-gray-700 rounded-lg text-gray-400 hover:text-white hover:border-gray-500 text-sm transition-colors"
+                  aria-label="メニューを追加"
+                  className="w-full py-2.5 px-3 border border-dashed border-gray-700 rounded-lg text-gray-400 hover:text-white hover:border-gray-500 text-sm font-medium transition-colors"
                 >
                   ＋ メニューを追加
                 </button>
+              </div>
 
-                {selectedRestaurant && (
+              {selectedRestaurant && (
+                <div className="px-4 py-2.5 mt-2.5 pt-2.5 space-y-2 border-t border-gray-800/60">
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={onDownloadRestaurantJson}
-                      className="flex-1 py-1.5 text-gray-500 hover:text-white text-xs transition-colors border border-gray-800 rounded-lg"
+                      className="flex-1 py-2 text-gray-500 hover:text-white text-xs transition-colors border border-gray-800 rounded-lg bg-gray-900/40"
                     >
                       JSONでエクスポート
                     </button>
                     <button
+                      type="button"
                       onClick={onOpenImportMenuItems}
-                      className="flex-1 py-1.5 text-gray-500 hover:text-white text-xs transition-colors border border-gray-800 rounded-lg"
+                      className="flex-1 py-2 text-gray-500 hover:text-white text-xs transition-colors border border-gray-800 rounded-lg bg-gray-900/40"
                     >
                       JSONでメニューを追加
                     </button>
                   </div>
-                )}
 
-                {selectedRestaurant &&
-                  (confirmDeleteRestaurant ? (
+                  {confirmDeleteRestaurant ? (
                     <div className="flex gap-2">
                       <button
+                        type="button"
                         onClick={() => onSetConfirmDeleteRestaurant(false)}
                         className="flex-1 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm"
                       >
                         キャンセル
                       </button>
                       <button
+                        type="button"
                         onClick={onDeleteRestaurant}
                         disabled={deletingRestaurant}
                         className="flex-1 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg text-sm font-medium"
@@ -281,14 +287,17 @@ export function MenuItemList({
                     </div>
                   ) : (
                     <button
+                      type="button"
                       onClick={() => onSetConfirmDeleteRestaurant(true)}
                       className="w-full py-1.5 text-red-400 hover:text-red-300 text-xs transition-colors"
                     >
                       このお店を削除
                     </button>
-                  ))}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </>
+          )}
 
           {browseQueryTrimmed &&
             displayMenuGroups.every((g) => g.items.length === 0) &&
@@ -320,12 +329,12 @@ export function MenuItemList({
             )}
           {!browseQueryTrimmed &&
             menuGroups.every((g) => g.items.length === 0) &&
-            selectedRestaurantIdResolved &&
-            selectedRestaurantIdResolved !== FAVORITES_TAB_ID &&
+            isNormalRestaurantTab &&
+            tabRestaurants.length > 0 &&
             !isSelectedRestaurantMenuLoading &&
             !selectedRestaurantMenuError && (
               <p className="text-center text-gray-500 text-base sm:text-sm py-8">
-                メニューがまだありません
+                この店舗にメニューがありません
               </p>
             )}
         </>

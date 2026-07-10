@@ -1,5 +1,6 @@
 -- Claude 連携用に発行した独立 Supabase Auth セッションの追跡（refresh_token 自体は保存しない）
-CREATE TABLE public.claude_integration_sessions (
+-- 本番には SQL Editor で先行適用済みのため、IF NOT EXISTS で冪等にしている。
+CREATE TABLE IF NOT EXISTS public.claude_integration_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
   auth_session_id uuid NOT NULL,
@@ -9,7 +10,7 @@ CREATE TABLE public.claude_integration_sessions (
   CONSTRAINT claude_integration_sessions_auth_session_id_key UNIQUE (auth_session_id)
 );
 
-CREATE INDEX claude_integration_sessions_user_id_created_at_idx
+CREATE INDEX IF NOT EXISTS claude_integration_sessions_user_id_created_at_idx
   ON public.claude_integration_sessions (user_id, created_at DESC);
 
 ALTER TABLE public.claude_integration_sessions ENABLE ROW LEVEL SECURITY;

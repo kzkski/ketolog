@@ -21,6 +21,7 @@ import {
   type RestaurantExportRow,
 } from "../lib/export-full-user-data-mobile";
 import { LegalDocumentLinks } from "./LegalDocumentLinks";
+import { ClaudeIntegrationSection } from "./ClaudeIntegrationSection";
 import { isSnapshotRestaurant } from "../lib/snapshot-restaurant";
 import { shareUtf8JsonFile } from "../lib/share-json-mobile";
 
@@ -423,6 +424,8 @@ export function TodaySettingsModal({
             >
               <Text style={styles.insightsOpenBtnText}>分析画面を開く</Text>
             </Pressable>
+
+            <ClaudeIntegrationSection />
 
             <Text style={[styles.sectionTitle, { marginTop: 22 }]}>データソース</Text>
             <Text style={styles.sectionHint}>

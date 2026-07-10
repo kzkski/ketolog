@@ -50,6 +50,7 @@ import { computeHeaderHintText, getActiveHintSlot } from "@/lib/header-hint";
 import { useAppUpdateBanner } from "@/hooks/useAppUpdateBanner";
 import { MEAL_LABELS } from "@/lib/constants/meal";
 import { PfcHeader } from "./_components/PfcHeader";
+import { ClaudeIntegrationSection } from "./_components/ClaudeIntegrationSection";
 import { CartPanel, type CartEntry } from "./_components/CartPanel";
 import { MenuItemList } from "./_components/MenuItemList";
 import { RestaurantPanel } from "./_components/RestaurantPanel";
@@ -1035,6 +1036,8 @@ function SettingsDrawer({
               {openingInsights ? "開いています..." : "分析画面を開く"}
             </Link>
           </div>
+
+          <ClaudeIntegrationSection enabled />
 
           <div>
             <h3 className="text-sm font-medium text-white mb-1">データソース</h3>

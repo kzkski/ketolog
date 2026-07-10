@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+
+import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 
 type HealthResponse = {
   ok: boolean;
@@ -153,21 +154,15 @@ function pickHttpDiagnostic(error: unknown): {
 }
 
 function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
+  try {
+    return getSupabaseServiceRoleClient();
+  } catch (error) {
     throw new Error(
-      "Health check is missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY."
+      error instanceof Error
+        ? error.message
+        : "Health check is missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY."
     );
   }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
 }
 
 export async function GET() {

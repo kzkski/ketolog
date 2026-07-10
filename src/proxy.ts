@@ -17,6 +17,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Claude 連携 API（Route Handler 内で Cookie / Bearer 認証）
+  if (pathname.startsWith("/api/claude-integration/")) {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildCrossRestaurantMenuGroups } from "@ketolog/domain/menu-browse";
 import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
 import { buildRestaurantExportDocument } from "@ketolog/domain/restaurant-json-v1";
 import {
@@ -36,11 +37,16 @@ import {
 } from "../lib/fetch-favorite-groups-payload";
 import { isSnapshotRestaurant } from "../lib/snapshot-restaurant";
 import {
+  MENU_GROUP_CROSS_SEARCH_SCOPE,
   MENU_GROUP_FAVORITES_SCOPE,
   collapsedMenuGroupsFromExpandedKeys,
   readMenuGroupExpandedKeysNative,
   writeMenuGroupExpandedKeysNative,
 } from "../lib/menu-group-expanded-storage-native";
+import {
+  readFavoritesCrossSearchEnabledNative,
+  writeFavoritesCrossSearchEnabledNative,
+} from "../lib/menu-cross-search-storage-native";
 import {
   menuRowMacroHighlights,
   type MacroHighlightTargets,
@@ -62,6 +68,7 @@ type MenuGroup = {
   groupName: string | null;
   groupOrder: number;
   items: FavoriteMenuItemPayload[];
+  originByItemId?: Record<string, string>;
 };
 
 function normalizeMenuGroupKey(raw: string | null | undefined): string | null {
@@ -210,6 +217,7 @@ function MenuLineRow({
   onAdd,
   onEdit,
   macroTargets,
+  originCaption,
 }: {
   item: MenuItemRow;
   starred: boolean;
@@ -217,6 +225,7 @@ function MenuLineRow({
   onAdd: (grams: number) => void;
   onEdit?: () => void;
   macroTargets: MacroHighlightTargets;
+  originCaption?: string | null;
 }) {
   const defaultG = item.default_grams && item.default_grams > 0 ? Number(item.default_grams) : 100;
   const [grams, setGrams] = useState(defaultG);
@@ -284,6 +293,11 @@ function MenuLineRow({
           <Text style={styles.rowTitle} numberOfLines={2}>
             {item.name}
           </Text>
+          {originCaption ? (
+            <Text style={styles.rowOrigin} numberOfLines={1}>
+              {originCaption}
+            </Text>
+          ) : null}
           <Text style={styles.rowPfc}>
             {item.protein_per_100g != null ? (
               <>
@@ -303,6 +317,11 @@ function MenuLineRow({
           <Text style={styles.rowTitle} numberOfLines={2}>
             {item.name}
           </Text>
+          {originCaption ? (
+            <Text style={styles.rowOrigin} numberOfLines={1}>
+              {originCaption}
+            </Text>
+          ) : null}
           <Text style={styles.rowPfc}>
             {item.protein_per_100g != null ? (
               <>
@@ -372,9 +391,14 @@ export function TodayMenuPanel({
   const [restaurants, setRestaurants] = useState<RestaurantRow[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItemRow[]>([]);
+  const [allMenuItems, setAllMenuItems] = useState<MenuItemRow[]>([]);
+  const [allMenusLoading, setAllMenusLoading] = useState(false);
+  const [allMenusError, setAllMenusError] = useState<string | null>(null);
+  const allMenusLoadGenRef = useRef(0);
   const [favoriteGroups, setFavoriteGroups] = useState<FavoriteGroupPayload[]>([]);
   const [favoritedMenuItemIds, setFavoritedMenuItemIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
+  const [crossSearchEnabled, setCrossSearchEnabled] = useState(false);
   /** 成分表タブ用（店舗メニュー検索の `query` と分離） */
   const [compositionQuery, setCompositionQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -569,6 +593,42 @@ export function TodayMenuPanel({
     setMenuItems(sortMenusForListOrder((data ?? []) as MenuItemRow[]));
   }, [selectedRestaurantId, supabase, userId]);
 
+  const loadAllMenus = useCallback(async () => {
+    const ids = restaurants.map((r) => r.id);
+    if (ids.length === 0) {
+      setAllMenuItems([]);
+      setAllMenusLoading(false);
+      setAllMenusError(null);
+      return;
+    }
+
+    const gen = allMenusLoadGenRef.current + 1;
+    allMenusLoadGenRef.current = gen;
+    setAllMenusLoading(true);
+    setAllMenusError(null);
+
+    const { data, error: err } = await supabase
+      .from("menu_items")
+      .select(
+        "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, order_count, rank, notes, group_name, group_order, shared_barcode, standard_food_code, created_at"
+      )
+      .eq("user_id", userId)
+      .in("restaurant_id", ids);
+
+    if (allMenusLoadGenRef.current !== gen) return;
+
+    setAllMenusLoading(false);
+    if (err) {
+      setAllMenusError(err.message);
+      return;
+    }
+    setAllMenuItems(sortMenusForListOrder((data ?? []) as MenuItemRow[]));
+  }, [restaurants, supabase, userId]);
+
+  useEffect(() => {
+    void readFavoritesCrossSearchEnabledNative().then(setCrossSearchEnabled);
+  }, []);
+
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -595,6 +655,15 @@ export function TodayMenuPanel({
     onSelectRestaurantIdAfterAddConsumed?.();
   }, [restaurants, selectRestaurantIdAfterAdd, onSelectRestaurantIdAfterAddConsumed]);
 
+  const queryTrimmed = query.trim();
+  const isCrossActive =
+    tab === "favorites" && crossSearchEnabled && queryTrimmed.length > 0;
+
+  useEffect(() => {
+    if (!isCrossActive) return;
+    void loadAllMenus();
+  }, [isCrossActive, loadAllMenus, reloadNonce]);
+
   const visibleMenus = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return menuItems;
@@ -603,11 +672,23 @@ export function TodayMenuPanel({
 
   const menuGroups = useMemo((): MenuGroup[] => {
     if (tab === "composition") return [];
+    if (isCrossActive) {
+      return buildCrossRestaurantMenuGroups(
+        allMenuItems,
+        restaurants.map((r) => ({
+          id: r.id,
+          name: r.name,
+          display_order: r.display_order,
+          order_count: r.order_count,
+        })),
+        query
+      );
+    }
     if (tab === "favorites") {
       return buildFavoriteMenuGroups(favoriteGroups, query);
     }
     return buildShopMenuGroups(visibleMenus);
-  }, [tab, favoriteGroups, query, visibleMenus]);
+  }, [tab, isCrossActive, allMenuItems, restaurants, favoriteGroups, query, visibleMenus]);
 
   useEffect(() => {
     if (!browseTabRequest) return;
@@ -629,10 +710,11 @@ export function TodayMenuPanel({
 
   const storageScope = useMemo((): string | null => {
     if (tab === "composition") return null;
+    if (tab === "favorites" && isCrossActive) return MENU_GROUP_CROSS_SEARCH_SCOPE;
     if (tab === "favorites") return MENU_GROUP_FAVORITES_SCOPE;
     if (!selectedRestaurantId) return null;
     return selectedRestaurantId;
-  }, [tab, selectedRestaurantId]);
+  }, [tab, isCrossActive, selectedRestaurantId]);
 
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<string[] | null>(null);
 
@@ -889,15 +971,54 @@ export function TodayMenuPanel({
             <MenuBrowseSearchField
               value={query}
               onChangeText={setQuery}
-              placeholder={tab === "favorites" ? "お気に入りを検索" : "メニューを検索"}
-              accessibilityLabel={tab === "favorites" ? "お気に入りを検索" : "メニューを検索"}
+              placeholder={
+                tab === "favorites"
+                  ? crossSearchEnabled
+                    ? "全店舗のメニューを検索"
+                    : "お気に入りを検索"
+                  : "メニューを検索"
+              }
+              accessibilityLabel={
+                tab === "favorites"
+                  ? crossSearchEnabled
+                    ? "全店舗のメニューを検索"
+                    : "お気に入りを検索"
+                  : "メニューを検索"
+              }
+              crossSearchEnabled={tab === "favorites" ? crossSearchEnabled : undefined}
+              onCrossSearchChange={
+                tab === "favorites"
+                  ? (next) => {
+                      setCrossSearchEnabled(next);
+                      void writeFavoritesCrossSearchEnabledNative(next);
+                    }
+                  : undefined
+              }
             />
+            {isCrossActive && allMenusError ? (
+              <View style={styles.crossSearchError}>
+                <Text style={styles.error}>{allMenusError}</Text>
+                <Pressable
+                  onPress={() => {
+                    void loadAllMenus();
+                  }}
+                  style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={styles.retryBtnText}>再試行</Text>
+                </Pressable>
+              </View>
+            ) : null}
             {loading ? (
               <View style={styles.center}>
                 <ActivityIndicator color="#10b981" />
               </View>
             ) : error ? (
               <Text style={styles.error}>{error}</Text>
+            ) : isCrossActive && allMenusLoading && menuGroups.every((g) => g.items.length === 0) ? (
+              <View style={styles.center}>
+                <ActivityIndicator color="#10b981" />
+                <Text style={styles.loadingHint}>全店舗を検索中...</Text>
+              </View>
             ) : (
               <>
                 {menuGroups.map((group) => {
@@ -953,12 +1074,20 @@ export function TodayMenuPanel({
                         onAdd={(g) => onAddToCart(item, g)}
                         onEdit={onEditMenuItem ? () => onEditMenuItem(item) : undefined}
                         macroTargets={macroTargets}
+                        originCaption={group.originByItemId?.[item.id] ?? null}
                       />
                     ))
                   : null}
               </View>
             );
                 })}
+                {queryTrimmed &&
+                menuGroups.every((g) => g.items.length === 0) &&
+                tab === "favorites" &&
+                !allMenusLoading &&
+                !allMenusError && (
+                  <Text style={styles.emptyHint}>検索に一致するメニューがありません</Text>
+                )}
                 {tab === "shops" &&
                 selectedRestaurantId &&
                 onOpenMenuEditorAdd &&
@@ -1251,6 +1380,31 @@ const styles = StyleSheet.create({
     color: "#f9fafb",
   },
   center: { alignItems: "center", paddingVertical: 20 },
+  loadingHint: { color: "#6b7280", fontSize: 13, marginTop: 8 },
+  emptyHint: {
+    color: "#6b7280",
+    fontSize: 14,
+    textAlign: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+  },
+  crossSearchError: {
+    marginTop: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)",
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
+    gap: 8,
+  },
+  retryBtn: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "rgba(252, 211, 77, 0.5)",
+    borderRadius: 6,
+  },
+  retryBtnText: { color: "#fde68a", fontSize: 12 },
   error: { color: "#fecaca", fontSize: 12, paddingVertical: 8 },
   list: { gap: 7, paddingBottom: 24 },
   /** Web `MenuItemList` のグループ見出しに近い */
@@ -1299,6 +1453,7 @@ const styles = StyleSheet.create({
   rankText: { fontSize: 11, fontWeight: "700" },
   rowBody: { flex: 1, minWidth: 0, paddingRight: 2 },
   rowTitle: { color: "#f9fafb", fontWeight: "600", fontSize: 14 },
+  rowOrigin: { color: "#9ca3af", fontSize: 11, marginTop: 2 },
   rowPfc: { fontSize: 11, marginTop: 4, fontVariant: ["tabular-nums"] },
   pfcMuted: { color: "#6b7280" },
   pfcPHi: { color: "#60a5fa" },

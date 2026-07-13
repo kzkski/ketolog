@@ -8,6 +8,8 @@ const STORAGE_KEY = "ketolog.menuGroupExpanded.v1";
 
 /** Web `FAVORITES_TAB_ID` と同じ */
 export const MENU_GROUP_FAVORITES_SCOPE = "__ketolog_favorites__";
+/** お気に入り横断検索モードの折りたたみスコープ */
+export const MENU_GROUP_CROSS_SEARCH_SCOPE = "__ketolog_cross_search__";
 
 type StoredShape = {
   v: 1;

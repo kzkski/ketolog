@@ -1349,6 +1349,10 @@ export default function TodayClient({
     favoriteGroupsLoading,
     favoriteGroupsError,
     retryLoadFavoriteGroups,
+    allMenusLoading,
+    allMenusError,
+    ensureAllMenusLoaded,
+    retryLoadAllMenus,
   } = useRestaurantState({
     initialRestaurants,
     initialMenuItems,
@@ -1968,6 +1972,7 @@ export default function TodayClient({
           menuGroupCollapseSessionKey={menuGroupCollapseSessionKey}
           collapsibleMenuSectionKeys={collapsibleMenuSectionKeys}
           menuGroups={menuGroups}
+          menuItems={menuItems}
           cart={cart}
           proteinTargetG={activeProfile.protein_target_g}
           fatTargetG={activeProfile.fat_target_g}
@@ -1994,6 +1999,10 @@ export default function TodayClient({
           favoriteGroupsLoading={favoriteGroupsLoading}
           favoriteGroupsError={favoriteGroupsError}
           onRetryLoadFavoriteGroups={() => void retryLoadFavoriteGroups()}
+          allMenusLoading={allMenusLoading}
+          allMenusError={allMenusError}
+          onEnsureAllMenusLoaded={() => void ensureAllMenusLoaded()}
+          onRetryLoadAllMenus={() => void retryLoadAllMenus()}
         />
 
         {/* カート: sm+ は従来どおりインライン展開。未満は折りたたみバー＋展開時オーバーレイ（メニュー領域を確保） */}

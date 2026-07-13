@@ -16,7 +16,7 @@ import {
   fetchFavoriteGroupsPayload,
   removeMenuItemFromFavorites,
 } from "../actions/favorites";
-import { fetchMenuItemsForRestaurant } from "../actions/menu-item";
+import { fetchMenuItemsForRestaurant, fetchMenuItemsForUser } from "../actions/menu-item";
 import {
   deleteRestaurant,
   reorderRestaurants,
@@ -95,6 +95,9 @@ export function useRestaurantState({
   const favoriteToggleGenRef = useRef<Map<string, number>>(new Map());
   /** 同一 menu_item_id のサーバー更新を直列化（前段の失敗で後段を止めない）。 */
   const favoriteToggleChainRef = useRef<Map<string, Promise<void>>>(new Map());
+  const allMenusLoadGenRef = useRef(0);
+  const [allMenusLoading, setAllMenusLoading] = useState(false);
+  const [allMenusError, setAllMenusError] = useState<string | null>(null);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>(FAVORITES_TAB_ID);
   const [compositionTargetRestaurantId, setCompositionTargetRestaurantId] =
     useState("");
@@ -281,6 +284,48 @@ export function useRestaurantState({
     });
     setMenuLoadTick((n) => n + 1);
   }, []);
+
+  const ensureAllMenusLoaded = useCallback(async () => {
+    if (tabRestaurantIds.length === 0) return;
+    const allLoaded = tabRestaurantIds.every((id) =>
+      loadedRestaurantIdsRef.current.has(id)
+    );
+    if (allLoaded) {
+      setAllMenusLoading(false);
+      setAllMenusError(null);
+      return;
+    }
+
+    const gen = allMenusLoadGenRef.current + 1;
+    allMenusLoadGenRef.current = gen;
+    setAllMenusLoading(true);
+    setAllMenusError(null);
+
+    const result = await fetchMenuItemsForUser(tabRestaurantIds);
+
+    if (allMenusLoadGenRef.current !== gen) return;
+
+    setAllMenusLoading(false);
+    if (result.error) {
+      setAllMenusError(result.error);
+      return;
+    }
+
+    for (const id of tabRestaurantIds) {
+      loadedRestaurantIdsRef.current.add(id);
+    }
+    setMenuItems((prev) => {
+      const others = prev.filter((item) => !tabRestaurantIds.includes(item.restaurant_id));
+      return sortMenuItemsForListOrder([...others, ...(result.data ?? [])]);
+    });
+  }, [tabRestaurantIds]);
+
+  const retryLoadAllMenus = useCallback(async () => {
+    for (const id of tabRestaurantIds) {
+      loadedRestaurantIdsRef.current.delete(id);
+    }
+    await ensureAllMenusLoaded();
+  }, [ensureAllMenusLoaded, tabRestaurantIds]);
 
   const loadFavoriteGroups = useCallback(async ({ force }: { force: boolean }) => {
     if (favoriteGroupsLoadingRef.current) return;
@@ -659,5 +704,9 @@ export function useRestaurantState({
     registerManualRestaurant,
     registerImportedRestaurant,
     registerAdditionalMenuItems,
+    allMenusLoading,
+    allMenusError,
+    ensureAllMenusLoaded,
+    retryLoadAllMenus,
   };
 }

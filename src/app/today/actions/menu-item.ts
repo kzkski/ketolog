@@ -87,6 +87,46 @@ export async function fetchMenuItemsForRestaurant(
   };
 }
 
+export async function fetchMenuItemsForUser(
+  restaurantIds: string[]
+): Promise<{ data: MenuItem[]; error: string | null }> {
+  const { supabase, user } = await getSupabaseAuthForRequest();
+  if (!user) return { data: [], error: "認証が必要です" };
+  if (restaurantIds.length === 0) return { data: [], error: null };
+
+  const primary = await supabase
+    .from("menu_items")
+    .select(MENU_ITEM_SELECT_WITH_STANDARD_FOOD_CODE)
+    .eq("user_id", user.id)
+    .in("restaurant_id", restaurantIds)
+    .order("rank")
+    .order("name")
+    .order("created_at", { ascending: true })
+    .order("id");
+
+  if (!isMissingColumnError(primary.error)) {
+    return {
+      data: (primary.data ?? []) as MenuItem[],
+      error: primary.error?.message ?? null,
+    };
+  }
+
+  const fallback = await supabase
+    .from("menu_items")
+    .select(MENU_ITEM_SELECT_LEGACY)
+    .eq("user_id", user.id)
+    .in("restaurant_id", restaurantIds)
+    .order("rank")
+    .order("name")
+    .order("created_at", { ascending: true })
+    .order("id");
+
+  return {
+    data: (fallback.data ?? []) as MenuItem[],
+    error: fallback.error?.message ?? null,
+  };
+}
+
 async function upsertSharedProduct(
   supabase: Awaited<ReturnType<typeof createClient>>,
   product: SharedProduct

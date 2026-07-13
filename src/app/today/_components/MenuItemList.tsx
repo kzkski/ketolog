@@ -1,8 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { MenuItem, Restaurant } from "@/types/database";
-import { filterMenuGroupsByBrowseQuery } from "@/lib/menu-browse-filter";
+import {
+  buildCrossRestaurantMenuGroups,
+  filterMenuGroupsByBrowseQuery,
+} from "@/lib/menu-browse-filter";
+import { CROSS_SEARCH_SCOPE } from "@/lib/menu-group-expanded-storage";
+import {
+  readFavoritesCrossSearchEnabled,
+  writeFavoritesCrossSearchEnabled,
+} from "@/lib/menu-cross-search-storage";
 import type { StandardFoodSearchRow } from "../actions/menu-item";
 import { StandardFoodPanel } from "../StandardFoodPanel";
 import { MenuGroupCollapseSession } from "../MenuGroupCollapseSession";
@@ -23,6 +31,7 @@ export type MenuItemListProps = {
   menuGroupCollapseSessionKey: string;
   collapsibleMenuSectionKeys: string[];
   menuGroups: MenuGroup[];
+  menuItems: MenuItem[];
   cart: Map<string, CartEntry>;
   proteinTargetG: number;
   fatTargetG: number;
@@ -45,6 +54,10 @@ export type MenuItemListProps = {
   favoriteGroupsLoading: boolean;
   favoriteGroupsError: string | null;
   onRetryLoadFavoriteGroups: () => void;
+  allMenusLoading: boolean;
+  allMenusError: string | null;
+  onEnsureAllMenusLoaded: () => void | Promise<void>;
+  onRetryLoadAllMenus: () => void | Promise<void>;
 };
 
 export function MenuItemList({
@@ -58,6 +71,7 @@ export function MenuItemList({
   menuGroupCollapseSessionKey,
   collapsibleMenuSectionKeys: _collapsibleMenuSectionKeysFromParent,
   menuGroups,
+  menuItems,
   cart,
   proteinTargetG,
   fatTargetG,
@@ -80,6 +94,10 @@ export function MenuItemList({
   favoriteGroupsLoading,
   favoriteGroupsError,
   onRetryLoadFavoriteGroups,
+  allMenusLoading,
+  allMenusError,
+  onEnsureAllMenusLoaded,
+  onRetryLoadAllMenus,
 }: MenuItemListProps) {
   void _collapsibleMenuSectionKeysFromParent;
 
@@ -89,19 +107,63 @@ export function MenuItemList({
     selectedRestaurantIdResolved !== MEXT_COMPOSITION_TAB_ID;
 
   const [menuBrowseQuery, setMenuBrowseQuery] = useState("");
-
-  const displayMenuGroups = useMemo(
-    () => filterMenuGroupsByBrowseQuery(menuGroups, menuBrowseQuery),
-    [menuGroups, menuBrowseQuery]
+  const [crossSearchEnabled, setCrossSearchEnabled] = useState(
+    () => readFavoritesCrossSearchEnabled()
   );
+
+  const browseQueryTrimmed = menuBrowseQuery.trim();
+  const isCrossActive =
+    selectedRestaurantIdResolved === FAVORITES_TAB_ID &&
+    crossSearchEnabled &&
+    browseQueryTrimmed.length > 0;
+
+  useEffect(() => {
+    if (!isCrossActive) return;
+    void onEnsureAllMenusLoaded();
+  }, [isCrossActive, onEnsureAllMenusLoaded]);
+
+  const crossSearchRestaurants = useMemo(
+    () =>
+      tabRestaurants.map((r) => ({
+        id: r.id,
+        name: r.name,
+        display_order: r.display_order,
+        order_count: r.order_count,
+      })),
+    [tabRestaurants]
+  );
+
+  const crossSearchMenuItems = useMemo(
+    () => menuItems.filter((m) => crossSearchRestaurants.some((r) => r.id === m.restaurant_id)),
+    [menuItems, crossSearchRestaurants]
+  );
+
+  const displayMenuGroups = useMemo(() => {
+    if (isCrossActive) {
+      return buildCrossRestaurantMenuGroups(
+        crossSearchMenuItems,
+        crossSearchRestaurants,
+        menuBrowseQuery
+      );
+    }
+    return filterMenuGroupsByBrowseQuery(menuGroups, menuBrowseQuery);
+  }, [
+    isCrossActive,
+    crossSearchMenuItems,
+    crossSearchRestaurants,
+    menuBrowseQuery,
+    menuGroups,
+  ]);
 
   const collapsibleMenuSectionKeysForSession = useMemo(
     () => displayMenuGroups.filter((g) => g.groupName !== null).map((g) => g.sectionKey),
     [displayMenuGroups]
   );
 
-  const browseQueryTrimmed = menuBrowseQuery.trim();
   const hasAnyMenuRows = menuGroups.some((g) => g.items.length > 0);
+  const effectiveCollapseSessionKey = isCrossActive
+    ? `${CROSS_SEARCH_SCOPE}\0${collapsibleMenuSectionKeysForSession.join("\0")}`
+    : menuGroupCollapseSessionKey;
 
   return (
     <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
@@ -117,10 +179,12 @@ export function MenuItemList({
         <>
           {(selectedRestaurantIdResolved === FAVORITES_TAB_ID ||
             isNormalRestaurantTab) && (
-            <div className="px-3 sm:px-4 pt-3 pb-1 shrink-0">
+            <div className="px-3 sm:px-4 pt-3 pb-1 shrink-0 space-y-2">
               <label className="sr-only" htmlFor="today-menu-browse-query">
                 {selectedRestaurantIdResolved === FAVORITES_TAB_ID
-                  ? "お気に入りを検索"
+                  ? crossSearchEnabled
+                    ? "全店舗のメニューを検索"
+                    : "お気に入りを検索"
                   : "メニューを検索"}
               </label>
               <input
@@ -132,11 +196,40 @@ export function MenuItemList({
                 onChange={(e) => setMenuBrowseQuery(e.target.value)}
                 placeholder={
                   selectedRestaurantIdResolved === FAVORITES_TAB_ID
-                    ? "お気に入りを検索"
+                    ? crossSearchEnabled
+                      ? "全店舗のメニューを検索"
+                      : "お気に入りを検索"
                     : "メニューを検索"
                 }
                 className="w-full rounded-none border border-gray-700 bg-gray-950/80 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:border-emerald-600/70 focus:outline-none focus:ring-1 focus:ring-emerald-600/40"
               />
+              {selectedRestaurantIdResolved === FAVORITES_TAB_ID ? (
+                <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={crossSearchEnabled}
+                    onChange={(e) => {
+                      const next = e.target.checked;
+                      setCrossSearchEnabled(next);
+                      writeFavoritesCrossSearchEnabled(next);
+                    }}
+                    className="rounded border-gray-600 bg-gray-900 text-emerald-600 focus:ring-emerald-600/40"
+                  />
+                  全店舗を横断して検索
+                </label>
+              ) : null}
+            </div>
+          )}
+          {isCrossActive && allMenusError && (
+            <div className="mx-4 mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+              <p className="text-xs text-amber-200">{allMenusError}</p>
+              <button
+                type="button"
+                onClick={() => void onRetryLoadAllMenus()}
+                className="mt-2 rounded-md border border-amber-300/50 px-2.5 py-1 text-xs text-amber-100 hover:bg-amber-500/20"
+              >
+                再試行
+              </button>
             </div>
           )}
           {isNormalRestaurantTab && selectedRestaurantMenuError && (
@@ -156,9 +249,15 @@ export function MenuItemList({
               メニューを読み込み中...
             </p>
           )}
+          {isCrossActive && allMenusLoading && displayMenuGroups.every((g) => g.items.length === 0) && (
+            <p className="text-center text-gray-500 text-base sm:text-sm py-8">
+              全店舗を検索中...
+            </p>
+          )}
           <MenuGroupCollapseSession
-            key={menuGroupCollapseSessionKey}
+            key={effectiveCollapseSessionKey}
             selectedRestaurantIdResolved={selectedRestaurantIdResolved}
+            storageScopeOverride={isCrossActive ? CROSS_SEARCH_SCOPE : undefined}
             collapsibleMenuSectionKeys={collapsibleMenuSectionKeysForSession}
           >
             {({ collapsedGroups, toggleMenuGroupCollapsed }) => (
@@ -303,12 +402,15 @@ export function MenuItemList({
             displayMenuGroups.every((g) => g.items.length === 0) &&
             selectedRestaurantIdResolved === FAVORITES_TAB_ID &&
             !favoriteGroupsLoading &&
-            !favoriteGroupsError && (
+            !favoriteGroupsError &&
+            !allMenusLoading &&
+            !allMenusError && (
               <p className="text-center text-gray-500 text-base sm:text-sm py-8 px-4">
                 検索に一致するメニューがありません
               </p>
             )}
           {!browseQueryTrimmed &&
+            !isCrossActive &&
             menuGroups.every((g) => g.items.length === 0) &&
             selectedRestaurantIdResolved === FAVORITES_TAB_ID && (
               <FavoritesPanel

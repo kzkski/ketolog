@@ -9,6 +9,8 @@ export const MENU_GROUP_EXPANDED_STORAGE_EVENT = "ketolog:menu-group-expanded-st
 
 /** @see FAVORITES_TAB_ID in TodayClient */
 const FAVORITES_TAB_ID = "__ketolog_favorites__";
+/** お気に入り横断検索モードの折りたたみスコープ */
+export const CROSS_SEARCH_SCOPE = "__ketolog_cross_search__";
 /** @see MEXT_COMPOSITION_TAB_ID in TodayClient */
 const MEXT_COMPOSITION_TAB_ID = "__ketolog_mext_std__";
 

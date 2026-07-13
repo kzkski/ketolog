@@ -17,6 +17,7 @@
     "./restaurant-json-v1": "./src/restaurant-json-v1.ts",
     "./restaurant-import": "./src/restaurant-import.ts",
     "./insights": "./src/insights.ts",
+    "./menu-browse": "./src/menu-browse.ts",
     "./nutrient-input": "./src/nutrient-input.ts",
     "./claude-integration": "./src/claude-integration.ts"
   }

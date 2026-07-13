@@ -14,6 +14,8 @@ import {
 
 type Props = {
   selectedRestaurantIdResolved: string;
+  /** 横断検索など、タブ ID 以外のスコープを使うとき */
+  storageScopeOverride?: string | null;
   collapsibleMenuSectionKeys: string[];
   children: (p: {
     collapsedGroups: Set<string>;
@@ -27,10 +29,14 @@ type Props = {
  */
 export function MenuGroupCollapseSession({
   selectedRestaurantIdResolved,
+  storageScopeOverride,
   collapsibleMenuSectionKeys,
   children,
 }: Props) {
-  const scope = menuGroupCollapseStorageScope(selectedRestaurantIdResolved);
+  const scope =
+    storageScopeOverride !== undefined
+      ? storageScopeOverride
+      : menuGroupCollapseStorageScope(selectedRestaurantIdResolved);
 
   const collapsedSnapshot = useSyncExternalStore(
     subscribeMenuGroupExpandedStorage,

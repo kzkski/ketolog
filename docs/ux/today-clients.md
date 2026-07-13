@@ -7,6 +7,7 @@
 | 食事区分の選び方 | 画面上部の朝食・昼食・夕食・間食タブ | 同様のタブ | 記録時の `meal_type` が一致 |
 | メニュー候補の出し方 | 店舗タブ / お気に入り / 文科省成分表（仮想タブ） | `TodayMenuPanel` のお気に入り・店舗タブ・成分表タブ | 店舗の並び・`display_order` 保存の扱いは各クライアント実装に寄せている |
 | **メニュー名での絞り込み** | お気に入り・店舗メニュー一覧の検索欄（名前の部分一致） | 同様（`TodayMenuPanel` の `query`） | Web 側は [#302](https://github.com/kzkski/ketolog/issues/302) でモバイルと同等の検索を追加 |
+| **お気に入り横断検索** | お気に入りタブの検索欄に「全店舗を横断して検索」トグル。ON + クエリ時は全店舗メニューを店舗名グループで表示 | 同様（`TodayMenuPanel` / `MenuBrowseSearchField`） | [#339](https://github.com/kzkski/ketolog/issues/339)。店舗タブの検索は従来どおりその店のみ |
 | カートへの追加 | メニュー行の「＋」、量（g）の編集 | 同様 | カートはクライアント内 state |
 | カートの保存・記録 | 楽観 UI + サーバー保存（`saveMealToLog`） | オンラインは DB 反映待ち、オフラインは outbox | [#304](https://github.com/kzkski/ketolog/issues/304) |
 | グループ見出しの折りたたみ | `MenuGroupCollapseSession`（localStorage） | AsyncStorage 相当（ネイティブ用ストレージ） | スコープはお気に入り / 店舗 ID 単位 |

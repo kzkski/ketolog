@@ -15,7 +15,12 @@ import brandHeaderImage from "../assets/brand-header.png";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
-import { pfcGramsFromNullablePer100, sumPfc, type PfcGrams } from "@ketolog/domain/pfc";
+import {
+  pfcGramsFromNullablePer100,
+  pfcTotalKcal,
+  sumPfc,
+  type PfcGrams,
+} from "@ketolog/domain/pfc";
 import { getMealTypeForTimeZone } from "@ketolog/domain/meal-timezone";
 import type { MealType } from "@ketolog/types";
 import {
@@ -289,6 +294,7 @@ export function TodayScreen() {
 
   /** バー表示は「本日の記録」＋「カート内」を合算（カート投入で即反映） */
   const pfcBarCurrent = useMemo(() => sumPfc(consumed, cartPfcTotal), [consumed, cartPfcTotal]);
+  const totalKcal = Math.round(pfcTotalKcal(pfcBarCurrent));
 
   const mergeCartLine = useCallback(
     (line: CartLineState) => {
@@ -842,30 +848,39 @@ export function TodayScreen() {
 
           <View
             style={styles.pfcBlock}
+            accessible
             accessibilityLabel={
               cartLinesSorted.length > 0
-                ? "PFC（記録済みとカート内の合計）"
-                : "PFC（記録済み）"
+                ? `PFC（記録済みとカート内の合計）。合計摂取 ${totalKcal} kcal`
+                : `PFC（記録済み）。合計摂取 ${totalKcal} kcal`
             }
           >
-            <PfcBarRow
-              label="P"
-              current={pfcBarCurrent.p}
-              target={activeProfile.protein_target_g}
-              color={COLORS.p}
-            />
-            <PfcBarRow
-              label="F"
-              current={pfcBarCurrent.f}
-              target={activeProfile.fat_target_g}
-              color={COLORS.f}
-            />
-            <PfcBarRow
-              label="C"
-              current={pfcBarCurrent.c}
-              target={activeProfile.carbs_target_g}
-              color={COLORS.c}
-            />
+            <View style={styles.pfcRows}>
+              <PfcBarRow
+                label="P"
+                current={pfcBarCurrent.p}
+                target={activeProfile.protein_target_g}
+                color={COLORS.p}
+              />
+              <PfcBarRow
+                label="F"
+                current={pfcBarCurrent.f}
+                target={activeProfile.fat_target_g}
+                color={COLORS.f}
+              />
+              <PfcBarRow
+                label="C"
+                current={pfcBarCurrent.c}
+                target={activeProfile.carbs_target_g}
+                color={COLORS.c}
+              />
+            </View>
+            <View style={styles.kcalBox} accessible={false}>
+              <Text style={styles.kcalValue} numberOfLines={1}>
+                {totalKcal}
+              </Text>
+              <Text style={styles.kcalUnit}>kcal</Text>
+            </View>
           </View>
 
           <View style={[styles.logOuter, !showLogEntries && styles.logOuterCollapsed]}>
@@ -1298,11 +1313,18 @@ const styles = StyleSheet.create({
   phaseBtnTextOn: { color: COLORS.phaseOnText, fontSize: 11, fontWeight: "600" },
   phaseBtnTextOff: { color: COLORS.phaseOffText, fontSize: 11, fontWeight: "500" },
   pfcBlock: {
+    flexDirection: "row",
+    alignItems: "stretch",
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: COLORS.sectionBg,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.headerBorder,
+    gap: 10,
+  },
+  pfcRows: {
+    flex: 1,
+    minWidth: 0,
     gap: 6,
   },
   pfcRow: {
@@ -1329,6 +1351,27 @@ const styles = StyleSheet.create({
     textAlign: "right",
     color: COLORS.text,
     fontVariant: ["tabular-nums"],
+  },
+  kcalBox: {
+    minWidth: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#374151",
+    backgroundColor: "rgba(31,41,55,0.6)",
+  },
+  kcalValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#ffffff",
+    fontVariant: ["tabular-nums"],
+  },
+  kcalUnit: {
+    fontSize: 10,
+    color: COLORS.textMuted,
   },
   logOuter: {
     marginTop: 8,

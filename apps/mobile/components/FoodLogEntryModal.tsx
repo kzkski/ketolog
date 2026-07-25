@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
+import { formatGramsShort } from "@ketolog/domain/cart-serving";
 import type { MealType } from "@ketolog/types";
 
 import type { MenuPrefill } from "../lib/menu-prefill";
@@ -23,6 +24,7 @@ import {
   type FoodLogOutboxDraft,
 } from "../lib/food-log-outbox";
 import { getIsOnline, isTransientNetworkError } from "../lib/network";
+import { HalfGramsButton } from "./HalfGramsButton";
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 
@@ -302,6 +304,12 @@ export function FoodLogEntryModal({
     void runSaveEdit();
   }, [runSaveEdit]);
 
+  const gramsDraftNum = Number.parseFloat(gramsStr.replace(/,/g, ""));
+  const gramsForHalve =
+    Number.isFinite(gramsDraftNum) && gramsDraftNum > 0
+      ? gramsDraftNum
+      : entry?.grams ?? 100;
+
   return (
     <Modal
       visible={visible}
@@ -399,6 +407,12 @@ export function FoodLogEntryModal({
                     </Pressable>
                   ))}
                 </ScrollView>
+                <HalfGramsButton
+                  value={gramsForHalve}
+                  disabled={busy}
+                  size="compact"
+                  onHalve={(next) => setGramsStr(formatGramsShort(next))}
+                />
                 <TextInput
                   value={gramsStr}
                   onChangeText={setGramsStr}

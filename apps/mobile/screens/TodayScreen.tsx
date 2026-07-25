@@ -21,6 +21,10 @@ import {
   sumPfc,
   type PfcGrams,
 } from "@ketolog/domain/pfc";
+import {
+  incrementCount,
+  totalGramsForLine,
+} from "@ketolog/domain/cart-serving";
 import { getMealTypeForTimeZone } from "@ketolog/domain/meal-timezone";
 import type { MealType } from "@ketolog/types";
 import {
@@ -286,7 +290,7 @@ export function TodayScreen() {
           line.protein_per_100g,
           line.fat_per_100g,
           line.carbs_per_100g,
-          line.gramsPerServing * line.count
+          totalGramsForLine(line)
         )
       )
     );
@@ -302,7 +306,7 @@ export function TodayScreen() {
         const next = new Map(prev);
         const cur = next.get(line.menuItemId);
         if (cur) {
-          next.set(line.menuItemId, { ...cur, count: cur.count + 1 });
+          next.set(line.menuItemId, { ...cur, count: incrementCount(cur.count) });
         } else {
           next.set(line.menuItemId, line);
         }
@@ -412,6 +416,24 @@ export function TodayScreen() {
     });
   }, []);
 
+  const setCartLineCount = useCallback((menuItemId: string, count: number) => {
+    if (!Number.isFinite(count) || count <= 0) {
+      setCart((prev) => {
+        const next = new Map(prev);
+        next.delete(menuItemId);
+        return next;
+      });
+      return;
+    }
+    setCart((prev) => {
+      const next = new Map(prev);
+      const cur = next.get(menuItemId);
+      if (!cur) return prev;
+      next.set(menuItemId, { ...cur, count });
+      return next;
+    });
+  }, []);
+
   const clearCartForRestaurant = useCallback((restaurantId: string) => {
     setCart((prev) => {
       const next = new Map(prev);
@@ -428,7 +450,7 @@ export function TodayScreen() {
     setCartSaving(true);
     const lines = [...cart.values()];
     const mkRow = (line: CartLineState) => {
-      const totalGrams = line.gramsPerServing * line.count;
+      const totalGrams = totalGramsForLine(line);
       const v = pfcGramsFromNullablePer100(
         line.protein_per_100g,
         line.fat_per_100g,
@@ -452,7 +474,7 @@ export function TodayScreen() {
     const enqueueAll = async () => {
       const now = new Date().toISOString();
       for (const line of lines) {
-        const totalGrams = line.gramsPerServing * line.count;
+        const totalGrams = totalGramsForLine(line);
         const v = pfcGramsFromNullablePer100(
           line.protein_per_100g,
           line.fat_per_100g,
@@ -508,7 +530,7 @@ export function TodayScreen() {
     setCartExpanded(false);
     await load();
     await refreshOutbox();
-    const totalItems = lines.reduce((s, l) => s + l.count, 0);
+    const totalItems = lines.length;
     showToast(`${totalItems} 品目を記録しました`);
     setCartSaving(false);
   }, [
@@ -1089,6 +1111,7 @@ export function TodayScreen() {
           onClearAll={clearCartAll}
           onRemoveLine={removeCartLine}
           onUpdateGramsPerServing={updateCartGramsPerServing}
+          onChangeCount={setCartLineCount}
         />
         </View>
       </View>

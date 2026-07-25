@@ -26,6 +26,13 @@ import {
 } from "@/lib/diet-phase";
 import { sumPfc } from "@ketolog/domain/pfc";
 import {
+  decrementCount,
+  formatGramsShort,
+  incrementCount,
+  isRemovableCount,
+  totalGramsForLine,
+} from "@ketolog/domain/cart-serving";
+import {
   buildRestaurantExportDocument,
   buildRestaurantTemplateDocument,
   parseSingleRestaurantJson,
@@ -52,6 +59,7 @@ import { MEAL_LABELS } from "@/lib/constants/meal";
 import { PfcHeader } from "./_components/PfcHeader";
 import { ClaudeIntegrationSection } from "./_components/ClaudeIntegrationSection";
 import { CartPanel, type CartEntry } from "./_components/CartPanel";
+import { HalfGramsButton } from "./_components/HalfGramsButton";
 import { MenuItemList } from "./_components/MenuItemList";
 import { RestaurantPanel } from "./_components/RestaurantPanel";
 import type { ItemDrawerState, MenuItemDrawerProps } from "./_components/ItemDrawer";
@@ -584,8 +592,15 @@ function EditEntryDrawer({
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">グラム数</label>
-            <input type="number" value={grams} onChange={(e) => setGrams(e.target.value)}
-              className="w-28 px-3 py-3 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
+            <div className="flex items-center gap-2">
+              <input type="number" min={0.1} step={0.1} value={grams} onChange={(e) => setGrams(e.target.value)}
+                className="w-28 px-3 py-3 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
+              <HalfGramsButton
+                value={Number.isFinite(gramsNum) && gramsNum > 0 ? gramsNum : entry.grams}
+                size="full"
+                onHalve={(next) => setGrams(formatGramsShort(next))}
+              />
+            </div>
             {preview && (
               <p className="text-xs text-gray-500 mt-1.5 tabular-nums">
                 → P{fmt(preview.p)} / F{fmt(preview.f)} / C{fmt(preview.c)}g
@@ -1433,7 +1448,7 @@ export default function TodayClient({
   const cartPFC = useMemo(() => {
     let acc: PfcGrams = { p: 0, f: 0, c: 0 };
     for (const entry of cart.values()) {
-      const g = entry.gramsPerServing * entry.count;
+      const g = totalGramsForLine(entry);
       const part: PfcGrams =
         entry.kind === "menu"
           ? {
@@ -1561,7 +1576,7 @@ export default function TodayClient({
       const next = new Map(prev);
       const existing = next.get(item.id);
       if (existing?.kind === "menu") {
-        next.set(item.id, { ...existing, count: existing.count + 1 });
+        next.set(item.id, { ...existing, count: incrementCount(existing.count) });
       } else {
         next.set(item.id, { kind: "menu", item, count: 1, gramsPerServing: grams });
       }
@@ -1574,8 +1589,9 @@ export default function TodayClient({
       const next = new Map(prev);
       const existing = next.get(itemId);
       if (!existing || existing.kind !== "menu") return prev;
-      if (existing.count <= 1) next.delete(itemId);
-      else next.set(itemId, { ...existing, count: existing.count - 1 });
+      const nextCount = decrementCount(existing.count);
+      if (isRemovableCount(nextCount)) next.delete(itemId);
+      else next.set(itemId, { ...existing, count: nextCount });
       return next;
     });
   }
@@ -1605,6 +1621,20 @@ export default function TodayClient({
       } else if (existing.kind === "snapshot") {
         next.set(lineKey, { ...existing, gramsPerServing: grams });
       }
+      return next;
+    });
+  }
+
+  function setCartLineCount(lineKey: string, count: number) {
+    if (!Number.isFinite(count) || count <= 0) {
+      removeCartLine(lineKey);
+      return;
+    }
+    setCart((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(lineKey);
+      if (!existing) return prev;
+      next.set(lineKey, { ...existing, count });
       return next;
     });
   }
@@ -1650,7 +1680,7 @@ export default function TodayClient({
     }
     setSaving(true);
     const items: SaveItem[] = cartEntries.map((entry) => {
-      const totalGrams = entry.gramsPerServing * entry.count;
+      const totalGrams = totalGramsForLine(entry);
       if (entry.kind === "menu") {
         const v = pfcGramsFromMenuItem(entry.item, totalGrams);
         return {
@@ -2018,6 +2048,7 @@ export default function TodayClient({
           onClearAll={clearCartAll}
           onRemoveCartLine={removeCartLine}
           onUpdateGramsPerServing={updateCartGramsPerServing}
+          onChangeCount={setCartLineCount}
         />
       </div>
 

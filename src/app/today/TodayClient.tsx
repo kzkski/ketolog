@@ -591,18 +591,25 @@ function EditEntryDrawer({
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">グラム数</label>
-            <div className="flex items-center gap-2">
-              <input type="number" min={0.1} step={0.1} value={grams} onChange={(e) => setGrams(e.target.value)}
-                className="w-28 px-3 py-3 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
+            <label className="block text-xs text-gray-400 mb-1 text-right">グラム数</label>
+            <div className="flex items-center justify-end gap-2">
               <HalfGramsButton
                 value={Number.isFinite(gramsNum) && gramsNum > 0 ? gramsNum : entry.grams}
                 size="full"
                 onHalve={(next) => setGrams(formatGramsShort(next))}
               />
+              <input
+                type="number"
+                min={0.1}
+                step={0.1}
+                value={grams}
+                onChange={(e) => setGrams(e.target.value)}
+                className="w-28 px-3 py-3 sm:py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-base sm:text-sm text-right tabular-nums focus:outline-none focus:border-emerald-500"
+                aria-label="グラム数"
+              />
             </div>
             {preview && (
-              <p className="text-xs text-gray-500 mt-1.5 tabular-nums">
+              <p className="text-xs text-gray-500 mt-1.5 tabular-nums text-right">
                 → P{fmt(preview.p)} / F{fmt(preview.f)} / C{fmt(preview.c)}g
               </p>
             )}

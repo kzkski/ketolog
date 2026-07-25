@@ -407,21 +407,23 @@ export function FoodLogEntryModal({
                     </Pressable>
                   ))}
                 </ScrollView>
-                <HalfGramsButton
-                  value={gramsForHalve}
-                  disabled={busy}
-                  size="compact"
-                  onHalve={(next) => setGramsStr(formatGramsShort(next))}
-                />
-                <TextInput
-                  value={gramsStr}
-                  onChangeText={setGramsStr}
-                  placeholder="200"
-                  placeholderTextColor={COLORS.textMuted}
-                  keyboardType="decimal-pad"
-                  style={styles.gramsInputCompact}
-                  editable={!busy}
-                />
+                <View style={styles.gramsEditCluster}>
+                  <HalfGramsButton
+                    value={gramsForHalve}
+                    disabled={busy}
+                    size="compact"
+                    onHalve={(next) => setGramsStr(formatGramsShort(next))}
+                  />
+                  <TextInput
+                    value={gramsStr}
+                    onChangeText={setGramsStr}
+                    placeholder="200"
+                    placeholderTextColor={COLORS.textMuted}
+                    keyboardType="decimal-pad"
+                    style={styles.gramsInputCompact}
+                    editable={!busy}
+                  />
+                </View>
               </View>
             </View>
 
@@ -554,7 +556,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   gramsLabelAbove: {
-    width: 76,
+    minWidth: 120,
     textAlign: "right",
   },
   mealGramsBottomRow: {
@@ -569,6 +571,13 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 2,
     paddingRight: 4,
+  },
+  gramsEditCluster: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 8,
+    flexShrink: 0,
   },
   gramsInputCompact: {
     width: 76,

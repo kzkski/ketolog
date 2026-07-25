@@ -19,6 +19,7 @@
     "./insights": "./src/insights.ts",
     "./menu-browse": "./src/menu-browse.ts",
     "./nutrient-input": "./src/nutrient-input.ts",
-    "./claude-integration": "./src/claude-integration.ts"
+    "./claude-integration": "./src/claude-integration.ts",
+    "./cart-serving": "./src/cart-serving.ts"
   }
 }

@@ -8,6 +8,7 @@ import {
   type MacroHighlightTargets,
 } from "@/lib/macroHighlights";
 import type { CartEntry } from "./CartPanel";
+import { formatCount } from "@ketolog/domain/cart-serving";
 
 function fmt(n: number) {
   return n < 10 ? n.toFixed(1) : Math.round(n).toString();
@@ -161,7 +162,7 @@ export function MenuItemRow({
           >
             −
           </button>
-          <span className="w-4 sm:w-5 text-center text-xs sm:text-sm font-bold text-emerald-400 tabular-nums">{count}</span>
+          <span className="w-7 sm:w-8 text-center text-xs sm:text-sm font-bold text-emerald-400 tabular-nums">{formatCount(count)}</span>
           <button
             type="button"
             onClick={() => onAdd(displayGrams)}

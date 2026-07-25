@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react";
 import type { MenuItem } from "@/types/database";
 import type { MealType, PfcGrams } from "@ketolog/types";
+import {
+  decrementCount,
+  formatCount,
+  formatGramsShort,
+  HALF_COUNT,
+  incrementCount,
+  isRemovableCount,
+  toggleHalfCount,
+  totalGramsForLine,
+} from "@ketolog/domain/cart-serving";
 import { MEAL_LABELS } from "@/lib/constants/meal";
+import { HalfGramsButton } from "./HalfGramsButton";
 
 /** カート内「記録する食事」セグメントの選択中スタイル（タブと同色） */
 const MEAL_CART_SEGMENT_ACTIVE: Record<MealType, string> = {
@@ -64,7 +75,59 @@ function pfcFromPer100(
   };
 }
 
-/** カート行の「1回あたり g」— 数値入力とブラウザ標準の step スピナー（1g 単位）に任せる */
+function CartLineCountStepper({
+  count,
+  disabled,
+  onDecrement,
+  onIncrement,
+  onToggleHalf,
+}: {
+  count: number;
+  disabled: boolean;
+  onDecrement: () => void;
+  onIncrement: () => void;
+  onToggleHalf: () => void;
+}) {
+  const isHalf = count === HALF_COUNT;
+  return (
+    <div className="flex items-center gap-0.5 shrink-0">
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label="回数を減らす"
+        onClick={onDecrement}
+        className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-white text-sm disabled:opacity-50 touch-manipulation"
+      >
+        −
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={isHalf ? "回数を1に戻す" : "回数を0.5にする"}
+        title={isHalf ? "回数を1に戻す" : "回数を0.5にする"}
+        onClick={onToggleHalf}
+        className={`min-w-7 h-6 px-0.5 text-center text-xs font-bold tabular-nums rounded touch-manipulation disabled:opacity-50 ${
+          isHalf
+            ? "text-emerald-300 ring-1 ring-emerald-500/70"
+            : "text-emerald-400"
+        }`}
+      >
+        {formatCount(count)}
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label="回数を増やす"
+        onClick={onIncrement}
+        className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-white text-sm disabled:opacity-50 touch-manipulation"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+/** カート行の「1回あたり g」— ½ ショートカット＋数値入力 */
 function CartLineGramsEditor({
   gramsPerServing,
   disabled,
@@ -74,9 +137,11 @@ function CartLineGramsEditor({
   disabled: boolean;
   onCommit: (n: number) => void;
 }) {
-  const [draft, setDraft] = useState(String(gramsPerServing));
+  const [draft, setDraft] = useState(formatGramsShort(gramsPerServing));
+  const [flash, setFlash] = useState(false);
+
   useEffect(() => {
-    setDraft(String(gramsPerServing));
+    setDraft(formatGramsShort(gramsPerServing));
   }, [gramsPerServing]);
 
   function commitDraft() {
@@ -84,33 +149,49 @@ function CartLineGramsEditor({
     if (Number.isFinite(n) && n > 0) {
       onCommit(n);
     } else {
-      setDraft(String(gramsPerServing));
+      setDraft(formatGramsShort(gramsPerServing));
     }
   }
 
+  function handleHalve(next: number) {
+    onCommit(next);
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 400);
+  }
+
   return (
-    <div className="flex flex-col items-end gap-0.5 shrink-0">
-      <span className="text-[9px] text-gray-500 leading-none">1回</span>
-      <input
-        type="number"
-        min={1}
-        step={1}
-        value={draft}
+    <div className="flex items-center gap-1 shrink-0">
+      <HalfGramsButton
+        value={gramsPerServing}
         disabled={disabled}
-        onChange={(e) => {
-          const v = e.target.value;
-          setDraft(v);
-          if (v === "") return;
-          const n = Number.parseFloat(v);
-          if (Number.isFinite(n) && n > 0) {
-            onCommit(n);
-          }
-        }}
-        onBlur={commitDraft}
-        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-        className="w-[3.75rem] sm:w-16 text-center text-xs sm:text-sm bg-gray-800 border border-emerald-600/80 rounded px-0.5 py-1 text-white tabular-nums shrink-0"
-        aria-label="1回あたりのグラム数"
+        size="compact"
+        onHalve={handleHalve}
       />
+      <div className="flex items-center gap-0.5">
+        <input
+          type="number"
+          min={0.1}
+          step={0.1}
+          value={draft}
+          disabled={disabled}
+          onChange={(e) => {
+            const v = e.target.value;
+            setDraft(v);
+            if (v === "") return;
+            const n = Number.parseFloat(v);
+            if (Number.isFinite(n) && n > 0) {
+              onCommit(n);
+            }
+          }}
+          onBlur={commitDraft}
+          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+          className={`w-[3.25rem] sm:w-14 text-center text-xs sm:text-sm bg-gray-800 border rounded px-0.5 py-1 text-white tabular-nums shrink-0 transition-colors ${
+            flash ? "border-emerald-400" : "border-emerald-600/80"
+          }`}
+          aria-label="1回あたりのグラム数"
+        />
+        <span className="text-[10px] text-gray-500">g</span>
+      </div>
     </div>
   );
 }
@@ -170,6 +251,7 @@ function CartExpandedBody({
   cartPFC,
   removeCartLine,
   onUpdateGramsPerServing,
+  onChangeCount,
   onSave,
   saving,
   layout = "inline",
@@ -180,6 +262,7 @@ function CartExpandedBody({
   cartPFC: PfcGrams;
   removeCartLine: (key: string) => void;
   onUpdateGramsPerServing: (lineKey: string, grams: number) => void;
+  onChangeCount: (lineKey: string, count: number) => void;
   onSave: () => void | Promise<void>;
   saving: boolean;
   /** モバイルのオーバーレイでは一覧を縦に伸ばす */
@@ -211,7 +294,7 @@ function CartExpandedBody({
       </div>
       <div className={listScrollClass}>
         {cartEntries.map((entry) => {
-          const totalGrams = entry.gramsPerServing * entry.count;
+          const totalGrams = totalGramsForLine(entry);
           const v =
             entry.kind === "menu"
               ? pfc(entry.item, totalGrams)
@@ -232,18 +315,26 @@ function CartExpandedBody({
           return (
             <div
               key={lineKey}
-              className="flex flex-wrap items-center gap-x-2 gap-y-2 px-4 py-1.5 border-b border-gray-800/50"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5 border-b border-gray-800/50"
             >
-              <span className="text-sm text-gray-200 truncate flex-1 min-w-[10rem]">
+              <span className="text-sm text-gray-200 truncate flex-1 min-w-[8rem]">
                 {title}
                 {snapshotTag}
-                <span className="text-gray-500 ml-1 text-xs whitespace-nowrap">
-                  ×{entry.count}（{totalGrams}g）
-                </span>
               </span>
               <span className="text-xs text-gray-400 shrink-0 tabular-nums">
                 P{fmt(v.p)} F{fmt(v.f)} C{fmt(v.c)}
               </span>
+              <CartLineCountStepper
+                count={entry.count}
+                disabled={saving}
+                onDecrement={() => {
+                  const next = decrementCount(entry.count);
+                  if (isRemovableCount(next)) removeCartLine(lineKey);
+                  else onChangeCount(lineKey, next);
+                }}
+                onIncrement={() => onChangeCount(lineKey, incrementCount(entry.count))}
+                onToggleHalf={() => onChangeCount(lineKey, toggleHalfCount(entry.count))}
+              />
               <CartLineGramsEditor
                 gramsPerServing={entry.gramsPerServing}
                 disabled={saving}
@@ -292,6 +383,7 @@ export type CartPanelProps = {
   onClearAll: () => void;
   onRemoveCartLine: (mapKey: string) => void;
   onUpdateGramsPerServing: (lineKey: string, grams: number) => void;
+  onChangeCount: (lineKey: string, count: number) => void;
 };
 
 export function CartPanel({
@@ -306,8 +398,21 @@ export function CartPanel({
   onClearAll,
   onRemoveCartLine,
   onUpdateGramsPerServing,
+  onChangeCount,
 }: CartPanelProps) {
   if (cartEntries.length === 0) return null;
+
+  const bodyProps = {
+    mealType,
+    setMealType: onMealTypeChange,
+    cartEntries,
+    cartPFC: cartPfc,
+    removeCartLine: onRemoveCartLine,
+    onUpdateGramsPerServing,
+    onChangeCount,
+    onSave,
+    saving,
+  };
 
   return (
     <>
@@ -350,17 +455,7 @@ export function CartPanel({
               clearingDisabled={saving}
             />
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <CartExpandedBody
-                layout="sheet"
-                mealType={mealType}
-                setMealType={onMealTypeChange}
-                cartEntries={cartEntries}
-                cartPFC={cartPfc}
-                removeCartLine={onRemoveCartLine}
-                onUpdateGramsPerServing={onUpdateGramsPerServing}
-                onSave={onSave}
-                saving={saving}
-              />
+              <CartExpandedBody layout="sheet" {...bodyProps} />
             </div>
           </div>
         </div>
@@ -376,18 +471,7 @@ export function CartPanel({
           onClearAll={onClearAll}
           clearingDisabled={saving}
         />
-        {cartExpanded && (
-          <CartExpandedBody
-            mealType={mealType}
-            setMealType={onMealTypeChange}
-            cartEntries={cartEntries}
-            cartPFC={cartPfc}
-            removeCartLine={onRemoveCartLine}
-            onUpdateGramsPerServing={onUpdateGramsPerServing}
-            onSave={onSave}
-            saving={saving}
-          />
-        )}
+        {cartExpanded && <CartExpandedBody {...bodyProps} />}
       </div>
     </>
   );

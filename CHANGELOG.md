@@ -16,6 +16,16 @@
 
 ### Changed
 
+## [1.69.0] - 2026-07-25
+
+### Added
+
+- **Today / カート**: カート行を「名前 / PFC / 回数 / g / 削除」に整理し、g の横に統一デザインの `½`（分量を半分にする）ショートカットを追加。記録済みの g 編集（Web / Mobile）にも同じボタンを置いた（[#345](https://github.com/kzkski/ketolog/issues/345)）。
+
+### Changed
+
+- **Today / カート**: 名前横の `×回数（合計g）` 表示をやめ、回数は独立ステッパー（数字タップで 0.5 ↔ 1）で操作する（[#345](https://github.com/kzkski/ketolog/issues/345)）。
+
 ## [1.68.0] - 2026-07-25
 
 ### Added

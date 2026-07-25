@@ -16,6 +16,19 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { MealType } from "@ketolog/types";
 import { pfcGramsFromNullablePer100, type PfcGrams } from "@ketolog/domain/pfc";
+import {
+  decrementCount,
+  formatCount,
+  formatGramsShort,
+  HALF_COUNT,
+  incrementCount,
+  isRemovableCount,
+  MIN_GRAMS,
+  roundGrams,
+  toggleHalfCount,
+  totalGramsForLine,
+} from "@ketolog/domain/cart-serving";
+import { HalfGramsButton } from "./HalfGramsButton";
 
 export type CartLineState = {
   menuItemId: string;
@@ -65,6 +78,7 @@ type Props = {
   onClearAll: () => void;
   onRemoveLine: (menuItemId: string) => void;
   onUpdateGramsPerServing: (menuItemId: string, grams: number) => void;
+  onChangeCount: (menuItemId: string, count: number) => void;
 };
 
 export function TodayCartDock({
@@ -79,6 +93,7 @@ export function TodayCartDock({
   onClearAll,
   onRemoveLine,
   onUpdateGramsPerServing,
+  onChangeCount,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -97,7 +112,7 @@ export function TodayCartDock({
   function openGramsSheet(menuItemId: string) {
     if (saving) return;
     const line = lines.find((l) => l.menuItemId === menuItemId);
-    setSheetDraft(line ? String(line.gramsPerServing) : "");
+    setSheetDraft(line ? formatGramsShort(line.gramsPerServing) : "");
     setGramsSheetForId(menuItemId);
   }
 
@@ -109,14 +124,14 @@ export function TodayCartDock({
   function applySheetDelta(delta: number) {
     const v = Number.parseFloat(sheetDraft.replace(/,/g, ""));
     const base = Number.isFinite(v) && v > 0 ? v : 1;
-    setSheetDraft(String(Math.max(1, base + delta)));
+    setSheetDraft(formatGramsShort(Math.max(MIN_GRAMS, roundGrams(base + delta))));
   }
 
   function commitGramsSheet() {
     if (!gramsSheetForId || saving) return;
     const n = Number.parseFloat(sheetDraft.replace(/,/g, ""));
     if (!Number.isFinite(n) || n <= 0) {
-      if (sheetLine) setSheetDraft(String(sheetLine.gramsPerServing));
+      if (sheetLine) setSheetDraft(formatGramsShort(sheetLine.gramsPerServing));
       return;
     }
     onUpdateGramsPerServing(gramsSheetForId, n);
@@ -136,8 +151,13 @@ export function TodayCartDock({
 
   if (lines.length === 0) return null;
 
-  const nItems = lines.reduce((s, l) => s + l.count, 0);
+  const nItems = lines.length;
   const shell = CART_MEAL_CHIP_ACTIVE[mealType];
+  const sheetDraftNum = Number.parseFloat(sheetDraft.replace(/,/g, ""));
+  const sheetGramsValue =
+    Number.isFinite(sheetDraftNum) && sheetDraftNum > 0
+      ? sheetDraftNum
+      : sheetLine?.gramsPerServing ?? 1;
 
   return (
     <>
@@ -169,6 +189,12 @@ export function TodayCartDock({
             </Text>
             <Text style={styles.gramsSheetSubtitle}>1回あたり（g）</Text>
             <View style={styles.gramsStepRow}>
+              <HalfGramsButton
+                value={sheetGramsValue}
+                disabled={saving}
+                size="compact"
+                onHalve={(next) => setSheetDraft(formatGramsShort(next))}
+              />
               <Pressable
                 onPress={() => applySheetDelta(-5)}
                 disabled={saving}
@@ -265,7 +291,7 @@ export function TodayCartDock({
           style={({ pressed }) => [styles.headerMainTap, pressed && { opacity: 0.88 }]}
         >
           <View style={styles.headerMain}>
-            <Text style={styles.headerTitle}>カート（{nItems}）</Text>
+            <Text style={styles.headerTitle}>カート（{nItems}品）</Text>
           </View>
         </Pressable>
         <View style={styles.headerActions}>
@@ -320,40 +346,100 @@ export function TodayCartDock({
             nestedScrollEnabled
           >
             {lines.map((line) => {
-              const totalGrams = line.gramsPerServing * line.count;
+              const totalGrams = totalGramsForLine(line);
               const v = pfcGramsFromNullablePer100(
                 line.protein_per_100g,
                 line.fat_per_100g,
                 line.carbs_per_100g,
                 totalGrams
               );
+              const isHalfCount = line.count === HALF_COUNT;
               return (
                 <View key={line.menuItemId} style={styles.lineRow}>
                   <View style={styles.lineBody}>
                     <Text style={styles.lineName} numberOfLines={2}>
                       {line.name}
-                      <Text style={styles.countGrams}>
-                        {" "}
-                        ×{line.count}（{totalGrams}g）
-                      </Text>
                     </Text>
                     <Text style={styles.linePfc}>
                       P{fmtMacroGrams(v.p)} F{fmtMacroGrams(v.f)} C{fmtMacroGrams(v.c)}
                     </Text>
                   </View>
-                  <Pressable
-                    onPress={() => openGramsSheet(line.menuItemId)}
-                    disabled={saving}
-                    style={({ pressed }) => [
-                      styles.gramsCol,
-                      pressed && { opacity: 0.88 },
-                      saving && { opacity: 0.45 },
-                    ]}
-                    accessibilityLabel="1回あたりのグラムを編集"
-                  >
-                    <Text style={styles.gramsLabel}>1回</Text>
-                    <Text style={styles.gramsTapValue}>{fmtMacroGrams(line.gramsPerServing)}g</Text>
-                  </Pressable>
+                  <View style={styles.countCol}>
+                    <Pressable
+                      onPress={() => {
+                        const next = decrementCount(line.count);
+                        if (isRemovableCount(next)) onRemoveLine(line.menuItemId);
+                        else onChangeCount(line.menuItemId, next);
+                      }}
+                      disabled={saving}
+                      style={({ pressed }) => [
+                        styles.countBtn,
+                        pressed && { opacity: 0.8 },
+                        saving && { opacity: 0.45 },
+                      ]}
+                      accessibilityLabel="回数を減らす"
+                    >
+                      <Text style={styles.countBtnText}>−</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => onChangeCount(line.menuItemId, toggleHalfCount(line.count))}
+                      disabled={saving}
+                      style={({ pressed }) => [
+                        styles.countValueBtn,
+                        isHalfCount && styles.countValueHalf,
+                        pressed && { opacity: 0.85 },
+                        saving && { opacity: 0.45 },
+                      ]}
+                      accessibilityLabel={
+                        isHalfCount ? "回数を1に戻す" : "回数を0.5にする"
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.countValueText,
+                          isHalfCount && styles.countValueTextHalf,
+                        ]}
+                      >
+                        {formatCount(line.count)}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() =>
+                        onChangeCount(line.menuItemId, incrementCount(line.count))
+                      }
+                      disabled={saving}
+                      style={({ pressed }) => [
+                        styles.countBtn,
+                        pressed && { opacity: 0.8 },
+                        saving && { opacity: 0.45 },
+                      ]}
+                      accessibilityLabel="回数を増やす"
+                    >
+                      <Text style={styles.countBtnText}>+</Text>
+                    </Pressable>
+                  </View>
+                  <View style={styles.gramsCol}>
+                    <HalfGramsButton
+                      value={line.gramsPerServing}
+                      disabled={saving}
+                      size="mini"
+                      onHalve={(next) => onUpdateGramsPerServing(line.menuItemId, next)}
+                    />
+                    <Pressable
+                      onPress={() => openGramsSheet(line.menuItemId)}
+                      disabled={saving}
+                      style={({ pressed }) => [
+                        styles.gramsTap,
+                        pressed && { opacity: 0.88 },
+                        saving && { opacity: 0.45 },
+                      ]}
+                      accessibilityLabel="1回あたりのグラムを編集"
+                    >
+                      <Text style={styles.gramsTapValue}>
+                        {formatGramsShort(line.gramsPerServing)}g
+                      </Text>
+                    </Pressable>
+                  </View>
                   <Pressable
                     onPress={() => onRemoveLine(line.menuItemId)}
                     disabled={saving}
@@ -468,15 +554,57 @@ const styles = StyleSheet.create({
   },
   lineBody: { flex: 1, minWidth: 0 },
   lineName: { color: "#e5e7eb", fontSize: 14, fontWeight: "500" },
-  countGrams: { color: "#6b7280", fontSize: 12, fontWeight: "400" },
   linePfc: {
     color: "#9ca3af",
     fontSize: 11,
     marginTop: 4,
     fontVariant: ["tabular-nums"],
   },
-  gramsCol: { alignItems: "center", justifyContent: "center", width: 56, minHeight: 44 },
-  gramsLabel: { color: "#6b7280", fontSize: 9, marginBottom: 2 },
+  countCol: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  countBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#374151",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  countValueBtn: {
+    minWidth: 28,
+    height: 28,
+    paddingHorizontal: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 6,
+  },
+  countValueHalf: {
+    borderWidth: 1,
+    borderColor: "#10b981",
+  },
+  countValueText: {
+    color: "#34d399",
+    fontSize: 12,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+  },
+  countValueTextHalf: { color: "#a7f3d0" },
+  gramsCol: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 56,
+    minHeight: 44,
+    gap: 2,
+  },
+  gramsTap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 2,
+  },
   gramsTapValue: {
     color: "#fff",
     fontSize: 14,

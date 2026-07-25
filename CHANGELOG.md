@@ -16,6 +16,12 @@
 
 ### Changed
 
+## [1.68.0] - 2026-07-25
+
+### Added
+
+- **Today**: PFC進捗バーの右側に、その日の総摂取カロリー（kcal）を表示（Web / iOS共通）。記録済み＋カート内のPFCから算出し、整数（四捨五入）で表示する（[#342](https://github.com/kzkski/ketolog/issues/342)）。
+
 ## [1.67.0] - 2026-07-13
 
 ### Added

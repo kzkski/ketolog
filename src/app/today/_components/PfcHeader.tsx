@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { AriaAttributes, ReactNode } from "react";
 import type { DietPhase, PhaseProfiles } from "@/lib/diet-phase";
+import { pfcTotalKcal } from "@ketolog/domain/pfc";
 import type { PfcGrams } from "@ketolog/types";
 import { MACRO_BAR_BG } from "@/lib/macroHighlights";
 
@@ -37,6 +38,26 @@ function PfcBarRow({
         className={`text-xs tabular-nums w-[4.75rem] sm:w-[4.5rem] text-right ${over ? "text-red-400" : "text-gray-300"}`}
       >
         {fmtMacroGrams(current)} / {target}g
+      </span>
+    </div>
+  );
+}
+
+function KcalBadge({ totalKcal }: { totalKcal: number }) {
+  return (
+    <div
+      role="group"
+      aria-label={`合計摂取 ${totalKcal} kcal`}
+      className="flex min-w-14 sm:min-w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-gray-700 bg-gray-800/60 px-1"
+    >
+      <span
+        aria-hidden="true"
+        className="text-sm sm:text-base font-bold text-white tabular-nums leading-none whitespace-nowrap"
+      >
+        {totalKcal}
+      </span>
+      <span aria-hidden="true" className="text-[10px] text-gray-400 leading-none">
+        kcal
       </span>
     </div>
   );
@@ -100,6 +121,7 @@ export function PfcHeader({
   appUpdateApplying,
   onApplyAppUpdate,
 }: PfcHeaderProps) {
+  const totalKcal = Math.round(pfcTotalKcal(totalConsumed));
   const changelogUrl = process.env.NEXT_PUBLIC_CHANGELOG_URL;
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION;
 
@@ -193,25 +215,30 @@ export function PfcHeader({
         </div>
       </div>
 
-      <div className="flex-none px-3 sm:px-4 py-1.5 sm:py-3 bg-gray-900 border-b border-gray-800 space-y-1 sm:space-y-1.5">
-        <PfcBarRow
-          label="P"
-          current={totalConsumed.p}
-          target={proteinTargetG}
-          color={MACRO_BAR_BG.p}
-        />
-        <PfcBarRow
-          label="F"
-          current={totalConsumed.f}
-          target={fatTargetG}
-          color={MACRO_BAR_BG.f}
-        />
-        <PfcBarRow
-          label="C"
-          current={totalConsumed.c}
-          target={carbsTargetG}
-          color={MACRO_BAR_BG.c}
-        />
+      <div className="flex-none px-3 sm:px-4 py-1.5 sm:py-3 bg-gray-900 border-b border-gray-800">
+        <div className="flex items-stretch gap-2 sm:gap-3">
+          <div className="flex-1 min-w-0 space-y-1 sm:space-y-1.5">
+            <PfcBarRow
+              label="P"
+              current={totalConsumed.p}
+              target={proteinTargetG}
+              color={MACRO_BAR_BG.p}
+            />
+            <PfcBarRow
+              label="F"
+              current={totalConsumed.f}
+              target={fatTargetG}
+              color={MACRO_BAR_BG.f}
+            />
+            <PfcBarRow
+              label="C"
+              current={totalConsumed.c}
+              target={carbsTargetG}
+              color={MACRO_BAR_BG.c}
+            />
+          </div>
+          <KcalBadge totalKcal={totalKcal} />
+        </div>
       </div>
 
       {headerHint && hintDialogOpen && (

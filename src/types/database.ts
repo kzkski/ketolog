@@ -94,3 +94,40 @@ export type FoodLogEntry = {
   source: string | null;
   menu_item_id: string | null;
 };
+
+/**
+ * 日次 active/basal（MyVitalRelay）。
+ * `date` は格納日 = 活動日 D+1。集計時は -1 日して food_log と揃える。
+ */
+export type DailyActivitySummary = {
+  id?: string;
+  date: string;
+  active_calories_kcal: number | null;
+  basal_calories_kcal: number | null;
+  notes?: string | null;
+  synced_at?: string | null;
+};
+
+/** ワークアウト1行。`date` は活動日 D（シフトなし）。EEE は calories_burned。 */
+export type TrainingLogRow = {
+  id?: string;
+  date: string;
+  calories_burned: number | null;
+  data_source?: string;
+  discipline?: string;
+  start_time?: string | null;
+  end_time?: string | null;
+};
+
+/**
+ * 体組成サンプル。体重と体脂肪は別行になりうる。
+ * `body_fat_pct` は 0–100（パーセント）。
+ */
+export type BodyCompositionSample = {
+  id?: string;
+  date: string;
+  measured_at: string;
+  weight_kg: number | null;
+  body_fat_pct: number | null;
+  healthkit_uuid?: string | null;
+};

@@ -1,6 +1,6 @@
 "use server";
 
-import { getTodayJstDate } from "@ketolog/domain/date";
+import { toJstDateString } from "@ketolog/domain/date";
 import {
   snapshotSourceForSettingsChange,
   type PfcTargetSnapshotSource,
@@ -49,7 +49,7 @@ export async function syncTodayPfcTargetSnapshotAfterSettingsChange(
 
   return writePfcTargetSnapshot(supabase, {
     userId: user.id,
-    date: getTodayJstDate(),
+    date: toJstDateString(),
     settings: {
       diet_phase: clampDietPhase(next.diet_phase),
       phase_profiles: normalizePhaseProfiles(next.phase_profiles),

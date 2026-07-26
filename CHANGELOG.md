@@ -16,6 +16,12 @@
 
 ### Changed
 
+## [1.70.3] - 2026-07-26
+
+### Fixed
+
+- **Today**: `pfc-target-snapshot` Server Action が存在しない `getTodayJstDate` を `@ketolog/domain/date` から import していたため、Vercel の Next.js ビルドが失敗していた問題を修正（`toJstDateString` を使用）。
+
 ## [1.70.2] - 2026-07-26
 
 ### Fixed

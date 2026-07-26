@@ -15,10 +15,12 @@ import { Ionicons } from "@expo/vector-icons";
 import type { MealType } from "@ketolog/types";
 import { addDaysJst } from "@ketolog/domain/date";
 import {
+  buildAchievementRates,
   buildInsights,
   getPresetRange,
   getTodayJstDate,
   type InsightFoodLogEntry,
+  type InsightPfcTargetSnapshot,
 } from "@ketolog/domain/insights";
 import {
   pfcRatioPercents,
@@ -33,7 +35,10 @@ import {
 import { useAuthSessionContext } from "../contexts/AuthSessionContext";
 import { loadFoodLogOutbox } from "../lib/food-log-outbox";
 import { getSupabase } from "../lib/supabase";
-import { fetchInsightsFoodLogForDateRange } from "../lib/fetch-insights-food-log-mobile";
+import {
+  fetchInsightsFoodLogForDateRange,
+  fetchInsightsPfcTargetSnapshotsForDateRange,
+} from "../lib/fetch-insights-food-log-mobile";
 import { shareUtf8JsonFile } from "../lib/share-json-mobile";
 import { InsightsPfcChart } from "../components/InsightsPfcChart";
 
@@ -66,6 +71,7 @@ const CUSTOM_RANGE_MAX_DAYS = 90;
 
 type Preset = "7d" | "30d" | "custom";
 type MealFilter = MealType | "all";
+type MetricMode = "achievement" | "grams";
 
 function fmtNum(v: number): string {
   return v.toFixed(1);
@@ -105,6 +111,8 @@ export function InsightsScreen() {
   const [start, setStart] = useState(preset7.start);
   const [end, setEnd] = useState(preset7.end);
   const [entries, setEntries] = useState<InsightFoodLogEntry[]>([]);
+  const [snapshots, setSnapshots] = useState<InsightPfcTargetSnapshot[]>([]);
+  const [metricMode, setMetricMode] = useState<MetricMode>("achievement");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -124,23 +132,36 @@ export function InsightsScreen() {
       setLoading(true);
       setError(null);
       const mealTypes = nextMealFilter === "all" ? undefined : [nextMealFilter];
-      const result = await fetchInsightsFoodLogForDateRange(
-        supabase,
-        userId,
-        nextStart,
-        nextEnd,
-        mealTypes
-      );
+      const [foodResult, snapResult] = await Promise.all([
+        fetchInsightsFoodLogForDateRange(
+          supabase,
+          userId,
+          nextStart,
+          nextEnd,
+          mealTypes
+        ),
+        fetchInsightsPfcTargetSnapshotsForDateRange(
+          supabase,
+          userId,
+          nextStart,
+          nextEnd
+        ),
+      ]);
       setLoading(false);
-      if (result.error) {
-        setError(result.error);
+      if (foodResult.error) {
+        setError(foodResult.error);
+        return;
+      }
+      if (snapResult.error) {
+        setError(snapResult.error);
         return;
       }
       setPreset(nextPreset);
       setMealFilter(nextMealFilter);
       setStart(nextStart);
       setEnd(nextEnd);
-      setEntries(result.entries);
+      setEntries(foodResult.entries);
+      setSnapshots(snapResult.snapshots);
       setExpanded(new Set());
     },
     [supabase, userId, mealFilter]
@@ -183,6 +204,14 @@ export function InsightsScreen() {
         mealTypes: mealFilter === "all" ? undefined : [mealFilter],
       }),
     [entries, start, end, mealFilter]
+  );
+  const achievement = useMemo(
+    () => buildAchievementRates(insight.daily, snapshots, insight.chart.length),
+    [insight.daily, snapshots, insight.chart.length]
+  );
+  const achievementByDate = useMemo(
+    () => new Map(achievement.dailyAchievement.map((d) => [d.date, d])),
+    [achievement.dailyAchievement]
   );
   const avgGrams = useMemo(
     () =>
@@ -431,97 +460,193 @@ export function InsightsScreen() {
 
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
-            <Text style={styles.cardTitle}>平均PFCバランス</Text>
-            <View style={styles.ratioBasisGroup} accessibilityRole="tablist">
-              <Pressable
-                onPress={() => selectRatioBasis("kcal")}
-                style={[styles.ratioBasisBtn, ratioBasis === "kcal" && styles.ratioBasisBtnOn]}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: ratioBasis === "kcal" }}
-              >
-                <Text
-                  style={[
-                    styles.ratioBasisBtnText,
-                    ratioBasis === "kcal" && styles.ratioBasisBtnTextOn,
-                  ]}
-                >
-                  カロリー比
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => selectRatioBasis("gram")}
-                style={[styles.ratioBasisBtn, ratioBasis === "gram" && styles.ratioBasisBtnOn]}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: ratioBasis === "gram" }}
-              >
-                <Text
-                  style={[
-                    styles.ratioBasisBtnText,
-                    ratioBasis === "gram" && styles.ratioBasisBtnTextOn,
-                  ]}
-                >
-                  重量比
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-          {ratioBasis === "kcal" ? (
-            <Text style={styles.avgKcalLine}>
-              平均 {fmtNum(avgDailyKcal)} kcal/日
-              <Text style={styles.avgKcalHint}> · P4・F9・C4 kcal/g</Text>
+            <Text style={styles.cardTitle}>
+              {metricMode === "achievement" ? "記録日達成率" : "平均PFCバランス"}
             </Text>
-          ) : null}
-          <View style={styles.avgGrid}>
-            <View style={styles.avgCell}>
-              <Text style={styles.avgCap}>たんぱく質 (P)</Text>
-              <Text style={[styles.avgVal, { color: "#93c5fd" }]}>
-                {fmtNum(insight.summary.avgProtein)} g
-              </Text>
-              <Text style={styles.avgPct}>{fmtNum(avgRatioPct.p)}%</Text>
-            </View>
-            <View style={styles.avgCell}>
-              <Text style={styles.avgCap}>脂質 (F)</Text>
-              <Text style={[styles.avgVal, { color: "#fde047" }]}>
-                {fmtNum(insight.summary.avgFat)} g
-              </Text>
-              <Text style={styles.avgPct}>{fmtNum(avgRatioPct.f)}%</Text>
-            </View>
-            <View style={styles.avgCell}>
-              <Text style={styles.avgCap}>糖質 (C)</Text>
-              <Text style={[styles.avgVal, { color: "#6ee7b7" }]}>
-                {fmtNum(insight.summary.avgCarbs)} g
-              </Text>
-              <Text style={styles.avgPct}>{fmtNum(avgRatioPct.c)}%</Text>
+            <View style={styles.metricControls}>
+              <View style={styles.ratioBasisGroup} accessibilityRole="tablist">
+                <Pressable
+                  onPress={() => setMetricMode("achievement")}
+                  style={[
+                    styles.ratioBasisBtn,
+                    metricMode === "achievement" && styles.ratioBasisBtnOn,
+                  ]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: metricMode === "achievement" }}
+                >
+                  <Text
+                    style={[
+                      styles.ratioBasisBtnText,
+                      metricMode === "achievement" && styles.ratioBasisBtnTextOn,
+                    ]}
+                  >
+                    達成率
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setMetricMode("grams")}
+                  style={[
+                    styles.ratioBasisBtn,
+                    metricMode === "grams" && styles.ratioBasisBtnOn,
+                  ]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: metricMode === "grams" }}
+                >
+                  <Text
+                    style={[
+                      styles.ratioBasisBtnText,
+                      metricMode === "grams" && styles.ratioBasisBtnTextOn,
+                    ]}
+                  >
+                    生グラム
+                  </Text>
+                </Pressable>
+              </View>
+              {metricMode === "grams" ? (
+                <View style={styles.ratioBasisGroup} accessibilityRole="tablist">
+                  <Pressable
+                    onPress={() => selectRatioBasis("kcal")}
+                    style={[
+                      styles.ratioBasisBtn,
+                      ratioBasis === "kcal" && styles.ratioBasisBtnOn,
+                    ]}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: ratioBasis === "kcal" }}
+                  >
+                    <Text
+                      style={[
+                        styles.ratioBasisBtnText,
+                        ratioBasis === "kcal" && styles.ratioBasisBtnTextOn,
+                      ]}
+                    >
+                      カロリー比
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => selectRatioBasis("gram")}
+                    style={[
+                      styles.ratioBasisBtn,
+                      ratioBasis === "gram" && styles.ratioBasisBtnOn,
+                    ]}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: ratioBasis === "gram" }}
+                  >
+                    <Text
+                      style={[
+                        styles.ratioBasisBtnText,
+                        ratioBasis === "gram" && styles.ratioBasisBtnTextOn,
+                      ]}
+                    >
+                      重量比
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
             </View>
           </View>
-          <View style={styles.ratioBar}>
-            <View
-              style={[
-                styles.ratioSeg,
-                { backgroundColor: "#60a5fa" },
-                ratioFlexFromPercents(avgRatioPct.p),
-              ]}
-            />
-            <View
-              style={[
-                styles.ratioSeg,
-                { backgroundColor: "#facc15" },
-                ratioFlexFromPercents(avgRatioPct.f),
-              ]}
-            />
-            <View
-              style={[
-                styles.ratioSeg,
-                { backgroundColor: "#34d399" },
-                ratioFlexFromPercents(avgRatioPct.c),
-              ]}
-            />
-          </View>
+          {metricMode === "achievement" ? (
+            <>
+              <Text style={styles.avgKcalLine}>
+                記録日 {achievement.summary.recordedDayCount} 日
+                <Text style={styles.avgKcalHint}>
+                  {" "}
+                  · 除外 {achievement.summary.excludedDayCount} 日（目標履歴なし／食事なし）
+                </Text>
+              </Text>
+              {achievement.summary.recordedDayCount === 0 ? (
+                <Text style={styles.achBanner}>
+                  この期間は目標スナップショット付きの記録日がありません。Today
+                  でプリセットを選ぶか食事を記録すると、以降の達成率を集計できます。
+                </Text>
+              ) : (
+                <View style={styles.avgGrid}>
+                  <View style={styles.avgCell}>
+                    <Text style={styles.avgCap}>たんぱく質 (P)</Text>
+                    <Text style={[styles.avgVal, { color: "#93c5fd" }]}>
+                      {fmtNum(achievement.summary.avgProteinPct ?? 0)}%
+                    </Text>
+                  </View>
+                  <View style={styles.avgCell}>
+                    <Text style={styles.avgCap}>脂質 (F)</Text>
+                    <Text style={[styles.avgVal, { color: "#fde047" }]}>
+                      {fmtNum(achievement.summary.avgFatPct ?? 0)}%
+                    </Text>
+                  </View>
+                  <View style={styles.avgCell}>
+                    <Text style={styles.avgCap}>糖質 (C)</Text>
+                    <Text style={[styles.avgVal, { color: "#6ee7b7" }]}>
+                      {fmtNum(achievement.summary.avgCarbsPct ?? 0)}%
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              {ratioBasis === "kcal" ? (
+                <Text style={styles.avgKcalLine}>
+                  平均 {fmtNum(avgDailyKcal)} kcal/日
+                  <Text style={styles.avgKcalHint}> · P4・F9・C4 kcal/g</Text>
+                </Text>
+              ) : null}
+              <View style={styles.avgGrid}>
+                <View style={styles.avgCell}>
+                  <Text style={styles.avgCap}>たんぱく質 (P)</Text>
+                  <Text style={[styles.avgVal, { color: "#93c5fd" }]}>
+                    {fmtNum(insight.summary.avgProtein)} g
+                  </Text>
+                  <Text style={styles.avgPct}>{fmtNum(avgRatioPct.p)}%</Text>
+                </View>
+                <View style={styles.avgCell}>
+                  <Text style={styles.avgCap}>脂質 (F)</Text>
+                  <Text style={[styles.avgVal, { color: "#fde047" }]}>
+                    {fmtNum(insight.summary.avgFat)} g
+                  </Text>
+                  <Text style={styles.avgPct}>{fmtNum(avgRatioPct.f)}%</Text>
+                </View>
+                <View style={styles.avgCell}>
+                  <Text style={styles.avgCap}>糖質 (C)</Text>
+                  <Text style={[styles.avgVal, { color: "#6ee7b7" }]}>
+                    {fmtNum(insight.summary.avgCarbs)} g
+                  </Text>
+                  <Text style={styles.avgPct}>{fmtNum(avgRatioPct.c)}%</Text>
+                </View>
+              </View>
+              <View style={styles.ratioBar}>
+                <View
+                  style={[
+                    styles.ratioSeg,
+                    { backgroundColor: "#60a5fa" },
+                    ratioFlexFromPercents(avgRatioPct.p),
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.ratioSeg,
+                    { backgroundColor: "#facc15" },
+                    ratioFlexFromPercents(avgRatioPct.f),
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.ratioSeg,
+                    { backgroundColor: "#34d399" },
+                    ratioFlexFromPercents(avgRatioPct.c),
+                  ]}
+                />
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>日次PFC推移</Text>
-          <InsightsPfcChart data={insight.chart} />
+          <Text style={styles.cardTitle}>
+            {metricMode === "achievement" ? "日次達成率推移" : "日次PFC推移"}
+          </Text>
+          <InsightsPfcChart
+            data={metricMode === "achievement" ? achievement.chart : insight.chart}
+            unitLabel={metricMode === "achievement" ? "%" : "g"}
+          />
         </View>
 
         <View style={styles.card}>
@@ -530,17 +655,47 @@ export function InsightsScreen() {
             const isOpen = expanded.has(day.date);
             const dayGrams = toPfcGrams(day.protein, day.fat, day.carbs);
             const dayRatioPct = pfcRatioPercents(dayGrams, ratioBasis);
+            const dayAch = achievementByDate.get(day.date);
             return (
               <View key={day.date} style={styles.dayBlock}>
                 <Pressable onPress={() => toggleDate(day.date)} style={styles.dayHeader}>
                   <View style={styles.dayHeaderMain}>
                     <Text style={styles.dayTitle} numberOfLines={1}>
                       {isOpen ? "▼" : "▶"} {jstDateLabel(day.date)}
+                      {dayAch?.phaseName ? (
+                        <Text style={styles.dayPhase}> · {dayAch.phaseName}</Text>
+                      ) : null}
                     </Text>
                     <View style={styles.dayPfcRow}>
-                      <Text style={[styles.dayPfc, { color: "#93c5fd" }]}>{fmtNum(day.protein)}</Text>
-                      <Text style={[styles.dayPfc, { color: "#fde047" }]}>{fmtNum(day.fat)}</Text>
-                      <Text style={[styles.dayPfc, { color: "#6ee7b7" }]}>{fmtNum(day.carbs)}</Text>
+                      {metricMode === "achievement" ? (
+                        <>
+                          <Text style={[styles.dayPfc, { color: "#93c5fd" }]}>
+                            {dayAch?.proteinPct != null
+                              ? `${fmtNum(dayAch.proteinPct)}%`
+                              : "—"}
+                          </Text>
+                          <Text style={[styles.dayPfc, { color: "#fde047" }]}>
+                            {dayAch?.fatPct != null ? `${fmtNum(dayAch.fatPct)}%` : "—"}
+                          </Text>
+                          <Text style={[styles.dayPfc, { color: "#6ee7b7" }]}>
+                            {dayAch?.carbsPct != null
+                              ? `${fmtNum(dayAch.carbsPct)}%`
+                              : "—"}
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text style={[styles.dayPfc, { color: "#93c5fd" }]}>
+                            {fmtNum(day.protein)}
+                          </Text>
+                          <Text style={[styles.dayPfc, { color: "#fde047" }]}>
+                            {fmtNum(day.fat)}
+                          </Text>
+                          <Text style={[styles.dayPfc, { color: "#6ee7b7" }]}>
+                            {fmtNum(day.carbs)}
+                          </Text>
+                        </>
+                      )}
                     </View>
                     <View style={styles.ratioBar}>
                       <View
@@ -682,10 +837,17 @@ const styles = StyleSheet.create({
   cardTitle: { color: COLORS.text, fontSize: 14, fontWeight: "600" },
   cardTitleRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 8,
     marginBottom: 10,
+    flexWrap: "wrap",
+  },
+  metricControls: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
   },
   ratioBasisGroup: {
     flexDirection: "row",
@@ -705,6 +867,12 @@ const styles = StyleSheet.create({
   ratioBasisBtnTextOn: { color: "#fff" },
   avgKcalLine: { color: COLORS.muted, fontSize: 11, marginBottom: 8 },
   avgKcalHint: { color: "#6b7280" },
+  achBanner: {
+    color: "#fcd34d",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  dayPhase: { color: COLORS.muted, fontSize: 11, fontWeight: "400" },
   presetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   presetBtn: {
     paddingHorizontal: 12,
@@ -815,7 +983,7 @@ const styles = StyleSheet.create({
   dayHeaderMain: { flex: 1, minWidth: 0, paddingRight: 8 },
   dayTitle: { color: COLORS.text, fontSize: 14, fontWeight: "600" },
   dayPfcRow: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 6 },
-  dayPfc: { fontSize: 12, width: 44, textAlign: "right", fontVariant: ["tabular-nums"] },
+  dayPfc: { fontSize: 12, width: 52, textAlign: "right", fontVariant: ["tabular-nums"] },
   dayCount: { color: COLORS.muted, fontSize: 11 },
   dayBody: {
     borderTopWidth: StyleSheet.hairlineWidth,

@@ -16,6 +16,7 @@ import { normalizeUserSettings } from "@/lib/diet-phase";
 import { sumPfc } from "@ketolog/domain/pfc";
 import type { PfcGrams } from "@ketolog/types";
 import { loadPresets } from "@/lib/presets-server";
+import { writePfcTargetSnapshot } from "@/lib/pfc-target-snapshot-write";
 
 export type { PresetMeta } from "@/lib/presets-server";
 
@@ -65,6 +66,14 @@ export default async function TodayPage() {
   const settings: UserSettings = settingsRes.data
     ? normalizeUserSettings(settingsRes.data)
     : normalizeUserSettings(null);
+
+  // 当日スナップショットが無ければ現行設定で確保（既存行は触らない）
+  void writePfcTargetSnapshot(supabase, {
+    userId: user.id,
+    date: today,
+    settings,
+    source: "app_ensure",
+  });
 
   const rawRestaurants: Restaurant[] = restaurantsRes.data ?? [];
   const rawWithSnapshot =

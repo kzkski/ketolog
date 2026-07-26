@@ -24,6 +24,8 @@ import {
   type FoodLogOutboxDraft,
 } from "../lib/food-log-outbox";
 import { getIsOnline, isTransientNetworkError } from "../lib/network";
+import { writePfcTargetSnapshot } from "../lib/pfc-target-snapshot-write";
+import { normalizeUserSettings } from "@ketolog/domain/diet-phase";
 import { HalfGramsButton } from "./HalfGramsButton";
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
@@ -222,6 +224,21 @@ export function FoodLogEntryModal({
       onToast(`保存に失敗しました: ${error.message}`);
       return;
     }
+
+    const { data: settingsRow } = await supabase
+      .from("user_settings")
+      .select("diet_phase, phase_profiles")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (settingsRow) {
+      void writePfcTargetSnapshot(supabase, {
+        userId,
+        date,
+        settings: normalizeUserSettings(settingsRow),
+        source: "food_log_ensure",
+      });
+    }
+
     onToast("保存しました");
     onClose();
     await onSaved();

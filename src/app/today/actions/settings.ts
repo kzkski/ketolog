@@ -7,6 +7,7 @@ import {
   normalizeUserSettings,
   type PhaseProfiles,
 } from "@/lib/diet-phase";
+import { syncTodayPfcTargetSnapshotAfterSettingsChange } from "./pfc-target-snapshot";
 
 export type UserSettingsPatch = {
   diet_phase?: number;
@@ -39,5 +40,11 @@ export async function updateUserSettings(data: UserSettingsPatch): Promise<{ err
   );
 
   if (error) return { error: error.message };
+
+  const snap = await syncTodayPfcTargetSnapshotAfterSettingsChange(base, {
+    diet_phase,
+    phase_profiles,
+  });
+  if (snap.error) return { error: snap.error };
   return { error: null };
 }

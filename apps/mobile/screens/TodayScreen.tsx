@@ -68,6 +68,8 @@ import {
 import type { FavoriteMenuItemPayload } from "../lib/fetch-favorite-groups-payload";
 import { getIsOnline, isTransientNetworkError } from "../lib/network";
 import { getOrCreateSnapshotRestaurant } from "../lib/get-or-create-snapshot-restaurant";
+import { writePfcTargetSnapshot } from "../lib/pfc-target-snapshot-write";
+import { snapshotSourceForSettingsChange } from "@ketolog/domain/pfc-target-snapshot";
 
 type UserSettingsState = {
   diet_phase: DietPhase;
@@ -253,7 +255,17 @@ export function TodayScreen() {
       setSnapshotRestaurantId(snapRes.data?.id ?? null);
     }
 
-    setSettings(normalizeUserSettings(settingsRes.data));
+    const nextSettings = normalizeUserSettings(settingsRes.data);
+    setSettings(nextSettings);
+
+    const todayJst = toJstDateString();
+    void writePfcTargetSnapshot(supabase, {
+      userId,
+      date: todayJst,
+      settings: nextSettings,
+      source: "app_ensure",
+    });
+
     const rows = logRes.data ?? [];
     setLogEntries(
       rows.map((r) => ({
@@ -526,6 +538,15 @@ export function TodayScreen() {
       return;
     }
 
+    if (settings) {
+      void writePfcTargetSnapshot(supabase, {
+        userId,
+        date: selectedDate,
+        settings,
+        source: "food_log_ensure",
+      });
+    }
+
     setCart(new Map());
     setCartExpanded(false);
     await load();
@@ -542,6 +563,7 @@ export function TodayScreen() {
     refreshOutbox,
     load,
     showToast,
+    settings,
   ]);
 
   /** Web 今日ビューの「＋」と同じく、メニュー追加ドロワー（`MenuItemEditorModal`）を開く */
@@ -697,6 +719,8 @@ export function TodayScreen() {
       if (!userId || !settings || ph === settings.diet_phase) return;
       setPhaseSaving(true);
       setLoadError(null);
+      const prev = settings;
+      const next = { diet_phase: ph, phase_profiles: settings.phase_profiles };
       const { error } = await supabase.from("user_settings").upsert(
         {
           user_id: userId,
@@ -708,7 +732,16 @@ export function TodayScreen() {
       if (error) {
         setLoadError(error.message);
       } else {
-        setSettings((s) => (s ? { ...s, diet_phase: ph } : s));
+        setSettings(next);
+        const source = snapshotSourceForSettingsChange(prev, next);
+        if (source) {
+          void writePfcTargetSnapshot(supabase, {
+            userId,
+            date: toJstDateString(),
+            settings: next,
+            source,
+          });
+        }
       }
       setPhaseSaving(false);
     },

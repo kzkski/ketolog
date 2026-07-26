@@ -5,9 +5,9 @@ import Svg, { Line, Polyline, Text as SvgText } from "react-native-svg";
 
 type Point = {
   date: string;
-  protein: number;
-  fat: number;
-  carbs: number;
+  protein: number | null;
+  fat: number | null;
+  carbs: number | null;
 };
 
 const CHART_LEFT = 44;
@@ -21,6 +21,8 @@ const LEGEND_ROW_H = 26;
 
 type Props = {
   data: Point[];
+  /** 軸ラベル等用。現状は未表示だが Web と揃えて受け取る */
+  unitLabel?: string;
 };
 
 function dateTickLabel(date: string): string {
@@ -53,7 +55,35 @@ function xTickIndices(len: number): number[] {
   return out;
 }
 
-export function InsightsPfcChart({ data }: Props) {
+function isFiniteNumber(v: number | null | undefined): v is number {
+  return v != null && Number.isFinite(v);
+}
+
+/** null で途切れる折れ線セグメント（連続する有効点のみを結ぶ） */
+function buildPolylineSegments(
+  data: Point[],
+  key: "protein" | "fat" | "carbs",
+  xAt: (i: number) => number,
+  yAt: (v: number) => number
+): string[] {
+  const segments: string[] = [];
+  let current: string[] = [];
+  for (let i = 0; i < data.length; i++) {
+    const v = data[i]![key];
+    if (!isFiniteNumber(v)) {
+      if (current.length > 0) {
+        segments.push(current.join(" "));
+        current = [];
+      }
+      continue;
+    }
+    current.push(`${xAt(i)},${yAt(v)}`);
+  }
+  if (current.length > 0) segments.push(current.join(" "));
+  return segments;
+}
+
+export function InsightsPfcChart({ data, unitLabel: _unitLabel = "g" }: Props) {
   const { width: winW } = useWindowDimensions();
   const [measuredW, setMeasuredW] = useState(0);
 
@@ -73,23 +103,24 @@ export function InsightsPfcChart({ data }: Props) {
     const n = data.length;
     if (n === 0) {
       return {
-        proteinPts: "",
-        fatPts: "",
-        carbsPts: "",
+        proteinSegs: [] as string[],
+        fatSegs: [] as string[],
+        carbsSegs: [] as string[],
         yMax: 1,
         yTicks: [0, 1],
         xTicks: [] as { i: number; label: string; x: number }[],
         gridYs: [] as number[],
       };
     }
-    const rawMax = Math.max(...data.flatMap((d) => [d.protein, d.fat, d.carbs]));
+    const finiteVals = data
+      .flatMap((d) => [d.protein, d.fat, d.carbs])
+      .filter(isFiniteNumber);
+    const rawMax = finiteVals.length > 0 ? Math.max(...finiteVals) : 0;
     const yMax = niceYMax(rawMax);
     const yTicks = yTickValues(yMax);
     const xAt = (i: number) =>
       n <= 1 ? plotLeft + plotW / 2 : plotLeft + (plotW * i) / (n - 1);
     const yAt = (v: number) => CHART_TOP + innerH - (v / yMax) * innerH;
-    const mk = (key: "protein" | "fat" | "carbs") =>
-      data.map((d, i) => `${xAt(i)},${yAt(d[key])}`).join(" ");
     const gridYs = yTicks.map((tv) => yAt(tv));
     const xi = xTickIndices(n);
     const xTicks = xi.map((i) => ({
@@ -98,9 +129,9 @@ export function InsightsPfcChart({ data }: Props) {
       x: xAt(i),
     }));
     return {
-      proteinPts: mk("protein"),
-      fatPts: mk("fat"),
-      carbsPts: mk("carbs"),
+      proteinSegs: buildPolylineSegments(data, "protein", xAt, yAt),
+      fatSegs: buildPolylineSegments(data, "fat", xAt, yAt),
+      carbsSegs: buildPolylineSegments(data, "carbs", xAt, yAt),
       yMax,
       yTicks,
       xTicks,
@@ -175,24 +206,33 @@ export function InsightsPfcChart({ data }: Props) {
             {t.label}
           </SvgText>
         ))}
-        <Polyline
-          points={layout.proteinPts}
-          fill="none"
-          stroke="#60a5fa"
-          strokeWidth={2}
-        />
-        <Polyline
-          points={layout.fatPts}
-          fill="none"
-          stroke="#facc15"
-          strokeWidth={2}
-        />
-        <Polyline
-          points={layout.carbsPts}
-          fill="none"
-          stroke="#34d399"
-          strokeWidth={2}
-        />
+        {layout.proteinSegs.map((pts, i) => (
+          <Polyline
+            key={`p-${i}`}
+            points={pts}
+            fill="none"
+            stroke="#60a5fa"
+            strokeWidth={2}
+          />
+        ))}
+        {layout.fatSegs.map((pts, i) => (
+          <Polyline
+            key={`f-${i}`}
+            points={pts}
+            fill="none"
+            stroke="#facc15"
+            strokeWidth={2}
+          />
+        ))}
+        {layout.carbsSegs.map((pts, i) => (
+          <Polyline
+            key={`c-${i}`}
+            points={pts}
+            fill="none"
+            stroke="#34d399"
+            strokeWidth={2}
+          />
+        ))}
       </Svg>
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>

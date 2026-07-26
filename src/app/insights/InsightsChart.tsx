@@ -13,9 +13,9 @@ import {
 
 type Point = {
   date: string;
-  protein: number;
-  fat: number;
-  carbs: number;
+  protein: number | null;
+  fat: number | null;
+  carbs: number | null;
 };
 
 function dateLabel(date: string): string {
@@ -51,7 +51,13 @@ function LegendContent(props: { payload?: LegendItem[] }) {
   );
 }
 
-export default function InsightsChart({ data }: { data: Point[] }) {
+export default function InsightsChart({
+  data,
+  unitLabel = "g",
+}: {
+  data: Point[];
+  unitLabel?: string;
+}) {
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -65,15 +71,43 @@ export default function InsightsChart({ data }: { data: Point[] }) {
           />
           <YAxis stroke="#9ca3af" tick={{ fontSize: 11 }} />
           <Tooltip
-            formatter={(value) => (typeof value === "number" ? value.toFixed(1) : String(value ?? ""))}
+            formatter={(value) =>
+              typeof value === "number"
+                ? `${value.toFixed(1)}${unitLabel}`
+                : String(value ?? "")
+            }
             labelFormatter={(label) => `${label}`}
             contentStyle={{ backgroundColor: "#111827", border: "1px solid #374151" }}
             itemSorter={(item) => PFC_TOOLTIP_ORDER[String(item.name ?? "")] ?? 99}
           />
           <Legend content={<LegendContent />} />
-          <Line type="monotone" dataKey="protein" name="P" stroke="#60a5fa" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="fat" name="F" stroke="#facc15" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="carbs" name="C" stroke="#34d399" strokeWidth={2} dot={false} />
+          <Line
+            type="monotone"
+            dataKey="protein"
+            name="P"
+            stroke="#60a5fa"
+            strokeWidth={2}
+            dot={false}
+            connectNulls={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="fat"
+            name="F"
+            stroke="#facc15"
+            strokeWidth={2}
+            dot={false}
+            connectNulls={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="carbs"
+            name="C"
+            stroke="#34d399"
+            strokeWidth={2}
+            dot={false}
+            connectNulls={false}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>

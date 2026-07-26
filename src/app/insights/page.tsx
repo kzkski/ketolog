@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import { getPresetRange, getTodayJstDate } from "@/lib/insights";
-import { getInsightsFoodLogForDateRange } from "./actions";
+import {
+  getInsightsFoodLogForDateRange,
+  getInsightsPfcTargetSnapshotsForDateRange,
+} from "./actions";
 import InsightsClient from "./InsightsClient";
 
 export default async function InsightsPage() {
@@ -10,7 +13,16 @@ export default async function InsightsPage() {
 
   const today = getTodayJstDate();
   const initialRange = getPresetRange(today, 7);
-  const result = await getInsightsFoodLogForDateRange(initialRange.start, initialRange.end);
+  const [foodResult, snapResult] = await Promise.all([
+    getInsightsFoodLogForDateRange(initialRange.start, initialRange.end),
+    getInsightsPfcTargetSnapshotsForDateRange(initialRange.start, initialRange.end),
+  ]);
 
-  return <InsightsClient initialEntries={result.entries} today={today} />;
+  return (
+    <InsightsClient
+      initialEntries={foodResult.entries}
+      initialSnapshots={snapResult.snapshots}
+      today={today}
+    />
+  );
 }

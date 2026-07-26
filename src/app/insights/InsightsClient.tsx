@@ -11,15 +11,20 @@ import {
 } from "@ketolog/domain/pfc";
 import {
   addDaysJst,
+  buildAchievementRates,
   buildInsights,
   getPresetRange,
   type InsightFoodLogEntry,
+  type InsightPfcTargetSnapshot,
 } from "@/lib/insights";
 import {
   readInsightsPfcRatioBasis,
   writeInsightsPfcRatioBasis,
 } from "@/lib/insights-pfc-ratio-storage";
-import { getInsightsFoodLogForDateRange } from "./actions";
+import {
+  getInsightsFoodLogForDateRange,
+  getInsightsPfcTargetSnapshotsForDateRange,
+} from "./actions";
 import { MEAL_LABELS, MEAL_TAB_STYLES, MEAL_TYPES } from "@/lib/constants/meal";
 import type { MealType } from "@ketolog/types";
 
@@ -32,9 +37,16 @@ const CUSTOM_RANGE_MAX_DAYS = 90;
 
 type Preset = "7d" | "30d" | "custom";
 type MealFilter = MealType | "all";
+type MetricMode = "achievement" | "grams";
 
 function fmtNum(v: number): string {
   return v.toFixed(1);
+}
+
+function metricModeButtonClass(active: boolean): string {
+  return `rounded-md px-2 py-1 text-[10px] font-medium transition-colors sm:text-[11px] ${
+    active ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+  }`;
 }
 
 function ratioStyleFromPercents(pct: number): { width: string } {
@@ -80,9 +92,11 @@ function mealFilterButtonClass(mealFilter: MealFilter, target: MealFilter): stri
 
 export default function InsightsClient({
   initialEntries,
+  initialSnapshots,
   today,
 }: {
   initialEntries: InsightFoodLogEntry[];
+  initialSnapshots: InsightPfcTargetSnapshot[];
   today: string;
 }) {
   const preset7 = getPresetRange(today, 7);
@@ -90,7 +104,9 @@ export default function InsightsClient({
   const [start, setStart] = useState(preset7.start);
   const [end, setEnd] = useState(preset7.end);
   const [entries, setEntries] = useState(initialEntries);
+  const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [mealFilter, setMealFilter] = useState<MealFilter>("all");
+  const [metricMode, setMetricMode] = useState<MetricMode>("achievement");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -113,6 +129,15 @@ export default function InsightsClient({
   const insight = useMemo(
     () => buildInsights(entries, start, end, { mealTypes: selectedMealTypes }),
     [entries, start, end, selectedMealTypes]
+  );
+  const periodDayCount = insight.chart.length;
+  const achievement = useMemo(
+    () => buildAchievementRates(insight.daily, snapshots, periodDayCount),
+    [insight.daily, snapshots, periodDayCount]
+  );
+  const achievementByDate = useMemo(
+    () => new Map(achievement.dailyAchievement.map((d) => [d.date, d])),
+    [achievement.dailyAchievement]
   );
   const avgGrams = useMemo(
     () =>
@@ -138,17 +163,25 @@ export default function InsightsClient({
     setLoading(true);
     setError(null);
     const mealTypes = nextMealFilter === "all" ? undefined : [nextMealFilter];
-    const result = await getInsightsFoodLogForDateRange(nextStart, nextEnd, mealTypes);
+    const [foodResult, snapResult] = await Promise.all([
+      getInsightsFoodLogForDateRange(nextStart, nextEnd, mealTypes),
+      getInsightsPfcTargetSnapshotsForDateRange(nextStart, nextEnd),
+    ]);
     setLoading(false);
-    if (result.error) {
-      setError(result.error);
+    if (foodResult.error) {
+      setError(foodResult.error);
+      return;
+    }
+    if (snapResult.error) {
+      setError(snapResult.error);
       return;
     }
     setPreset(nextPreset);
     setStart(nextStart);
     setEnd(nextEnd);
     setMealFilter(nextMealFilter);
-    setEntries(result.entries);
+    setEntries(foodResult.entries);
+    setSnapshots(snapResult.snapshots);
     setExpanded(new Set());
   }
 
@@ -303,65 +336,145 @@ export default function InsightsClient({
 
         <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-3">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium text-white">平均PFCバランス</h2>
-            <div
-              className="flex shrink-0 rounded-lg border border-gray-800 bg-gray-950/80 p-0.5"
-              role="group"
-              aria-label="PFC比率の表示基準"
-            >
-              <button
-                type="button"
-                onClick={() => selectRatioBasis("kcal")}
-                className={ratioBasisButtonClass(ratioBasis === "kcal")}
-                aria-pressed={ratioBasis === "kcal"}
+            <h2 className="text-sm font-medium text-white">
+              {metricMode === "achievement" ? "記録日達成率" : "平均PFCバランス"}
+            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                className="flex shrink-0 rounded-lg border border-gray-800 bg-gray-950/80 p-0.5"
+                role="group"
+                aria-label="分析指標"
               >
-                カロリー比
-              </button>
-              <button
-                type="button"
-                onClick={() => selectRatioBasis("gram")}
-                className={ratioBasisButtonClass(ratioBasis === "gram")}
-                aria-pressed={ratioBasis === "gram"}
-              >
-                重量比
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setMetricMode("achievement")}
+                  className={metricModeButtonClass(metricMode === "achievement")}
+                  aria-pressed={metricMode === "achievement"}
+                >
+                  達成率
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetricMode("grams")}
+                  className={metricModeButtonClass(metricMode === "grams")}
+                  aria-pressed={metricMode === "grams"}
+                >
+                  生グラム
+                </button>
+              </div>
+              {metricMode === "grams" ? (
+                <div
+                  className="flex shrink-0 rounded-lg border border-gray-800 bg-gray-950/80 p-0.5"
+                  role="group"
+                  aria-label="PFC比率の表示基準"
+                >
+                  <button
+                    type="button"
+                    onClick={() => selectRatioBasis("kcal")}
+                    className={ratioBasisButtonClass(ratioBasis === "kcal")}
+                    aria-pressed={ratioBasis === "kcal"}
+                  >
+                    カロリー比
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectRatioBasis("gram")}
+                    className={ratioBasisButtonClass(ratioBasis === "gram")}
+                    aria-pressed={ratioBasis === "gram"}
+                  >
+                    重量比
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
-          {ratioBasis === "kcal" ? (
-            <p className="mb-2 text-[11px] text-gray-400">
-              平均 {fmtNum(avgDailyKcal)} kcal/日
-              <span className="text-gray-500"> · P4・F9・C4 kcal/g</span>
-            </p>
-          ) : null}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
-              <p className="text-[11px] text-gray-400">たんぱく質 (P)</p>
-              <p className="text-sm font-semibold text-blue-300">{fmtNum(insight.summary.avgProtein)} g</p>
-              <p className="text-[11px] text-blue-200/90">{fmtNum(avgRatioPct.p)}%</p>
-            </div>
-            <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
-              <p className="text-[11px] text-gray-400">脂質 (F)</p>
-              <p className="text-sm font-semibold text-yellow-300">{fmtNum(insight.summary.avgFat)} g</p>
-              <p className="text-[11px] text-yellow-200/90">{fmtNum(avgRatioPct.f)}%</p>
-            </div>
-            <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
-              <p className="text-[11px] text-gray-400">糖質 (C)</p>
-              <p className="text-sm font-semibold text-emerald-300">{fmtNum(insight.summary.avgCarbs)} g</p>
-              <p className="text-[11px] text-emerald-200/90">{fmtNum(avgRatioPct.c)}%</p>
-            </div>
-          </div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded bg-gray-800">
-            <div className="flex h-full w-full">
-              <div className="bg-blue-400" style={ratioStyleFromPercents(avgRatioPct.p)} />
-              <div className="bg-yellow-400" style={ratioStyleFromPercents(avgRatioPct.f)} />
-              <div className="bg-emerald-400" style={ratioStyleFromPercents(avgRatioPct.c)} />
-            </div>
-          </div>
+          {metricMode === "achievement" ? (
+            <>
+              <p className="mb-2 text-[11px] text-gray-400">
+                記録日 {achievement.summary.recordedDayCount} 日
+                <span className="text-gray-500">
+                  {" "}
+                  · 除外 {achievement.summary.excludedDayCount} 日（目標履歴なし／食事なし）
+                </span>
+              </p>
+              {achievement.summary.recordedDayCount === 0 ? (
+                <p className="text-xs text-amber-300/90">
+                  この期間は目標スナップショット付きの記録日がありません。Today
+                  でプリセットを選ぶか食事を記録すると、以降の達成率を集計できます。
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
+                    <p className="text-[11px] text-gray-400">たんぱく質 (P)</p>
+                    <p className="text-sm font-semibold text-blue-300">
+                      {fmtNum(achievement.summary.avgProteinPct ?? 0)}%
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
+                    <p className="text-[11px] text-gray-400">脂質 (F)</p>
+                    <p className="text-sm font-semibold text-yellow-300">
+                      {fmtNum(achievement.summary.avgFatPct ?? 0)}%
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
+                    <p className="text-[11px] text-gray-400">糖質 (C)</p>
+                    <p className="text-sm font-semibold text-emerald-300">
+                      {fmtNum(achievement.summary.avgCarbsPct ?? 0)}%
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {ratioBasis === "kcal" ? (
+                <p className="mb-2 text-[11px] text-gray-400">
+                  平均 {fmtNum(avgDailyKcal)} kcal/日
+                  <span className="text-gray-500"> · P4・F9・C4 kcal/g</span>
+                </p>
+              ) : null}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
+                  <p className="text-[11px] text-gray-400">たんぱく質 (P)</p>
+                  <p className="text-sm font-semibold text-blue-300">
+                    {fmtNum(insight.summary.avgProtein)} g
+                  </p>
+                  <p className="text-[11px] text-blue-200/90">{fmtNum(avgRatioPct.p)}%</p>
+                </div>
+                <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
+                  <p className="text-[11px] text-gray-400">脂質 (F)</p>
+                  <p className="text-sm font-semibold text-yellow-300">
+                    {fmtNum(insight.summary.avgFat)} g
+                  </p>
+                  <p className="text-[11px] text-yellow-200/90">{fmtNum(avgRatioPct.f)}%</p>
+                </div>
+                <div className="rounded-lg border border-gray-800 bg-gray-900/60 py-2">
+                  <p className="text-[11px] text-gray-400">糖質 (C)</p>
+                  <p className="text-sm font-semibold text-emerald-300">
+                    {fmtNum(insight.summary.avgCarbs)} g
+                  </p>
+                  <p className="text-[11px] text-emerald-200/90">{fmtNum(avgRatioPct.c)}%</p>
+                </div>
+              </div>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded bg-gray-800">
+                <div className="flex h-full w-full">
+                  <div className="bg-blue-400" style={ratioStyleFromPercents(avgRatioPct.p)} />
+                  <div className="bg-yellow-400" style={ratioStyleFromPercents(avgRatioPct.f)} />
+                  <div className="bg-emerald-400" style={ratioStyleFromPercents(avgRatioPct.c)} />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-3">
-          <h2 className="mb-2 text-sm font-medium text-white">日次PFC推移</h2>
-          <InsightsChart data={insight.chart} />
+          <h2 className="mb-2 text-sm font-medium text-white">
+            {metricMode === "achievement" ? "日次達成率推移" : "日次PFC推移"}
+          </h2>
+          <InsightsChart
+            data={metricMode === "achievement" ? achievement.chart : insight.chart}
+            unitLabel={metricMode === "achievement" ? "%" : "g"}
+          />
         </div>
 
         <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-3 space-y-2">
@@ -370,6 +483,7 @@ export default function InsightsClient({
             const isOpen = expanded.has(day.date);
             const dayGrams = toPfcGrams(day.protein, day.fat, day.carbs);
             const dayRatioPct = pfcRatioPercents(dayGrams, ratioBasis);
+            const dayAch = achievementByDate.get(day.date);
             return (
               <div key={day.date} className="rounded-lg border border-gray-800 bg-gray-950/60">
                 <button
@@ -381,10 +495,31 @@ export default function InsightsClient({
                     <div className="grid grid-cols-[minmax(0,1fr)_4.2rem_4.2rem_4.2rem] items-center gap-1 text-xs">
                       <p className="truncate text-sm text-white">
                         {isOpen ? "▼" : "▶"} {jstDateLabel(day.date)}
+                        {dayAch?.phaseName ? (
+                          <span className="ml-1 text-[11px] text-gray-500">
+                            · {dayAch.phaseName}
+                          </span>
+                        ) : null}
                       </p>
-                      <span className="text-right text-blue-300">{fmtNum(day.protein)}</span>
-                      <span className="text-right text-yellow-300">{fmtNum(day.fat)}</span>
-                      <span className="text-right text-emerald-300">{fmtNum(day.carbs)}</span>
+                      {metricMode === "achievement" ? (
+                        <>
+                          <span className="text-right text-blue-300">
+                            {dayAch?.proteinPct != null ? `${fmtNum(dayAch.proteinPct)}%` : "—"}
+                          </span>
+                          <span className="text-right text-yellow-300">
+                            {dayAch?.fatPct != null ? `${fmtNum(dayAch.fatPct)}%` : "—"}
+                          </span>
+                          <span className="text-right text-emerald-300">
+                            {dayAch?.carbsPct != null ? `${fmtNum(dayAch.carbsPct)}%` : "—"}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-right text-blue-300">{fmtNum(day.protein)}</span>
+                          <span className="text-right text-yellow-300">{fmtNum(day.fat)}</span>
+                          <span className="text-right text-emerald-300">{fmtNum(day.carbs)}</span>
+                        </>
+                      )}
                     </div>
                     <div className="mt-1.5 h-2 w-full overflow-hidden rounded bg-gray-800">
                       <div className="flex h-full w-full">

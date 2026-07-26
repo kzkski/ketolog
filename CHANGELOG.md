@@ -16,6 +16,14 @@
 
 ### Changed
 
+## [1.70.0] - 2026-07-26
+
+### Added
+
+- **分析 / Insights**: 可変プリセット運用向けに「記録日達成率(%)」を追加。その日当時の PFC 目標スナップショットに対する達成率の平均・推移を Web / iOS で表示（生グラム表示は切替で併存）。目標履歴は `daily_pfc_target_snapshot` に保存（[#344](https://github.com/kzkski/ketolog/issues/344)）。
+
+### Changed
+
 ## [1.69.1] - 2026-07-25
 
 ### Fixed

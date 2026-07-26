@@ -13,6 +13,9 @@ import {
 } from "react-native";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DietPhase, PhaseProfiles } from "@ketolog/domain/diet-phase";
+import { snapshotSourceForSettingsChange } from "@ketolog/domain/pfc-target-snapshot";
+import { toJstDateString } from "@ketolog/domain/date";
+import { writePfcTargetSnapshot } from "../lib/pfc-target-snapshot-write";
 
 import {
   buildFullDataExportPayload,
@@ -118,6 +121,8 @@ export function TodaySettingsModal({
       if (next === selectedSlot) return;
       setSlotSaving(true);
       setError(null);
+      const prev = { diet_phase: settings.diet_phase, phase_profiles: settings.phase_profiles };
+      const nextSettings = { diet_phase: next, phase_profiles: profiles };
       const { error: upErr } = await supabase.from("user_settings").upsert(
         {
           user_id: userId,
@@ -132,9 +137,18 @@ export function TodaySettingsModal({
         return;
       }
       setSelectedSlot(next);
-      onSettingsUpdated({ diet_phase: next, phase_profiles: profiles });
+      onSettingsUpdated(nextSettings);
+      const source = snapshotSourceForSettingsChange(prev, nextSettings);
+      if (source) {
+        void writePfcTargetSnapshot(supabase, {
+          userId,
+          date: toJstDateString(),
+          settings: nextSettings,
+          source,
+        });
+      }
     },
-    [selectedSlot, supabase, userId, profiles, onSettingsUpdated]
+    [selectedSlot, supabase, userId, profiles, onSettingsUpdated, settings]
   );
 
   const handleSaveProfiles = useCallback(async () => {
@@ -185,6 +199,8 @@ export function TodaySettingsModal({
     setProfiles(normalized);
     setSaving(true);
     setError(null);
+    const prev = { diet_phase: settings.diet_phase, phase_profiles: settings.phase_profiles };
+    const nextSettings = { diet_phase: selectedSlot, phase_profiles: normalized };
     const { error: upErr } = await supabase.from("user_settings").upsert(
       {
         user_id: userId,
@@ -198,7 +214,16 @@ export function TodaySettingsModal({
       setError(upErr.message);
       return;
     }
-    onSettingsUpdated({ diet_phase: selectedSlot, phase_profiles: normalized });
+    onSettingsUpdated(nextSettings);
+    const source = snapshotSourceForSettingsChange(prev, nextSettings);
+    if (source) {
+      void writePfcTargetSnapshot(supabase, {
+        userId,
+        date: toJstDateString(),
+        settings: nextSettings,
+        source,
+      });
+    }
     onToast?.("目標を保存しました");
     onClose();
   }, [
@@ -210,6 +235,7 @@ export function TodaySettingsModal({
     onSettingsUpdated,
     onClose,
     onToast,
+    settings,
   ]);
 
   const handleDownloadFullData = useCallback(async () => {

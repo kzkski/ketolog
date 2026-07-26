@@ -37,6 +37,8 @@ import {
   type FoodLogOutboxDraft,
 } from "../lib/food-log-outbox";
 import { getIsOnline, isTransientNetworkError } from "../lib/network";
+import { writePfcTargetSnapshot } from "../lib/pfc-target-snapshot-write";
+import { normalizeUserSettings } from "@ketolog/domain/diet-phase";
 import { resolveMenuItemGroupOrder } from "../lib/resolve-menu-item-group-order";
 import {
   lookupSharedProductByBarcodeMobile,
@@ -985,6 +987,21 @@ export function MenuItemEditorModal({
       onToast(`保存に失敗しました: ${error.message}`);
       return;
     }
+
+    const { data: settingsRow } = await supabase
+      .from("user_settings")
+      .select("diet_phase, phase_profiles")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (settingsRow && draft) {
+      void writePfcTargetSnapshot(supabase, {
+        userId,
+        date: draft.date,
+        settings: normalizeUserSettings(settingsRow),
+        source: "food_log_ensure",
+      });
+    }
+
     onToast("保存しました");
     onClose();
     await onSaved();

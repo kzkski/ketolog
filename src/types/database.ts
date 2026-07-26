@@ -5,6 +5,18 @@ export type UserSettings = {
   phase_profiles: PhaseProfiles;
 };
 
+/** 日次 PFC 目標スナップショット（Insights 達成率用） */
+export type DailyPfcTargetSnapshot = {
+  id?: string;
+  date: string;
+  diet_phase: DietPhase;
+  phase_name: string | null;
+  protein_target_g: number;
+  fat_target_g: number;
+  carbs_target_g: number;
+  source: string;
+};
+
 export type Restaurant = {
   id: string;
   name: string;

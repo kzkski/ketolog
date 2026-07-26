@@ -33,6 +33,36 @@ export type TopItem = {
   count: number;
 };
 
+/** Insights 達成率用の日次目標（DB スナップショット） */
+export type InsightPfcTargetSnapshot = {
+  date: string;
+  diet_phase: number;
+  phase_name: string | null;
+  protein_target_g: number;
+  fat_target_g: number;
+  carbs_target_g: number;
+};
+
+export type DailyAchievement = {
+  date: string;
+  included: boolean;
+  phaseName: string | null;
+  dietPhase: number | null;
+  proteinPct: number | null;
+  fatPct: number | null;
+  carbsPct: number | null;
+};
+
+export type AchievementSummary = {
+  /** 記録日達成率の平均。記録日が0なら null */
+  avgProteinPct: number | null;
+  avgFatPct: number | null;
+  avgCarbsPct: number | null;
+  recordedDayCount: number;
+  excludedDayCount: number;
+  periodDayCount: number;
+};
+
 export function getTodayJstDate(): string {
   return toJstDateString();
 }
@@ -140,6 +170,100 @@ export function buildInsights(
       protein: d.protein,
       fat: d.fat,
       carbs: d.carbs,
+    })),
+  };
+}
+
+function achievementPct(consumed: number, target: number): number | null {
+  if (!(target > 0) || !Number.isFinite(target) || !Number.isFinite(consumed)) return null;
+  return (consumed / target) * 100;
+}
+
+/**
+ * 記録日達成率: snapshot があり、かつその日の（フィルタ後）food_log が1件以上の日だけ平均に含める。
+ * チャート欠損日は null（折れ線ギャップ）。
+ */
+export function buildAchievementRates(
+  daily: DailyInsight[],
+  snapshots: InsightPfcTargetSnapshot[],
+  periodDayCount: number
+): {
+  summary: AchievementSummary;
+  dailyAchievement: DailyAchievement[];
+  chart: Array<{
+    date: string;
+    protein: number | null;
+    fat: number | null;
+    carbs: number | null;
+  }>;
+} {
+  const byDate = new Map(snapshots.map((s) => [s.date, s]));
+  // daily は新しい順のことがあるので日付昇順でチャートを組む
+  const dailyAsc = [...daily].sort((a, b) => a.date.localeCompare(b.date));
+
+  const dailyAchievement: DailyAchievement[] = dailyAsc.map((day) => {
+    const snap = byDate.get(day.date);
+    const hasEntries = day.entries.length > 0;
+    if (!snap || !hasEntries) {
+      return {
+        date: day.date,
+        included: false,
+        phaseName: snap?.phase_name ?? null,
+        dietPhase: snap?.diet_phase ?? null,
+        proteinPct: null,
+        fatPct: null,
+        carbsPct: null,
+      };
+    }
+    const proteinPct = achievementPct(day.protein, Number(snap.protein_target_g));
+    const fatPct = achievementPct(day.fat, Number(snap.fat_target_g));
+    const carbsPct = achievementPct(day.carbs, Number(snap.carbs_target_g));
+    if (proteinPct == null || fatPct == null || carbsPct == null) {
+      return {
+        date: day.date,
+        included: false,
+        phaseName: snap.phase_name,
+        dietPhase: snap.diet_phase,
+        proteinPct: null,
+        fatPct: null,
+        carbsPct: null,
+      };
+    }
+    return {
+      date: day.date,
+      included: true,
+      phaseName: snap.phase_name,
+      dietPhase: snap.diet_phase,
+      proteinPct,
+      fatPct,
+      carbsPct,
+    };
+  });
+
+  const included = dailyAchievement.filter((d) => d.included);
+  const recordedDayCount = included.length;
+  const avg = (pick: (d: DailyAchievement) => number | null): number | null => {
+    if (recordedDayCount === 0) return null;
+    let sum = 0;
+    for (const d of included) sum += pick(d) ?? 0;
+    return sum / recordedDayCount;
+  };
+
+  return {
+    summary: {
+      avgProteinPct: avg((d) => d.proteinPct),
+      avgFatPct: avg((d) => d.fatPct),
+      avgCarbsPct: avg((d) => d.carbsPct),
+      recordedDayCount,
+      excludedDayCount: Math.max(0, periodDayCount - recordedDayCount),
+      periodDayCount,
+    },
+    dailyAchievement,
+    chart: dailyAchievement.map((d) => ({
+      date: d.date,
+      protein: d.proteinPct,
+      fat: d.fatPct,
+      carbs: d.carbsPct,
     })),
   };
 }

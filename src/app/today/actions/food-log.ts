@@ -4,6 +4,7 @@ import { sumPfc } from "@ketolog/domain/pfc";
 import type { PfcGrams } from "@ketolog/types";
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type { FoodLogEntry, TodayConsumed } from "@/types/database";
+import { ensurePfcTargetSnapshotForDate } from "./pfc-target-snapshot";
 
 export type SaveItem = {
   menuItemId: string | null;
@@ -58,6 +59,9 @@ export async function saveMealToLog(
   );
 
   if (error) return { error: error.message };
+
+  const snap = await ensurePfcTargetSnapshotForDate(date, "food_log_ensure");
+  if (snap.error) return { error: snap.error };
   return { error: null };
 }
 

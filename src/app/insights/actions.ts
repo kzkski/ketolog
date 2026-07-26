@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
-import type { InsightFoodLogEntry } from "@/lib/insights";
+import type { InsightFoodLogEntry, InsightPfcTargetSnapshot } from "@/lib/insights";
 import type { MealType } from "@ketolog/types";
 
 const INSIGHTS_PAGE_SIZE = 1000;
@@ -61,4 +61,38 @@ export async function getInsightsFoodLogForDateRange(
   }
 
   return { entries, error: null };
+}
+
+export async function getInsightsPfcTargetSnapshotsForDateRange(
+  start: string,
+  end: string
+): Promise<{ snapshots: InsightPfcTargetSnapshot[]; error: string | null }> {
+  const { supabase, user } = await getSupabaseAuthForRequest();
+  if (!user) return { snapshots: [], error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("daily_pfc_target_snapshot")
+    .select(
+      "date, diet_phase, phase_name, protein_target_g, fat_target_g, carbs_target_g"
+    )
+    .eq("user_id", user.id)
+    .gte("date", start)
+    .lte("date", end)
+    .order("date", { ascending: true });
+
+  if (error) return { snapshots: [], error: error.message };
+
+  const snapshots: InsightPfcTargetSnapshot[] = (data ?? []).map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      date: String(r.date),
+      diet_phase: Number(r.diet_phase),
+      phase_name: r.phase_name == null ? null : String(r.phase_name),
+      protein_target_g: Number(r.protein_target_g),
+      fat_target_g: Number(r.fat_target_g),
+      carbs_target_g: Number(r.carbs_target_g),
+    };
+  });
+
+  return { snapshots, error: null };
 }

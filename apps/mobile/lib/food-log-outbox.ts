@@ -3,9 +3,11 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeUserSettings } from "@ketolog/domain/diet-phase";
 import type { MealType } from "@ketolog/types";
 
 import { isTransientNetworkError } from "./network";
+import { writePfcTargetSnapshot } from "./pfc-target-snapshot-write";
 
 const storageKey = (userId: string) =>
   `@ketolog/food_log_outbox/v1/${userId}`;
@@ -114,12 +116,31 @@ export async function sendFoodLogDraft(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const payload = buildFoodLogInsertPayload(userId, draft);
   const { error } = await supabase.from("food_log").insert(payload);
-  if (!error) return { ok: true };
-  if (error.code === "23505") return { ok: true };
-  if (isTransientNetworkError(error)) {
-    return { ok: false, error: "通信に失敗しました。しばらくしてから再送してください。" };
+  if (error) {
+    if (error.code === "23505") {
+      // duplicate id — treat as success, still try ensure below
+    } else if (isTransientNetworkError(error)) {
+      return { ok: false, error: "通信に失敗しました。しばらくしてから再送してください。" };
+    } else {
+      return { ok: false, error: error.message };
+    }
   }
-  return { ok: false, error: error.message };
+
+  const { data: settingsRow } = await supabase
+    .from("user_settings")
+    .select("diet_phase, phase_profiles")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (settingsRow) {
+    void writePfcTargetSnapshot(supabase, {
+      userId,
+      date: draft.date,
+      settings: normalizeUserSettings(settingsRow),
+      source: "food_log_ensure",
+    });
+  }
+
+  return { ok: true };
 }
 
 export { newClientRowId };

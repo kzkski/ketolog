@@ -16,6 +16,12 @@
 
 ### Changed
 
+## [1.70.2] - 2026-07-26
+
+### Fixed
+
+- **DB / migrations**: 共有本番で MyVitalRelay 由来の新しい migration 版が先行しているとき、ketolog 側の欠落履歴を `migration repair --status applied` で揃えてから `db push` するよう prod-db-migrate を修正。baseline 等の再実行を避けつつ、未適用の `daily_pfc_target_snapshot` を適用できるようにした。
+
 ## [1.70.1] - 2026-07-26
 
 ### Fixed

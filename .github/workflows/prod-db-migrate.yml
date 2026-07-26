@@ -12,6 +12,7 @@ on:
       - main
     paths:
       - "supabase/migrations/**"
+      - ".github/workflows/prod-db-migrate.yml"
 
 jobs:
   migrate:
@@ -51,6 +52,35 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      # MyVitalRelay が共有本番へ新しい版を先に積むと、ketolog 側の「それより古いが
+      # schema_migrations から欠落した版」が out-of-order 扱いになり db push が拒否する。
+      # 実 DDL は既に本番にある前提で、履歴だけ applied に揃えてから未適用分を push する。
+      # （baseline 等を --include-all で再実行すると破壊的になりうるため使わない）
+      - name: Repair out-of-order migration history
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -eu
+          supabase migration repair --status applied \
+            20260211120000 \
+            20260409015501 \
+            20260409095719 \
+            20260412035245 \
+            20260412120000 \
+            20260412120001 \
+            20260412130000 \
+            20260413100000 \
+            20260414120000 \
+            20260415180000 \
+            20260416120000 \
+            20260417120000 \
+            20260427120000 \
+            20260706054829 \
+            20260708224747 \
+            20260710014053 \
+            20260710120000 \
+            20260710140000
 
       - name: Apply migrations
         env:

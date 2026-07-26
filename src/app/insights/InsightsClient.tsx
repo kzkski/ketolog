@@ -18,13 +18,23 @@ import {
   type InsightPfcTargetSnapshot,
 } from "@/lib/insights";
 import {
+  buildPeriodEnergyMetrics,
+  type BodyCompRow,
+  type DasRow,
+  type TrainingBurnRow,
+} from "@ketolog/domain/energy-availability";
+import {
   readInsightsPfcRatioBasis,
   writeInsightsPfcRatioBasis,
 } from "@/lib/insights-pfc-ratio-storage";
 import {
+  getInsightsBodyCompForDateRange,
+  getInsightsDasForDateRange,
   getInsightsFoodLogForDateRange,
   getInsightsPfcTargetSnapshotsForDateRange,
+  getInsightsTrainingBurnForDateRange,
 } from "./actions";
+import { PeriodEnergySection } from "./_components/PeriodEnergySection";
 import { MEAL_LABELS, MEAL_TAB_STYLES, MEAL_TYPES } from "@/lib/constants/meal";
 import type { MealType } from "@ketolog/types";
 
@@ -92,11 +102,19 @@ function mealFilterButtonClass(mealFilter: MealFilter, target: MealFilter): stri
 
 export default function InsightsClient({
   initialEntries,
+  initialEnergyEntries,
   initialSnapshots,
+  initialDasRows,
+  initialTrainingRows,
+  initialBodyCompRows,
   today,
 }: {
   initialEntries: InsightFoodLogEntry[];
+  initialEnergyEntries: InsightFoodLogEntry[];
   initialSnapshots: InsightPfcTargetSnapshot[];
+  initialDasRows: DasRow[];
+  initialTrainingRows: TrainingBurnRow[];
+  initialBodyCompRows: BodyCompRow[];
   today: string;
 }) {
   const preset7 = getPresetRange(today, 7);
@@ -104,7 +122,11 @@ export default function InsightsClient({
   const [start, setStart] = useState(preset7.start);
   const [end, setEnd] = useState(preset7.end);
   const [entries, setEntries] = useState(initialEntries);
+  const [energyEntries, setEnergyEntries] = useState(initialEnergyEntries);
   const [snapshots, setSnapshots] = useState(initialSnapshots);
+  const [dasRows, setDasRows] = useState(initialDasRows);
+  const [trainingRows, setTrainingRows] = useState(initialTrainingRows);
+  const [bodyCompRows, setBodyCompRows] = useState(initialBodyCompRows);
   const [mealFilter, setMealFilter] = useState<MealFilter>("all");
   const [metricMode, setMetricMode] = useState<MetricMode>("achievement");
   const [loading, setLoading] = useState(false);
@@ -154,6 +176,32 @@ export default function InsightsClient({
   );
   const avgDailyKcal = useMemo(() => pfcTotalKcal(avgGrams), [avgGrams]);
 
+  const energyInsight = useMemo(
+    () => buildInsights(energyEntries, start, end),
+    [energyEntries, start, end]
+  );
+  const periodEnergy = useMemo(() => {
+    const dailyIntake = energyInsight.chart.map((d) => {
+      const day = energyInsight.daily.find((x) => x.date === d.date);
+      return {
+        date: d.date,
+        intake_kcal: pfcTotalKcal({ p: d.protein, f: d.fat, c: d.carbs }),
+        hasFood: (day?.entries.length ?? 0) > 0,
+      };
+    });
+    return buildPeriodEnergyMetrics({
+      start,
+      end,
+      todayJst: today,
+      excludeToday: true,
+      excludeIncompleteToday: true,
+      dailyIntake,
+      dasRows,
+      trainingRows,
+      bodyCompRows,
+    });
+  }, [energyInsight, start, end, today, dasRows, trainingRows, bodyCompRows]);
+
   async function loadRange(
     nextStart: string,
     nextEnd: string,
@@ -163,17 +211,43 @@ export default function InsightsClient({
     setLoading(true);
     setError(null);
     const mealTypes = nextMealFilter === "all" ? undefined : [nextMealFilter];
-    const [foodResult, snapResult] = await Promise.all([
-      getInsightsFoodLogForDateRange(nextStart, nextEnd, mealTypes),
-      getInsightsPfcTargetSnapshotsForDateRange(nextStart, nextEnd),
-    ]);
+    const energyFoodPromise = getInsightsFoodLogForDateRange(nextStart, nextEnd);
+    const foodPromise =
+      mealTypes == null
+        ? energyFoodPromise
+        : getInsightsFoodLogForDateRange(nextStart, nextEnd, mealTypes);
+    const [foodResult, energyFoodResult, snapResult, dasResult, trainingResult, bodyResult] =
+      await Promise.all([
+        foodPromise,
+        energyFoodPromise,
+        getInsightsPfcTargetSnapshotsForDateRange(nextStart, nextEnd),
+        getInsightsDasForDateRange(nextStart, nextEnd),
+        getInsightsTrainingBurnForDateRange(nextStart, nextEnd),
+        getInsightsBodyCompForDateRange(nextStart, nextEnd),
+      ]);
     setLoading(false);
     if (foodResult.error) {
       setError(foodResult.error);
       return;
     }
+    if (energyFoodResult.error) {
+      setError(energyFoodResult.error);
+      return;
+    }
     if (snapResult.error) {
       setError(snapResult.error);
+      return;
+    }
+    if (dasResult.error) {
+      setError(dasResult.error);
+      return;
+    }
+    if (trainingResult.error) {
+      setError(trainingResult.error);
+      return;
+    }
+    if (bodyResult.error) {
+      setError(bodyResult.error);
       return;
     }
     setPreset(nextPreset);
@@ -181,7 +255,11 @@ export default function InsightsClient({
     setEnd(nextEnd);
     setMealFilter(nextMealFilter);
     setEntries(foodResult.entries);
+    setEnergyEntries(energyFoodResult.entries);
     setSnapshots(snapResult.snapshots);
+    setDasRows(dasResult.rows);
+    setTrainingRows(trainingResult.rows);
+    setBodyCompRows(bodyResult.rows);
     setExpanded(new Set());
   }
 
@@ -466,6 +544,11 @@ export default function InsightsClient({
             </>
           )}
         </div>
+
+        <PeriodEnergySection
+          summary={periodEnergy.summary}
+          mealFilterActive={mealFilter !== "all"}
+        />
 
         <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-3">
           <h2 className="mb-2 text-sm font-medium text-white">

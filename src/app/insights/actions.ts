@@ -1,7 +1,13 @@
 "use server";
 
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
+import { addDaysJst } from "@/lib/insights";
 import type { InsightFoodLogEntry, InsightPfcTargetSnapshot } from "@/lib/insights";
+import type {
+  BodyCompRow,
+  DasRow,
+  TrainingBurnRow,
+} from "@ketolog/domain/energy-availability";
 import type { MealType } from "@ketolog/types";
 
 const INSIGHTS_PAGE_SIZE = 1000;
@@ -95,4 +101,98 @@ export async function getInsightsPfcTargetSnapshotsForDateRange(
   });
 
   return { snapshots, error: null };
+}
+
+export async function getInsightsDasForDateRange(
+  start: string,
+  end: string
+): Promise<{ rows: DasRow[]; error: string | null }> {
+  const { supabase, user } = await getSupabaseAuthForRequest();
+  if (!user) return { rows: [], error: "認証が必要です" };
+
+  // DAS.date は格納日 = 活動日 D+1
+  const storageStart = addDaysJst(start, 1);
+  const storageEnd = addDaysJst(end, 1);
+
+  const { data, error } = await supabase
+    .from("daily_activity_summary")
+    .select("date, basal_calories_kcal, active_calories_kcal")
+    .eq("user_id", user.id)
+    .gte("date", storageStart)
+    .lte("date", storageEnd)
+    .order("date", { ascending: true });
+
+  if (error) return { rows: [], error: error.message };
+
+  const rows: DasRow[] = (data ?? []).map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      date: String(r.date),
+      basal_calories_kcal:
+        r.basal_calories_kcal == null ? null : Number(r.basal_calories_kcal),
+      active_calories_kcal:
+        r.active_calories_kcal == null ? null : Number(r.active_calories_kcal),
+    };
+  });
+
+  return { rows, error: null };
+}
+
+export async function getInsightsTrainingBurnForDateRange(
+  start: string,
+  end: string
+): Promise<{ rows: TrainingBurnRow[]; error: string | null }> {
+  const { supabase, user } = await getSupabaseAuthForRequest();
+  if (!user) return { rows: [], error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("training_log")
+    .select("date, calories_burned")
+    .eq("user_id", user.id)
+    .gte("date", start)
+    .lte("date", end)
+    .order("date", { ascending: true });
+
+  if (error) return { rows: [], error: error.message };
+
+  const rows: TrainingBurnRow[] = (data ?? []).map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      date: String(r.date),
+      calories_burned:
+        r.calories_burned == null ? null : Number(r.calories_burned),
+    };
+  });
+
+  return { rows, error: null };
+}
+
+export async function getInsightsBodyCompForDateRange(
+  start: string,
+  end: string
+): Promise<{ rows: BodyCompRow[]; error: string | null }> {
+  const { supabase, user } = await getSupabaseAuthForRequest();
+  if (!user) return { rows: [], error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("body_composition_sample")
+    .select("date, measured_at, weight_kg, body_fat_pct")
+    .eq("user_id", user.id)
+    .gte("date", start)
+    .lte("date", end)
+    .order("measured_at", { ascending: true });
+
+  if (error) return { rows: [], error: error.message };
+
+  const rows: BodyCompRow[] = (data ?? []).map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      date: String(r.date),
+      measured_at: String(r.measured_at),
+      weight_kg: r.weight_kg == null ? null : Number(r.weight_kg),
+      body_fat_pct: r.body_fat_pct == null ? null : Number(r.body_fat_pct),
+    };
+  });
+
+  return { rows, error: null };
 }

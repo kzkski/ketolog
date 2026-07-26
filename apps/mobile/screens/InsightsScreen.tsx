@@ -23,6 +23,12 @@ import {
   type InsightPfcTargetSnapshot,
 } from "@ketolog/domain/insights";
 import {
+  buildPeriodEnergyMetrics,
+  type BodyCompRow,
+  type DasRow,
+  type TrainingBurnRow,
+} from "@ketolog/domain/energy-availability";
+import {
   pfcRatioPercents,
   pfcTotalKcal,
   type PfcGrams,
@@ -39,8 +45,14 @@ import {
   fetchInsightsFoodLogForDateRange,
   fetchInsightsPfcTargetSnapshotsForDateRange,
 } from "../lib/fetch-insights-food-log-mobile";
+import {
+  fetchInsightsBodyCompForDateRange,
+  fetchInsightsDasForDateRange,
+  fetchInsightsTrainingBurnForDateRange,
+} from "../lib/fetch-insights-energy-mobile";
 import { shareUtf8JsonFile } from "../lib/share-json-mobile";
 import { InsightsPfcChart } from "../components/InsightsPfcChart";
+import { InsightsPeriodEnergySection } from "../components/InsightsPeriodEnergySection";
 
 const COLORS = {
   bg: "#0a0a0a",
@@ -111,7 +123,11 @@ export function InsightsScreen() {
   const [start, setStart] = useState(preset7.start);
   const [end, setEnd] = useState(preset7.end);
   const [entries, setEntries] = useState<InsightFoodLogEntry[]>([]);
+  const [energyEntries, setEnergyEntries] = useState<InsightFoodLogEntry[]>([]);
   const [snapshots, setSnapshots] = useState<InsightPfcTargetSnapshot[]>([]);
+  const [dasRows, setDasRows] = useState<DasRow[]>([]);
+  const [trainingRows, setTrainingRows] = useState<TrainingBurnRow[]>([]);
+  const [bodyCompRows, setBodyCompRows] = useState<BodyCompRow[]>([]);
   const [metricMode, setMetricMode] = useState<MetricMode>("achievement");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -132,28 +148,59 @@ export function InsightsScreen() {
       setLoading(true);
       setError(null);
       const mealTypes = nextMealFilter === "all" ? undefined : [nextMealFilter];
-      const [foodResult, snapResult] = await Promise.all([
-        fetchInsightsFoodLogForDateRange(
-          supabase,
-          userId,
-          nextStart,
-          nextEnd,
-          mealTypes
-        ),
-        fetchInsightsPfcTargetSnapshotsForDateRange(
-          supabase,
-          userId,
-          nextStart,
-          nextEnd
-        ),
-      ]);
+      const energyFoodPromise = fetchInsightsFoodLogForDateRange(
+        supabase,
+        userId,
+        nextStart,
+        nextEnd
+      );
+      const foodPromise =
+        mealTypes == null
+          ? energyFoodPromise
+          : fetchInsightsFoodLogForDateRange(
+              supabase,
+              userId,
+              nextStart,
+              nextEnd,
+              mealTypes
+            );
+      const [foodResult, energyFoodResult, snapResult, dasResult, trainingResult, bodyResult] =
+        await Promise.all([
+          foodPromise,
+          energyFoodPromise,
+          fetchInsightsPfcTargetSnapshotsForDateRange(
+            supabase,
+            userId,
+            nextStart,
+            nextEnd
+          ),
+          fetchInsightsDasForDateRange(supabase, userId, nextStart, nextEnd),
+          fetchInsightsTrainingBurnForDateRange(supabase, userId, nextStart, nextEnd),
+          fetchInsightsBodyCompForDateRange(supabase, userId, nextStart, nextEnd),
+        ]);
       setLoading(false);
       if (foodResult.error) {
         setError(foodResult.error);
         return;
       }
+      if (energyFoodResult.error) {
+        setError(energyFoodResult.error);
+        return;
+      }
       if (snapResult.error) {
         setError(snapResult.error);
+        return;
+      }
+      if (dasResult.error) {
+        setError(dasResult.error);
+        return;
+      }
+      if (trainingResult.error) {
+        setError(trainingResult.error);
+        return;
+      }
+      if (bodyResult.error) {
+        setError(bodyResult.error);
         return;
       }
       setPreset(nextPreset);
@@ -161,7 +208,11 @@ export function InsightsScreen() {
       setStart(nextStart);
       setEnd(nextEnd);
       setEntries(foodResult.entries);
+      setEnergyEntries(energyFoodResult.entries);
       setSnapshots(snapResult.snapshots);
+      setDasRows(dasResult.rows);
+      setTrainingRows(trainingResult.rows);
+      setBodyCompRows(bodyResult.rows);
       setExpanded(new Set());
     },
     [supabase, userId, mealFilter]
@@ -227,6 +278,32 @@ export function InsightsScreen() {
     [avgGrams, ratioBasis]
   );
   const avgDailyKcal = useMemo(() => pfcTotalKcal(avgGrams), [avgGrams]);
+
+  const energyInsight = useMemo(
+    () => buildInsights(energyEntries, start, end),
+    [energyEntries, start, end]
+  );
+  const periodEnergy = useMemo(() => {
+    const dailyIntake = energyInsight.chart.map((d) => {
+      const day = energyInsight.daily.find((x) => x.date === d.date);
+      return {
+        date: d.date,
+        intake_kcal: pfcTotalKcal({ p: d.protein, f: d.fat, c: d.carbs }),
+        hasFood: (day?.entries.length ?? 0) > 0,
+      };
+    });
+    return buildPeriodEnergyMetrics({
+      start,
+      end,
+      todayJst: today,
+      excludeToday: true,
+      excludeIncompleteToday: true,
+      dailyIntake,
+      dasRows,
+      trainingRows,
+      bodyCompRows,
+    });
+  }, [energyInsight, start, end, today, dasRows, trainingRows, bodyCompRows]);
 
   function validateCustomRange(nextStart: string, nextEnd: string): string | null {
     if (nextStart > nextEnd) return "開始日は終了日以前にしてください。";
@@ -638,6 +715,11 @@ export function InsightsScreen() {
             </>
           )}
         </View>
+
+        <InsightsPeriodEnergySection
+          summary={periodEnergy.summary}
+          mealFilterActive={mealFilter !== "all"}
+        />
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>

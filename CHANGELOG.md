@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Insights**: 期間カロリー収支とエネルギー可用性（EA）のサマリー、REDs 風の参考色分けを追加（Web / Mobile）。収支は摂取 − (basal+active)、EA は (摂取−EEE)/FFM。医療診断ではない旨の注記あり。活動量・体組成は HealthKit 連携（MyVitalRelay）由来。収支・EA は食事フィルタに依存せず全日で計算する（#348）。
+
 ### Fixed
 
 - **DB / daily_log**: `public.daily_log` ビューを `security_invoker` に変更し、`anon` の過剰 GRANT を剥奪、`authenticated` は SELECT のみに制限した。SECURITY DEFINER による RLS バイパス（他ユーザーの日次集計が見える問題）を解消（[MyVitalRelay#14](https://github.com/kzkski/MyVitalRelay/issues/14)）。

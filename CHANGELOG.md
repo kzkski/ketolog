@@ -16,6 +16,12 @@
 
 ### Changed
 
+## [1.70.1] - 2026-07-26
+
+### Fixed
+
+- **DB / migrations**: 本番 `schema_migrations` にのみ存在する MyVitalRelay 由来の版番号向けに `remote_history` プレースホルダーを追加し、`supabase db push` が履歴不一致で失敗しないようにした（#349 マージ後の prod-db-migrate 失敗の修正）。
+
 ## [1.70.0] - 2026-07-26
 
 ### Added

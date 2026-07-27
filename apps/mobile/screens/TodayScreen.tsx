@@ -37,7 +37,10 @@ import {
   type PhaseProfiles,
   activePhaseProfile,
   normalizeUserSettings,
+  resolveActiveDietPhase,
+  usedPhaseSlots,
 } from "@ketolog/domain/diet-phase";
+import { snapshotSourceForSettingsChangeWithRepair } from "@ketolog/domain/pfc-target-snapshot";
 import { useAuthSessionContext } from "../contexts/AuthSessionContext";
 import { getSupabase } from "../lib/supabase";
 import {
@@ -69,14 +72,11 @@ import type { FavoriteMenuItemPayload } from "../lib/fetch-favorite-groups-paylo
 import { getIsOnline, isTransientNetworkError } from "../lib/network";
 import { getOrCreateSnapshotRestaurant } from "../lib/get-or-create-snapshot-restaurant";
 import { writePfcTargetSnapshot } from "../lib/pfc-target-snapshot-write";
-import { snapshotSourceForSettingsChange } from "@ketolog/domain/pfc-target-snapshot";
 
 type UserSettingsState = {
   diet_phase: DietPhase;
   phase_profiles: PhaseProfiles;
 };
-
-const DIET_PHASES: DietPhase[] = [1, 2, 3];
 
 const MEAL_SHORT: Record<string, string> = {
   breakfast: "朝",
@@ -719,12 +719,19 @@ export function TodayScreen() {
       if (!userId || !settings || ph === settings.diet_phase) return;
       setPhaseSaving(true);
       setLoadError(null);
-      const prev = settings;
-      const next = { diet_phase: ph, phase_profiles: settings.phase_profiles };
+      const { data: existing } = await supabase
+        .from("user_settings")
+        .select("diet_phase, phase_profiles")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const rawDietPhaseFromDb = existing?.diet_phase;
+      const prev = normalizeUserSettings(existing ?? settings);
+      const diet_phase = resolveActiveDietPhase(ph, settings.phase_profiles);
+      const next = { diet_phase, phase_profiles: settings.phase_profiles };
       const { error } = await supabase.from("user_settings").upsert(
         {
           user_id: userId,
-          diet_phase: ph,
+          diet_phase,
           phase_profiles: settings.phase_profiles,
         },
         { onConflict: "user_id" }
@@ -733,7 +740,11 @@ export function TodayScreen() {
         setLoadError(error.message);
       } else {
         setSettings(next);
-        const source = snapshotSourceForSettingsChange(prev, next);
+        const source = snapshotSourceForSettingsChangeWithRepair({
+          prev,
+          next,
+          rawDietPhaseFromDb,
+        });
         if (source) {
           void writePfcTargetSnapshot(supabase, {
             userId,
@@ -873,8 +884,9 @@ export function TodayScreen() {
           ) : null}
 
           <View style={styles.phaseRow}>
-            {DIET_PHASES.map((ph) => {
+            {usedPhaseSlots(settings.phase_profiles).map((ph) => {
               const pr = settings.phase_profiles[String(ph) as keyof PhaseProfiles];
+              if (!pr) return null;
               const on = settings.diet_phase === ph;
               return (
                 <Pressable
@@ -883,6 +895,7 @@ export function TodayScreen() {
                     void onSelectPhase(ph);
                   }}
                   disabled={phaseSaving}
+                  accessibilityLabel={pr.name}
                   style={({ pressed }) => [
                     styles.phaseBtn,
                     on ? styles.phaseBtnOn : styles.phaseBtnOff,

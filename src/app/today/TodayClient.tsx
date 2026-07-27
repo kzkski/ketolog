@@ -21,6 +21,11 @@ import type {
 } from "@/types/database";
 import {
   activePhaseProfile,
+  addPhaseSlot,
+  canAddPhaseSlot,
+  isPhaseSlotUsed,
+  removePhaseSlot,
+  usedPhaseSlots,
   type DietPhase,
   type PhaseProfiles,
 } from "@/lib/diet-phase";
@@ -629,8 +634,6 @@ function EditEntryDrawer({
 
 // ─── 設定ドロワー ──────────────────────────────────────────────────────────────
 
-const DIET_PHASES: DietPhase[] = [1, 2, 3];
-
 const PFC_MACRO_TARGET_KEYS = [
   "protein_target_g",
   "fat_target_g",
@@ -657,19 +660,62 @@ function mergePfcTargetDraftsIntoProfiles(
   drafts: Record<string, string>
 ): PhaseProfiles {
   let result = base;
-  for (const ph of DIET_PHASES) {
+  for (const ph of usedPhaseSlots(base)) {
     const pk = String(ph) as keyof PhaseProfiles;
+    const current = result[pk];
+    if (!current) continue;
     for (const macro of PFC_MACRO_TARGET_KEYS) {
       const dkey = pfcTargetDraftKey(ph, macro);
       if (!Object.prototype.hasOwnProperty.call(drafts, dkey)) continue;
-      const nextVal = committedPfcGramsFromDraft(drafts[dkey]!, result[pk][macro]);
+      const nextVal = committedPfcGramsFromDraft(drafts[dkey]!, current[macro]);
       result = {
         ...result,
-        [pk]: { ...result[pk], [macro]: nextVal },
+        [pk]: { ...current, [macro]: nextVal },
       };
     }
   }
   return result;
+}
+
+function roundPhaseProfile(pr: NonNullable<PhaseProfiles[keyof PhaseProfiles]>) {
+  return {
+    ...pr,
+    name: pr.name.trim(),
+    protein_target_g: Math.round(pr.protein_target_g),
+    fat_target_g: Math.round(pr.fat_target_g),
+    carbs_target_g: Math.round(pr.carbs_target_g),
+  };
+}
+
+function buildNormalizedPhaseProfiles(merged: PhaseProfiles): PhaseProfiles | { error: string } {
+  const normalized: PhaseProfiles = {
+    "1": roundPhaseProfile(merged["1"]),
+    "2": roundPhaseProfile(merged["2"]),
+    "3": roundPhaseProfile(merged["3"]),
+  };
+  for (const ph of usedPhaseSlots(merged)) {
+    if (ph <= 3) continue;
+    const pr = merged[String(ph) as "4" | "5"];
+    if (!pr) continue;
+    normalized[String(ph) as "4" | "5"] = roundPhaseProfile(pr);
+  }
+  for (const ph of usedPhaseSlots(normalized)) {
+    const pr = normalized[String(ph) as keyof PhaseProfiles]!;
+    if (
+      !Number.isFinite(pr.protein_target_g) ||
+      !Number.isFinite(pr.fat_target_g) ||
+      !Number.isFinite(pr.carbs_target_g) ||
+      pr.protein_target_g <= 0 ||
+      pr.fat_target_g <= 0 ||
+      pr.carbs_target_g <= 0
+    ) {
+      return { error: "各セットの PFC は正の数値にしてください" };
+    }
+    if (!pr.name.trim()) {
+      return { error: "各セットの名前を入力してください" };
+    }
+  }
+  return normalized;
 }
 
 /** 設定ドロワー内: 目標セット名（タップで表示中に／右クリック・長押しで名前変更） */
@@ -677,6 +723,7 @@ function GoalSetSlotButton({
   label,
   selected,
   disabled,
+  selectionLocked,
   onSelect,
   onOpenMenu,
   className: classNameProp,
@@ -684,6 +731,8 @@ function GoalSetSlotButton({
   label: string;
   selected: boolean;
   disabled: boolean;
+  /** 未保存の追加スロットなど、選択は不可だがメニューは使える */
+  selectionLocked?: boolean;
   onSelect: () => void;
   onOpenMenu: (clientX: number, clientY: number) => void;
   /** 省略時は横並びチップ用の flex-1 */
@@ -703,7 +752,10 @@ function GoalSetSlotButton({
     <button
       type="button"
       disabled={disabled}
-      onClick={onSelect}
+      onClick={() => {
+        if (selectionLocked) return;
+        onSelect();
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         onOpenMenu(e.clientX, e.clientY);
@@ -737,11 +789,17 @@ function GoalSetSlotButton({
         clearLongPress();
         touchAnchorRef.current = null;
       }}
-      title="タップで上部バー用のセットに。長押しまたは右クリックで名前を変更"
+      title={
+        selectionLocked
+          ? "保存するとこのセットを選べます。長押しまたは右クリックで名前を変更"
+          : "タップで上部バー用のセットに。長押しまたは右クリックで名前を変更"
+      }
       className={`py-2 px-1.5 rounded-lg text-xs font-medium transition-colors border touch-manipulation ${
         selected
           ? "bg-emerald-600 border-emerald-500 text-white"
-          : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
+          : selectionLocked
+            ? "bg-gray-800/50 border-dashed border-gray-600 text-gray-500"
+            : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
       } disabled:opacity-50 ${classNameProp ?? "flex-1 min-w-0"}`}
     >
       <span className="block truncate">{label}</span>
@@ -766,7 +824,7 @@ function SettingsDrawer({
   const [profiles, setProfiles] = useState<PhaseProfiles>(() =>
     structuredClone(settings.phase_profiles)
   );
-  /** 選択中＝上部バーに使うセット＝直下で編集するセット（内部では diet_phase 1〜3） */
+  /** 選択中＝上部バーに使うセット＝直下で編集するセット */
   const [selectedSlot, setSelectedSlot] = useState<DietPhase>(settings.diet_phase);
   const [saving, setSaving] = useState(false);
   const [slotSaving, setSlotSaving] = useState(false);
@@ -780,6 +838,9 @@ function SettingsDrawer({
   const [renameProfilePhase, setRenameProfilePhase] = useState<DietPhase | null>(null);
   /** PFC 目標の編集中文字列（キーは `pfcTargetDraftKey`）。確定は blur または保存時 */
   const [pfcTargetDrafts, setPfcTargetDrafts] = useState<Record<string, string>>({});
+
+  const slotRows = usedPhaseSlots(profiles);
+  const canAddSlot = canAddPhaseSlot(profiles);
 
   const openProfileSlotMenu = useCallback((phase: DietPhase, clientX: number, clientY: number) => {
     if (typeof window === "undefined") return;
@@ -805,6 +866,10 @@ function SettingsDrawer({
 
   async function selectSlot(next: DietPhase) {
     if (next === selectedSlot) return;
+    if (!isPhaseSlotUsed(settings.phase_profiles, next)) {
+      setError("先に「目標を保存する」でセットを保存してください");
+      return;
+    }
     setSlotSaving(true);
     setError(null);
     const result = await updateUserSettings({ diet_phase: next });
@@ -817,62 +882,66 @@ function SettingsDrawer({
     onSaved({ ...settings, diet_phase: next, phase_profiles: settings.phase_profiles });
   }
 
+  function handleAddSlot() {
+    const active =
+      profiles[String(selectedSlot) as keyof PhaseProfiles] ?? profiles["1"];
+    setProfiles((prev) =>
+      addPhaseSlot(prev, {
+        protein_target_g: active.protein_target_g,
+        fat_target_g: active.fat_target_g,
+        carbs_target_g: active.carbs_target_g,
+      })
+    );
+    setError(null);
+  }
+
+  function handleRemoveSlot(phase: DietPhase) {
+    if (phase <= 3) return;
+    if (
+      !confirm(
+        "このセットを削除しますか？保存すると反映されます。過去の記録の達成率には影響しません。"
+      )
+    ) {
+      return;
+    }
+    setProfiles((prev) => removePhaseSlot(prev, phase));
+    setPfcTargetDrafts((drafts) => {
+      const next = { ...drafts };
+      for (const macro of PFC_MACRO_TARGET_KEYS) {
+        delete next[pfcTargetDraftKey(phase, macro)];
+      }
+      return next;
+    });
+    if (selectedSlot === phase) setSelectedSlot(1);
+    setProfileSlotMenu(null);
+    setError(null);
+  }
+
   async function handleSaveProfiles() {
     const mergedProfiles = mergePfcTargetDraftsIntoProfiles(profiles, pfcTargetDrafts);
-    for (const ph of DIET_PHASES) {
-      const pk = String(ph) as keyof PhaseProfiles;
-      const pr = mergedProfiles[pk];
-      if (
-        !Number.isFinite(pr.protein_target_g) ||
-        !Number.isFinite(pr.fat_target_g) ||
-        !Number.isFinite(pr.carbs_target_g) ||
-        pr.protein_target_g <= 0 ||
-        pr.fat_target_g <= 0 ||
-        pr.carbs_target_g <= 0
-      ) {
-        setError("各セットの PFC は正の数値にしてください");
-        return;
-      }
-      if (!pr.name.trim()) {
-        setError("各セットの名前を入力してください");
-        return;
-      }
+    const built = buildNormalizedPhaseProfiles(mergedProfiles);
+    if ("error" in built) {
+      setError(built.error);
+      return;
     }
-    const normalized: PhaseProfiles = {
-      "1": {
-        ...mergedProfiles["1"],
-        name: mergedProfiles["1"].name.trim(),
-        protein_target_g: Math.round(mergedProfiles["1"].protein_target_g),
-        fat_target_g: Math.round(mergedProfiles["1"].fat_target_g),
-        carbs_target_g: Math.round(mergedProfiles["1"].carbs_target_g),
-      },
-      "2": {
-        ...mergedProfiles["2"],
-        name: mergedProfiles["2"].name.trim(),
-        protein_target_g: Math.round(mergedProfiles["2"].protein_target_g),
-        fat_target_g: Math.round(mergedProfiles["2"].fat_target_g),
-        carbs_target_g: Math.round(mergedProfiles["2"].carbs_target_g),
-      },
-      "3": {
-        ...mergedProfiles["3"],
-        name: mergedProfiles["3"].name.trim(),
-        protein_target_g: Math.round(mergedProfiles["3"].protein_target_g),
-        fat_target_g: Math.round(mergedProfiles["3"].fat_target_g),
-        carbs_target_g: Math.round(mergedProfiles["3"].carbs_target_g),
-      },
-    };
+    const normalized = built;
+    const nextDietPhase = isPhaseSlotUsed(normalized, selectedSlot) ? selectedSlot : 1;
     setPfcTargetDrafts({});
     setProfiles(normalized);
+    setSelectedSlot(nextDietPhase);
     setSaving(true);
     setError(null);
-    const result = await updateUserSettings({ phase_profiles: normalized });
+    const result = await updateUserSettings({
+      phase_profiles: normalized,
+      diet_phase: nextDietPhase,
+    });
     if (result.error) {
       setError(result.error);
       setSaving(false);
       return;
     }
     setProfiles(normalized);
-    onSaved({ ...settings, diet_phase: selectedSlot, phase_profiles: normalized });
+    onSaved({ ...settings, diet_phase: nextDietPhase, phase_profiles: normalized });
     setSaving(false);
     onClose();
   }
@@ -912,11 +981,11 @@ function SettingsDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* PFC 目標セット（3つ） */}
+          {/* PFC 目標セット（最大5・可変） */}
           <div>
             <h3 className="text-sm font-medium text-white mb-1">PFC 目標セット</h3>
             <p className="text-xs text-gray-500 mb-3">
-              各行が1セットです。名前をタップするとそのセットが上部バーの目標になります。名前の長押し／右クリックで表示名を変更できます。
+              各行が1セットです（最大5つ）。名前をタップするとそのセットが上部バーの目標になります。名前の長押し／右クリックで表示名の変更や追加セットの削除ができます。追加したセットは「目標を保存する」まで選べません。
             </p>
             <div className="mb-1 grid grid-cols-1 sm:grid-cols-[minmax(6rem,7.5rem)_1fr] gap-x-2 gap-y-1 items-end">
               <span className="hidden sm:block" aria-hidden />
@@ -927,9 +996,11 @@ function SettingsDrawer({
               </div>
             </div>
             <div className="space-y-2 mb-4">
-              {DIET_PHASES.map((ph) => {
+              {slotRows.map((ph) => {
                 const pk = String(ph) as keyof PhaseProfiles;
                 const pr = profiles[pk];
+                if (!pr) return null;
+                const selectionLocked = !isPhaseSlotUsed(settings.phase_profiles, ph);
                 return (
                   <div
                     key={ph}
@@ -943,6 +1014,7 @@ function SettingsDrawer({
                       label={pr.name}
                       selected={selectedSlot === ph}
                       disabled={slotSaving}
+                      selectionLocked={selectionLocked}
                       onSelect={() => void selectSlot(ph)}
                       onOpenMenu={(cx, cy) => openProfileSlotMenu(ph, cx, cy)}
                       className="w-full min-w-0 sm:min-h-[4.5rem] flex items-center justify-center"
@@ -984,9 +1056,10 @@ function SettingsDrawer({
                                   }
                                   const raw = drafts[dkey]!;
                                   setProfiles((prev) => {
-                                    const current = prev[pk][key];
-                                    const nextVal = committedPfcGramsFromDraft(raw, current);
-                                    return { ...prev, [pk]: { ...prev[pk], [key]: nextVal } };
+                                    const current = prev[pk];
+                                    if (!current) return prev;
+                                    const nextVal = committedPfcGramsFromDraft(raw, current[key]);
+                                    return { ...prev, [pk]: { ...current, [key]: nextVal } };
                                   });
                                   const rest = { ...drafts };
                                   delete rest[dkey];
@@ -1006,6 +1079,16 @@ function SettingsDrawer({
                 );
               })}
             </div>
+            {canAddSlot ? (
+              <button
+                type="button"
+                onClick={handleAddSlot}
+                disabled={saving || slotSaving}
+                className="mb-2 w-full py-2 border border-dashed border-gray-600 hover:border-gray-500 text-gray-300 text-sm rounded-xl transition-colors disabled:opacity-50"
+              >
+                ＋ セットを追加
+              </button>
+            ) : null}
             {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
             <button
               type="button"
@@ -1113,15 +1196,25 @@ function SettingsDrawer({
             >
               名前を変更
             </button>
+            {profileSlotMenu.phase >= 4 ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full px-3 py-2 text-left text-sm text-red-300 hover:bg-gray-800"
+                onClick={() => handleRemoveSlot(profileSlotMenu.phase)}
+              >
+                このセットを削除
+              </button>
+            ) : null}
           </div>
         </>
       )}
 
-      {renameProfilePhase != null && (
+      {renameProfilePhase != null && profiles[String(renameProfilePhase) as keyof PhaseProfiles] && (
         <RestaurantRenameSheet
           key={renameProfilePhase}
           title="セットの名前を変更"
-          initialName={profiles[String(renameProfilePhase) as keyof PhaseProfiles].name}
+          initialName={profiles[String(renameProfilePhase) as keyof PhaseProfiles]!.name}
           maxLength={48}
           isSaving={false}
           inputAriaLabel="セット名"
@@ -1132,10 +1225,14 @@ function SettingsDrawer({
               return;
             }
             const pk = String(renameProfilePhase) as keyof PhaseProfiles;
-            setProfiles((prev) => ({
-              ...prev,
-              [pk]: { ...prev[pk], name: trimmed.slice(0, 48) },
-            }));
+            setProfiles((prev) => {
+              const current = prev[pk];
+              if (!current) return prev;
+              return {
+                ...prev,
+                [pk]: { ...current, name: trimmed.slice(0, 48) },
+              };
+            });
             setRenameProfilePhase(null);
           }}
         />
@@ -1309,6 +1406,10 @@ export default function TodayClient({
   const activeProfile = useMemo(
     () => activePhaseProfile(currentSettings),
     [currentSettings]
+  );
+  const headerDietPhases = useMemo(
+    () => usedPhaseSlots(currentSettings.phase_profiles),
+    [currentSettings.phase_profiles]
   );
   const [phaseQuickSaving, setPhaseQuickSaving] = useState(false);
   const selectQuickPhase = useCallback(
@@ -1811,7 +1912,7 @@ export default function TodayClient({
             </button>
           </div>
         }
-        dietPhases={DIET_PHASES}
+        dietPhases={headerDietPhases}
         phaseProfiles={currentSettings.phase_profiles}
         activeDietPhase={currentSettings.diet_phase}
         phaseQuickSaving={phaseQuickSaving}

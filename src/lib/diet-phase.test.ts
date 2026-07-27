@@ -8,10 +8,12 @@ import {
 } from "./diet-phase";
 
 describe("clampDietPhase", () => {
-  it("1〜3 に収める", () => {
+  it("1〜5 に収める", () => {
     expect(clampDietPhase(1)).toBe(1);
     expect(clampDietPhase(2)).toBe(2);
     expect(clampDietPhase(3)).toBe(3);
+    expect(clampDietPhase(4)).toBe(4);
+    expect(clampDietPhase(5)).toBe(5);
     expect(clampDietPhase(99)).toBe(1);
     expect(clampDietPhase(0)).toBe(1);
     expect(clampDietPhase("3")).toBe(3);

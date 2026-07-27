@@ -2,13 +2,12 @@
 
 import { toJstDateString } from "@ketolog/domain/date";
 import {
-  snapshotSourceForSettingsChange,
+  snapshotSourceForSettingsChangeWithRepair,
   type PfcTargetSnapshotSource,
 } from "@ketolog/domain/pfc-target-snapshot";
 import {
-  clampDietPhase,
-  normalizePhaseProfiles,
   normalizeUserSettings,
+  resolveActiveDietPhase,
   type PhaseProfiles,
 } from "@/lib/diet-phase";
 import { writePfcTargetSnapshot } from "@/lib/pfc-target-snapshot-write";
@@ -30,29 +29,27 @@ async function loadSettingsForUser(
 /** 切替 / アクティブ profile 編集後の当日スナップショット upsert */
 export async function syncTodayPfcTargetSnapshotAfterSettingsChange(
   prev: { diet_phase: number; phase_profiles: PhaseProfiles },
-  next: { diet_phase: number; phase_profiles: PhaseProfiles }
+  next: { diet_phase: number; phase_profiles: PhaseProfiles },
+  rawDietPhaseFromDb?: unknown
 ): Promise<{ error: string | null }> {
   const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { error: "認証が必要です" };
 
-  const source = snapshotSourceForSettingsChange(
-    {
-      diet_phase: clampDietPhase(prev.diet_phase),
-      phase_profiles: normalizePhaseProfiles(prev.phase_profiles),
-    },
-    {
-      diet_phase: clampDietPhase(next.diet_phase),
-      phase_profiles: normalizePhaseProfiles(next.phase_profiles),
-    }
-  );
+  const prevNorm = normalizeUserSettings(prev);
+  const nextNorm = normalizeUserSettings(next);
+  const source = snapshotSourceForSettingsChangeWithRepair({
+    prev: prevNorm,
+    next: nextNorm,
+    rawDietPhaseFromDb: rawDietPhaseFromDb ?? prev.diet_phase,
+  });
   if (!source) return { error: null };
 
   return writePfcTargetSnapshot(supabase, {
     userId: user.id,
     date: toJstDateString(),
     settings: {
-      diet_phase: clampDietPhase(next.diet_phase),
-      phase_profiles: normalizePhaseProfiles(next.phase_profiles),
+      diet_phase: resolveActiveDietPhase(nextNorm.diet_phase, nextNorm.phase_profiles),
+      phase_profiles: nextNorm.phase_profiles,
     },
     source,
   });

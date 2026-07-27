@@ -3,10 +3,12 @@ import {
   activePhaseTargetsChanged,
   buildPfcTargetSnapshotWriteRow,
   canOverwritePfcTargetSnapshot,
+  dietPhaseResolvedByRepair,
   isInsertOnlyPfcTargetSnapshotSource,
   snapshotSourceForSettingsChange,
+  snapshotSourceForSettingsChangeWithRepair,
 } from "./pfc-target-snapshot";
-import { DEFAULT_PHASE_PROFILES } from "./diet-phase";
+import { DEFAULT_PHASE_PROFILES, addPhaseSlot } from "./diet-phase";
 import { buildAchievementRates, buildInsights } from "./insights";
 
 describe("pfc-target-snapshot source priority", () => {
@@ -62,6 +64,58 @@ describe("pfc-target-snapshot source priority", () => {
     expect(row.fat_target_g).toBe(110);
     expect(row.carbs_target_g).toBe(60);
     expect(row.source).toBe("app_switch");
+  });
+
+  it("builds write row for slot 5 and resolves unused slot 4 to 1", () => {
+    const with5 = addPhaseSlot(addPhaseSlot(DEFAULT_PHASE_PROFILES));
+    const row5 = buildPfcTargetSnapshotWriteRow({
+      userId: "u1",
+      date: "2026-07-26",
+      diet_phase: 5,
+      phase_profiles: with5,
+      source: "app_switch",
+    });
+    expect(row5.diet_phase).toBe(5);
+    expect(row5.phase_name).toBe(with5["5"]!.name);
+
+    const repaired = buildPfcTargetSnapshotWriteRow({
+      userId: "u1",
+      date: "2026-07-26",
+      diet_phase: 4,
+      phase_profiles: DEFAULT_PHASE_PROFILES,
+      source: "app_switch",
+    });
+    expect(repaired.diet_phase).toBe(1);
+    expect(repaired.phase_name).toBe(DEFAULT_PHASE_PROFILES["1"].name);
+    expect(repaired.protein_target_g).toBe(DEFAULT_PHASE_PROFILES["1"].protein_target_g);
+  });
+
+  it("detects repair when raw diet_phase points at unused slot", () => {
+    expect(dietPhaseResolvedByRepair(4, 1, DEFAULT_PHASE_PROFILES)).toBe(true);
+    expect(dietPhaseResolvedByRepair(2, 2, DEFAULT_PHASE_PROFILES)).toBe(false);
+
+    const normalized = { diet_phase: 1 as const, phase_profiles: DEFAULT_PHASE_PROFILES };
+    expect(
+      snapshotSourceForSettingsChangeWithRepair({
+        prev: normalized,
+        next: normalized,
+        rawDietPhaseFromDb: 4,
+      })
+    ).toBe("app_switch");
+    expect(
+      snapshotSourceForSettingsChangeWithRepair({
+        prev: normalized,
+        next: normalized,
+        rawDietPhaseFromDb: 1,
+      })
+    ).toBeNull();
+  });
+
+  it("treats deleting active optional slot as app_switch", () => {
+    const with4 = addPhaseSlot(DEFAULT_PHASE_PROFILES, { name: "減量" });
+    const prev = { diet_phase: 4 as const, phase_profiles: with4 };
+    const next = { diet_phase: 1 as const, phase_profiles: DEFAULT_PHASE_PROFILES };
+    expect(snapshotSourceForSettingsChange(prev, next)).toBe("app_switch");
   });
 });
 

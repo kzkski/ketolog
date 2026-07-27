@@ -194,6 +194,7 @@ export function PfcHeader({
         <div className="flex gap-1 sm:gap-2 justify-stretch">
           {dietPhases.map((ph) => {
             const pr = phaseProfiles[String(ph) as keyof PhaseProfiles];
+            if (!pr) return null;
             const on = activeDietPhase === ph;
             return (
               <button
@@ -202,6 +203,7 @@ export function PfcHeader({
                 disabled={phaseQuickSaving}
                 onClick={() => void onSelectQuickPhase(ph)}
                 title={pr.name}
+                aria-label={pr.name}
                 className={`flex-1 min-w-0 min-h-8 sm:min-h-9 px-1 sm:px-2 rounded-lg text-[10px] sm:text-xs font-medium transition-colors border touch-manipulation ${
                   on
                     ? "border-emerald-500 bg-emerald-950/50 text-emerald-100"

@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   Linking,
   Modal,
   Platform,
@@ -12,8 +13,18 @@ import {
   View,
 } from "react-native";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DietPhase, PhaseProfiles } from "@ketolog/domain/diet-phase";
-import { snapshotSourceForSettingsChange } from "@ketolog/domain/pfc-target-snapshot";
+import {
+  addPhaseSlot,
+  canAddPhaseSlot,
+  isPhaseSlotUsed,
+  normalizeUserSettings,
+  removePhaseSlot,
+  resolveActiveDietPhase,
+  usedPhaseSlots,
+  type DietPhase,
+  type PhaseProfiles,
+} from "@ketolog/domain/diet-phase";
+import { snapshotSourceForSettingsChangeWithRepair } from "@ketolog/domain/pfc-target-snapshot";
 import { toJstDateString } from "@ketolog/domain/date";
 import { writePfcTargetSnapshot } from "../lib/pfc-target-snapshot-write";
 
@@ -27,8 +38,6 @@ import { LegalDocumentLinks } from "./LegalDocumentLinks";
 import { ClaudeIntegrationSection } from "./ClaudeIntegrationSection";
 import { isSnapshotRestaurant } from "../lib/snapshot-restaurant";
 import { shareUtf8JsonFile } from "../lib/share-json-mobile";
-
-const DIET_PHASES: DietPhase[] = [1, 2, 3];
 
 const PFC_MACRO_TARGET_KEYS = [
   "protein_target_g",
@@ -55,19 +64,62 @@ function mergePfcTargetDraftsIntoProfiles(
   drafts: Record<string, string>
 ): PhaseProfiles {
   let result = base;
-  for (const ph of DIET_PHASES) {
+  for (const ph of usedPhaseSlots(base)) {
     const pk = String(ph) as keyof PhaseProfiles;
+    const current = result[pk];
+    if (!current) continue;
     for (const macro of PFC_MACRO_TARGET_KEYS) {
       const dkey = pfcTargetDraftKey(ph, macro);
       if (!Object.prototype.hasOwnProperty.call(drafts, dkey)) continue;
-      const nextVal = committedPfcGramsFromDraft(drafts[dkey]!, result[pk][macro]);
+      const nextVal = committedPfcGramsFromDraft(drafts[dkey]!, current[macro]);
       result = {
         ...result,
-        [pk]: { ...result[pk], [macro]: nextVal },
+        [pk]: { ...current, [macro]: nextVal },
       };
     }
   }
   return result;
+}
+
+function roundPhaseProfile(pr: NonNullable<PhaseProfiles[keyof PhaseProfiles]>) {
+  return {
+    ...pr,
+    name: pr.name.trim(),
+    protein_target_g: Math.round(pr.protein_target_g),
+    fat_target_g: Math.round(pr.fat_target_g),
+    carbs_target_g: Math.round(pr.carbs_target_g),
+  };
+}
+
+function buildNormalizedPhaseProfiles(merged: PhaseProfiles): PhaseProfiles | { error: string } {
+  const normalized: PhaseProfiles = {
+    "1": roundPhaseProfile(merged["1"]),
+    "2": roundPhaseProfile(merged["2"]),
+    "3": roundPhaseProfile(merged["3"]),
+  };
+  for (const ph of usedPhaseSlots(merged)) {
+    if (ph <= 3) continue;
+    const pr = merged[String(ph) as "4" | "5"];
+    if (!pr) continue;
+    normalized[String(ph) as "4" | "5"] = roundPhaseProfile(pr);
+  }
+  for (const ph of usedPhaseSlots(normalized)) {
+    const pr = normalized[String(ph) as keyof PhaseProfiles]!;
+    if (
+      !Number.isFinite(pr.protein_target_g) ||
+      !Number.isFinite(pr.fat_target_g) ||
+      !Number.isFinite(pr.carbs_target_g) ||
+      pr.protein_target_g <= 0 ||
+      pr.fat_target_g <= 0 ||
+      pr.carbs_target_g <= 0
+    ) {
+      return { error: "各セットの PFC は正の数値にしてください" };
+    }
+    if (!pr.name.trim()) {
+      return { error: "各セットの名前を入力してください" };
+    }
+  }
+  return normalized;
 }
 
 export type UserSettingsModalState = {
@@ -116,18 +168,33 @@ export function TodaySettingsModal({
     setExportAllError(null);
   }, [visible, settings]);
 
+  const slotRows = usedPhaseSlots(profiles);
+  const canAddSlot = canAddPhaseSlot(profiles);
+
   const selectSlot = useCallback(
     async (next: DietPhase) => {
       if (next === selectedSlot) return;
+      if (!isPhaseSlotUsed(settings.phase_profiles, next)) {
+        setError("先に「目標を保存する」でセットを保存してください");
+        return;
+      }
       setSlotSaving(true);
       setError(null);
-      const prev = { diet_phase: settings.diet_phase, phase_profiles: settings.phase_profiles };
-      const nextSettings = { diet_phase: next, phase_profiles: profiles };
+      const { data: existing } = await supabase
+        .from("user_settings")
+        .select("diet_phase, phase_profiles")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const rawDietPhaseFromDb = existing?.diet_phase;
+      const prev = normalizeUserSettings(existing ?? settings);
+      const phase_profiles = settings.phase_profiles;
+      const diet_phase = resolveActiveDietPhase(next, phase_profiles);
+      const nextSettings = { diet_phase, phase_profiles };
       const { error: upErr } = await supabase.from("user_settings").upsert(
         {
           user_id: userId,
-          diet_phase: next,
-          phase_profiles: profiles,
+          diet_phase,
+          phase_profiles,
         },
         { onConflict: "user_id" }
       );
@@ -136,9 +203,13 @@ export function TodaySettingsModal({
         setError(upErr.message);
         return;
       }
-      setSelectedSlot(next);
+      setSelectedSlot(diet_phase);
       onSettingsUpdated(nextSettings);
-      const source = snapshotSourceForSettingsChange(prev, nextSettings);
+      const source = snapshotSourceForSettingsChangeWithRepair({
+        prev,
+        next: nextSettings,
+        rawDietPhaseFromDb,
+      });
       if (source) {
         void writePfcTargetSnapshot(supabase, {
           userId,
@@ -148,63 +219,81 @@ export function TodaySettingsModal({
         });
       }
     },
-    [selectedSlot, supabase, userId, profiles, onSettingsUpdated, settings]
+    [selectedSlot, supabase, userId, onSettingsUpdated, settings]
+  );
+
+  const handleAddSlot = useCallback(() => {
+    const active =
+      profiles[String(selectedSlot) as keyof PhaseProfiles] ?? profiles["1"];
+    setProfiles((prev) =>
+      addPhaseSlot(prev, {
+        protein_target_g: active.protein_target_g,
+        fat_target_g: active.fat_target_g,
+        carbs_target_g: active.carbs_target_g,
+      })
+    );
+    setError(null);
+  }, [profiles, selectedSlot]);
+
+  const handleRemoveSlot = useCallback(
+    (phase: DietPhase) => {
+      if (phase <= 3) return;
+      Alert.alert(
+        "セットを削除",
+        "このセットを削除しますか？保存すると反映されます。過去の記録の達成率には影響しません。",
+        [
+          { text: "キャンセル", style: "cancel" },
+          {
+            text: "削除",
+            style: "destructive",
+            onPress: () => {
+              setProfiles((prev) => removePhaseSlot(prev, phase));
+              setPfcTargetDrafts((drafts) => {
+                const next = { ...drafts };
+                for (const macro of PFC_MACRO_TARGET_KEYS) {
+                  delete next[pfcTargetDraftKey(phase, macro)];
+                }
+                return next;
+              });
+              if (selectedSlot === phase) setSelectedSlot(1);
+              setError(null);
+            },
+          },
+        ]
+      );
+    },
+    [selectedSlot]
   );
 
   const handleSaveProfiles = useCallback(async () => {
     const mergedProfiles = mergePfcTargetDraftsIntoProfiles(profiles, pfcTargetDrafts);
-    for (const ph of DIET_PHASES) {
-      const pk = String(ph) as keyof PhaseProfiles;
-      const pr = mergedProfiles[pk];
-      if (
-        !Number.isFinite(pr.protein_target_g) ||
-        !Number.isFinite(pr.fat_target_g) ||
-        !Number.isFinite(pr.carbs_target_g) ||
-        pr.protein_target_g <= 0 ||
-        pr.fat_target_g <= 0 ||
-        pr.carbs_target_g <= 0
-      ) {
-        setError("各セットの PFC は正の数値にしてください");
-        return;
-      }
-      if (!pr.name.trim()) {
-        setError("各セットの名前を入力してください");
-        return;
-      }
+    const built = buildNormalizedPhaseProfiles(mergedProfiles);
+    if ("error" in built) {
+      setError(built.error);
+      return;
     }
-    const normalized: PhaseProfiles = {
-      "1": {
-        ...mergedProfiles["1"],
-        name: mergedProfiles["1"].name.trim(),
-        protein_target_g: Math.round(mergedProfiles["1"].protein_target_g),
-        fat_target_g: Math.round(mergedProfiles["1"].fat_target_g),
-        carbs_target_g: Math.round(mergedProfiles["1"].carbs_target_g),
-      },
-      "2": {
-        ...mergedProfiles["2"],
-        name: mergedProfiles["2"].name.trim(),
-        protein_target_g: Math.round(mergedProfiles["2"].protein_target_g),
-        fat_target_g: Math.round(mergedProfiles["2"].fat_target_g),
-        carbs_target_g: Math.round(mergedProfiles["2"].carbs_target_g),
-      },
-      "3": {
-        ...mergedProfiles["3"],
-        name: mergedProfiles["3"].name.trim(),
-        protein_target_g: Math.round(mergedProfiles["3"].protein_target_g),
-        fat_target_g: Math.round(mergedProfiles["3"].fat_target_g),
-        carbs_target_g: Math.round(mergedProfiles["3"].carbs_target_g),
-      },
-    };
+    const normalized = built;
+    const nextDietPhase = isPhaseSlotUsed(normalized, selectedSlot) ? selectedSlot : 1;
     setPfcTargetDrafts({});
     setProfiles(normalized);
+    setSelectedSlot(nextDietPhase);
     setSaving(true);
     setError(null);
-    const prev = { diet_phase: settings.diet_phase, phase_profiles: settings.phase_profiles };
-    const nextSettings = { diet_phase: selectedSlot, phase_profiles: normalized };
+
+    const { data: existing } = await supabase
+      .from("user_settings")
+      .select("diet_phase, phase_profiles")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const rawDietPhaseFromDb = existing?.diet_phase;
+    const prev = normalizeUserSettings(existing ?? settings);
+    const diet_phase = resolveActiveDietPhase(nextDietPhase, normalized);
+    const nextSettings = { diet_phase, phase_profiles: normalized };
+
     const { error: upErr } = await supabase.from("user_settings").upsert(
       {
         user_id: userId,
-        diet_phase: selectedSlot,
+        diet_phase,
         phase_profiles: normalized,
       },
       { onConflict: "user_id" }
@@ -215,7 +304,11 @@ export function TodaySettingsModal({
       return;
     }
     onSettingsUpdated(nextSettings);
-    const source = snapshotSourceForSettingsChange(prev, nextSettings);
+    const source = snapshotSourceForSettingsChangeWithRepair({
+      prev,
+      next: nextSettings,
+      rawDietPhaseFromDb,
+    });
     if (source) {
       void writePfcTargetSnapshot(supabase, {
         userId,
@@ -304,11 +397,16 @@ export function TodaySettingsModal({
             contentContainerStyle={styles.scrollContent}
           >
             <Text style={[styles.sectionTitle, styles.pfcSectionTitle]}>PFC 目標セット</Text>
+            <Text style={styles.sectionHint}>
+              最大5つまで追加できます。追加したセットは「目標を保存する」まで選べません。
+            </Text>
 
-            {DIET_PHASES.map((ph) => {
+            {slotRows.map((ph) => {
               const pk = String(ph) as keyof PhaseProfiles;
               const pr = profiles[pk];
+              if (!pr) return null;
               const selected = selectedSlot === ph;
+              const selectionLocked = !isPhaseSlotUsed(settings.phase_profiles, ph);
               return (
                 <View
                   key={ph}
@@ -319,15 +417,19 @@ export function TodaySettingsModal({
                       onPress={() => {
                         void selectSlot(ph);
                       }}
-                      disabled={slotSaving}
+                      disabled={slotSaving || selectionLocked}
                       style={({ pressed }) => [
                         styles.slotRadioHit,
                         pressed && { opacity: 0.85 },
-                        slotSaving && { opacity: 0.5 },
+                        (slotSaving || selectionLocked) && { opacity: 0.5 },
                       ]}
                       accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      accessibilityLabel="このセットを表示中の目標にする"
+                      accessibilityState={{ selected, disabled: selectionLocked }}
+                      accessibilityLabel={
+                        selectionLocked
+                          ? "保存するとこのセットを選べます"
+                          : "このセットを表示中の目標にする"
+                      }
                     >
                       <View style={[styles.slotRadioOuter, selected && styles.slotRadioOuterOn]}>
                         {selected ? <View style={styles.slotRadioDot} /> : null}
@@ -336,10 +438,14 @@ export function TodaySettingsModal({
                     <TextInput
                       value={pr.name}
                       onChangeText={(t) =>
-                        setProfiles((prev) => ({
-                          ...prev,
-                          [pk]: { ...prev[pk], name: t.slice(0, 48) },
-                        }))
+                        setProfiles((prev) => {
+                          const current = prev[pk];
+                          if (!current) return prev;
+                          return {
+                            ...prev,
+                            [pk]: { ...current, name: t.slice(0, 48) },
+                          };
+                        })
                       }
                       maxLength={48}
                       placeholder="セット名"
@@ -347,6 +453,15 @@ export function TodaySettingsModal({
                       style={styles.phaseNameInput}
                       accessibilityLabel="セット名"
                     />
+                    {ph >= 4 ? (
+                      <Pressable
+                        onPress={() => handleRemoveSlot(ph)}
+                        hitSlop={8}
+                        accessibilityLabel="このセットを削除"
+                      >
+                        <Text style={styles.deleteSlot}>削除</Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                   <View style={styles.pfcGrid}>
                     {(
@@ -376,9 +491,10 @@ export function TodaySettingsModal({
                                   }
                                   const raw = drafts[dkey]!;
                                   setProfiles((prev) => {
-                                    const current = prev[pk][key];
-                                    const nextVal = committedPfcGramsFromDraft(raw, current);
-                                    return { ...prev, [pk]: { ...prev[pk], [key]: nextVal } };
+                                    const current = prev[pk];
+                                    if (!current) return prev;
+                                    const nextVal = committedPfcGramsFromDraft(raw, current[key]);
+                                    return { ...prev, [pk]: { ...current, [key]: nextVal } };
                                   });
                                   const rest = { ...drafts };
                                   delete rest[dkey];
@@ -397,6 +513,20 @@ export function TodaySettingsModal({
                 </View>
               );
             })}
+
+            {canAddSlot ? (
+              <Pressable
+                onPress={handleAddSlot}
+                disabled={saving || slotSaving}
+                style={({ pressed }) => [
+                  styles.addSlotBtn,
+                  (saving || slotSaving) && { opacity: 0.5 },
+                  pressed && { opacity: 0.9 },
+                ]}
+              >
+                <Text style={styles.addSlotBtnText}>＋ セットを追加</Text>
+              </Pressable>
+            ) : null}
 
             {error ? <Text style={styles.err}>{error}</Text> : null}
             <Pressable
@@ -521,7 +651,7 @@ const styles = StyleSheet.create({
   scroll: { maxHeight: "100%" },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 28, paddingTop: 8 },
   sectionTitle: { color: "#fff", fontSize: 14, fontWeight: "600", marginBottom: 4 },
-  pfcSectionTitle: { marginBottom: 10 },
+  pfcSectionTitle: { marginBottom: 6 },
   sectionHint: { color: "#6b7280", fontSize: 11, lineHeight: 16, marginBottom: 10 },
   phaseCard: {
     borderRadius: 12,
@@ -570,6 +700,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     backgroundColor: "#030712",
   },
+  deleteSlot: { color: "#f87171", fontSize: 12, fontWeight: "600" },
   pfcGrid: { flexDirection: "row", gap: 6 },
   pfcCell: { flex: 1, minWidth: 0 },
   pfcShort: { fontSize: 10, fontWeight: "700", textAlign: "center", marginBottom: 4 },
@@ -592,6 +723,16 @@ const styles = StyleSheet.create({
   },
   pfcG: { color: "#6b7280", fontSize: 10, paddingRight: 4 },
   err: { color: "#fecaca", fontSize: 12, marginTop: 8, marginBottom: 4 },
+  addSlotBtn: {
+    marginBottom: 4,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#4b5563",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  addSlotBtnText: { color: "#d1d5db", fontSize: 13, fontWeight: "500" },
   saveBtn: {
     marginTop: 10,
     backgroundColor: "#059669",

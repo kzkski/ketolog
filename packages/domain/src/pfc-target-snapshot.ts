@@ -5,6 +5,8 @@
 
 import {
   activePhaseProfile,
+  clampDietPhase,
+  resolveActiveDietPhase,
   type DietPhase,
   type PhaseProfiles,
 } from "./diet-phase";
@@ -69,14 +71,15 @@ export function buildPfcTargetSnapshotWriteRow(input: {
   source: PfcTargetSnapshotSource;
   updatedAt?: string;
 }): PfcTargetSnapshotWriteRow {
+  const diet_phase = resolveActiveDietPhase(input.diet_phase, input.phase_profiles);
   const profile = activePhaseProfile({
-    diet_phase: input.diet_phase,
+    diet_phase,
     phase_profiles: input.phase_profiles,
   });
   return {
     user_id: input.userId,
     date: input.date,
-    diet_phase: input.diet_phase,
+    diet_phase,
     phase_name: profile.name,
     protein_target_g: profile.protein_target_g,
     fat_target_g: profile.fat_target_g,
@@ -90,9 +93,11 @@ export function activePhaseTargetsChanged(
   prev: { diet_phase: DietPhase; phase_profiles: PhaseProfiles },
   next: { diet_phase: DietPhase; phase_profiles: PhaseProfiles }
 ): boolean {
-  if (prev.diet_phase !== next.diet_phase) return true;
-  const a = activePhaseProfile(prev);
-  const b = activePhaseProfile(next);
+  const prevPhase = resolveActiveDietPhase(prev.diet_phase, prev.phase_profiles);
+  const nextPhase = resolveActiveDietPhase(next.diet_phase, next.phase_profiles);
+  if (prevPhase !== nextPhase) return true;
+  const a = activePhaseProfile({ ...prev, diet_phase: prevPhase });
+  const b = activePhaseProfile({ ...next, diet_phase: nextPhase });
   return (
     a.protein_target_g !== b.protein_target_g ||
     a.fat_target_g !== b.fat_target_g ||
@@ -106,6 +111,45 @@ export function snapshotSourceForSettingsChange(
   next: { diet_phase: DietPhase; phase_profiles: PhaseProfiles }
 ): PfcTargetSnapshotSource | null {
   if (!activePhaseTargetsChanged(prev, next)) return null;
-  if (prev.diet_phase !== next.diet_phase) return "app_switch";
+  const prevPhase = resolveActiveDietPhase(prev.diet_phase, prev.phase_profiles);
+  const nextPhase = resolveActiveDietPhase(next.diet_phase, next.phase_profiles);
+  if (prevPhase !== nextPhase) return "app_switch";
   return "app_profile_edit";
+}
+
+/**
+ * DB 生の diet_phase（clamp のみ）と、resolve 済み diet_phase が異なるか。
+ * lazy repair 時に normalize 済み prev/next だけでは差分が出ないケースを拾う。
+ */
+export function dietPhaseResolvedByRepair(
+  rawDietPhase: unknown,
+  resolvedDietPhase: DietPhase,
+  phaseProfiles: PhaseProfiles
+): boolean {
+  const clampedRaw = clampDietPhase(rawDietPhase);
+  const resolvedFromRaw = resolveActiveDietPhase(clampedRaw, phaseProfiles);
+  return clampedRaw !== resolvedDietPhase || clampedRaw !== resolvedFromRaw;
+}
+
+/**
+ * 設定変更のスナップショット同期要否。
+ * 通常の prev/next 差分に加え、生値→解決の修理が起きた場合は app_switch 相当で同期する。
+ */
+export function snapshotSourceForSettingsChangeWithRepair(input: {
+  prev: { diet_phase: DietPhase; phase_profiles: PhaseProfiles };
+  next: { diet_phase: DietPhase; phase_profiles: PhaseProfiles };
+  rawDietPhaseFromDb: unknown;
+}): PfcTargetSnapshotSource | null {
+  const fromChange = snapshotSourceForSettingsChange(input.prev, input.next);
+  if (fromChange) return fromChange;
+  if (
+    dietPhaseResolvedByRepair(
+      input.rawDietPhaseFromDb,
+      input.next.diet_phase,
+      input.next.phase_profiles
+    )
+  ) {
+    return "app_switch";
+  }
+  return null;
 }

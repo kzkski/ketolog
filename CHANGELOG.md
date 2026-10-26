@@ -16,6 +16,12 @@
 
 ### Changed
 
+## [1.72.2] - 2026-10-26
+
+### Fixed
+
+- **DB / migration**: MyVitalRelay 由来で本番にだけ記録されている版（2026-07-27〜2026-10-13 の 13 件）に `remote_history` プレースホルダーを追加。本番マイグレーションの `supabase db push` が「Remote migration versions not found in local migrations directory」で失敗し、1.72.1 のマイグレーション（#358）が適用されていなかった問題を解消。
+
 ## [1.72.1] - 2026-10-26
 
 ### Fixed

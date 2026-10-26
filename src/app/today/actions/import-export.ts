@@ -2,7 +2,7 @@
 
 import { getSupabaseAuthForRequest } from "@/lib/supabase/request-auth";
 import type { MenuItem, Restaurant } from "@/types/database";
-import type { ImportData } from "@ketolog/domain/restaurant-import";
+import { dedupeImportItemsBySharedBarcode, type ImportData } from "@ketolog/domain/restaurant-import";
 import type { MenuShareImportItem } from "@ketolog/domain/menu-share-qr";
 import { ensureFavoriteEntryForMenuItem } from "./favorites";
 import { nextRestaurantDisplayOrder } from "./restaurant";
@@ -55,9 +55,10 @@ export async function importRestaurantData(data: ImportData): Promise<{
 
     if (r.menuItems.length > 0) {
       const groupOrderMap = new Map<string, number>();
-      const { data: items } = await supabase
+      const menuItems = dedupeImportItemsBySharedBarcode(r.menuItems);
+      const { data: items, error: itemsErr } = await supabase
         .from("menu_items")
-        .insert(r.menuItems.map(({ group, shared_barcode, standard_food_code, is_favorite, ...item }) => {
+        .insert(menuItems.map(({ group, shared_barcode, standard_food_code, is_favorite, ...item }) => {
           void is_favorite;
           const g = group ?? null;
           if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);
@@ -72,6 +73,15 @@ export async function importRestaurantData(data: ImportData): Promise<{
           };
         }))
         .select();
+      if (itemsErr) {
+        return {
+          added: newRestaurants.length,
+          skipped,
+          newRestaurants,
+          newMenuItems,
+          error: itemsErr.message,
+        };
+      }
       if (items) {
         newMenuItems.push(...(items as MenuItem[]));
         const rname = newR.name as string;
@@ -109,10 +119,22 @@ export async function importMenuItemsToRestaurant(
   const { supabase, user } = await getSupabaseAuthForRequest();
   if (!user) return { newMenuItems: [], error: "認証が必要です" };
 
+  const { data: existingRows, error: existingErr } = await supabase
+    .from("menu_items")
+    .select("shared_barcode")
+    .eq("user_id", user.id)
+    .eq("restaurant_id", restaurantId)
+    .not("shared_barcode", "is", null);
+  if (existingErr) return { newMenuItems: [], error: existingErr.message };
+  const rows = dedupeImportItemsBySharedBarcode(
+    items,
+    (existingRows ?? []).map((r: { shared_barcode: string }) => r.shared_barcode)
+  );
+
   const groupOrderMap = new Map<string, number>();
   const { data, error } = await supabase
     .from("menu_items")
-    .insert(items.map(({ group, shared_barcode, standard_food_code, is_favorite, ...item }) => {
+    .insert(rows.map(({ group, shared_barcode, standard_food_code, is_favorite, ...item }) => {
       void is_favorite;
       const g = group ?? null;
       if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);

@@ -202,62 +202,6 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
   }
 }
 
-export async function addSharedProductMenuItem(input: {
-  restaurantId: string;
-  barcode: string;
-  defaultGrams: number;
-  rank?: number;
-}): Promise<{ data: MenuItem | null; error: string | null }> {
-  const { supabase, user } = await getSupabaseAuthForRequest();
-  if (!user) return { data: null, error: "認証が必要です" };
-
-  const barcode = normalizeBarcode(input.barcode);
-  if (!barcode) return { data: null, error: "バーコードが不正です" };
-
-  const existing = await supabase
-    .from("menu_items")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("restaurant_id", input.restaurantId)
-    .eq("shared_barcode", barcode)
-    .limit(1)
-    .maybeSingle();
-  if (existing.data) return { data: existing.data as MenuItem, error: null };
-
-  const lookup = await lookupSharedProductByBarcode(barcode);
-  if (lookup.status !== "ok" || !lookup.product) {
-    return { data: null, error: lookup.error ?? "商品情報の取得に失敗しました" };
-  }
-
-  const insert = await supabase
-    .from("menu_items")
-    .insert({
-      user_id: user.id,
-      restaurant_id: input.restaurantId,
-      name: lookup.product.product_name,
-      protein_per_100g: lookup.product.protein_per_100g,
-      fat_per_100g: lookup.product.fat_per_100g,
-      carbs_per_100g: lookup.product.carbs_per_100g,
-      default_grams: input.defaultGrams > 0 ? input.defaultGrams : 100,
-      rank: input.rank ?? 2,
-      notes:
-        lookup.product.source === SHARED_PRODUCT_SOURCE_MANUAL_ENTRY
-          ? MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES
-          : lookup.product.brand
-            ? `OFF: ${lookup.product.brand}`
-            : "OFF連携",
-      group_name: null,
-      group_order: 0,
-      shared_barcode: barcode,
-      standard_food_code: null,
-    })
-    .select()
-    .single();
-
-  if (insert.error) return { data: null, error: insert.error.message };
-  return { data: insert.data as MenuItem, error: null };
-}
-
 /**
  * OFF 未ヒットのバーコードを手入力で登録するとき、`shared_products` と `menu_items` を
  * DB トランザクション（RPC）でまとめて追加する（Issue #191）。

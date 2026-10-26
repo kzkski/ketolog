@@ -22,6 +22,7 @@
     "./menu-browse": "./src/menu-browse.ts",
     "./nutrient-input": "./src/nutrient-input.ts",
     "./claude-integration": "./src/claude-integration.ts",
-    "./cart-serving": "./src/cart-serving.ts"
+    "./cart-serving": "./src/cart-serving.ts",
+    "./barcode-menu-prefill": "./src/barcode-menu-prefill.ts"
   }
 }

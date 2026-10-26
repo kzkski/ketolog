@@ -15,6 +15,11 @@ import {
   SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
   SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS,
 } from "@ketolog/domain/shared-product-source";
+import {
+  resolveBarcodePrefill,
+  type BarcodePrefill,
+  type OwnBarcodeMenuMatch,
+} from "@ketolog/domain/barcode-menu-prefill";
 
 const OFF_USER_AGENT =
   process.env.OFF_USER_AGENT ??
@@ -45,8 +50,25 @@ function mapMenuItemSaveError(message: string | null | undefined): string | null
 export type BarcodeLookupResult = {
   status: "ok" | "not_found" | "error";
   product: SharedProduct | null;
+  /** フォームへ入れる値（自分のメニュー優先。Issue #358） */
+  prefill: BarcodePrefill | null;
+  /** 同じバーコードの自分のメニュー（全店舗）。同じ店での重複判定に使う */
+  ownMenuItems: OwnBarcodeMenuMatch[];
   error: string | null;
 };
+
+const OWN_BARCODE_MENU_SELECT =
+  "id, restaurant_id, name, protein_per_100g, fat_per_100g, carbs_per_100g, default_grams, notes, updated_at, restaurants(name)";
+
+type OwnBarcodeMenuRow = Omit<OwnBarcodeMenuMatch, "restaurant_name"> & {
+  restaurants: { name: string } | { name: string }[] | null;
+};
+
+function toOwnBarcodeMenuMatch(row: OwnBarcodeMenuRow): OwnBarcodeMenuMatch {
+  const { restaurants, ...rest } = row;
+  const restaurant = Array.isArray(restaurants) ? restaurants[0] : restaurants;
+  return { ...rest, restaurant_name: restaurant?.name ?? null };
+}
 
 export async function fetchMenuItemsForRestaurant(
   restaurantId: string
@@ -153,18 +175,42 @@ async function upsertSharedProduct(
 
 export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<BarcodeLookupResult> {
   const barcode = normalizeBarcode(rawBarcode);
-  if (!barcode) return { status: "error", product: null, error: "バーコードが不正です" };
+  if (!barcode) {
+    return { status: "error", product: null, prefill: null, ownMenuItems: [], error: "バーコードが不正です" };
+  }
 
   const { supabase, user } = await getSupabaseAuthForRequest();
-  if (!user) return { status: "error", product: null, error: "認証が必要です" };
+  if (!user) {
+    return { status: "error", product: null, prefill: null, ownMenuItems: [], error: "認証が必要です" };
+  }
 
-  const { data: cached } = await supabase
-    .from("shared_products")
-    .select(
-      "barcode, product_name, brand, protein_per_100g, fat_per_100g, carbs_per_100g, serving_size, serving_size_grams, last_checked_at, source"
-    )
-    .eq("barcode", barcode)
-    .maybeSingle();
+  const [{ data: ownRows, error: ownError }, { data: cached }] = await Promise.all([
+    supabase
+      .from("menu_items")
+      .select(OWN_BARCODE_MENU_SELECT)
+      .eq("user_id", user.id)
+      .eq("shared_barcode", barcode)
+      .order("updated_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("shared_products")
+      .select(
+        "barcode, product_name, brand, protein_per_100g, fat_per_100g, carbs_per_100g, serving_size, serving_size_grams, last_checked_at, source"
+      )
+      .eq("barcode", barcode)
+      .maybeSingle(),
+  ]);
+  if (ownError) {
+    return { status: "error", product: null, prefill: null, ownMenuItems: [], error: ownError.message };
+  }
+  const ownMenuItems = ((ownRows ?? []) as OwnBarcodeMenuRow[]).map(toOwnBarcodeMenuMatch);
+
+  const ok = (product: SharedProduct | null): BarcodeLookupResult => {
+    const prefill = resolveBarcodePrefill({ ownMenuItems, sharedProduct: product });
+    return prefill
+      ? { status: "ok", product, prefill, ownMenuItems, error: null }
+      : { status: "not_found", product: null, prefill: null, ownMenuItems, error: null };
+  };
 
   if (cached) {
     const source =
@@ -172,7 +218,7 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
         ? SHARED_PRODUCT_SOURCE_MANUAL_ENTRY
         : SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS;
     const stale = Date.now() - new Date(cached.last_checked_at).getTime() > SHARED_PRODUCT_TTL_MS;
-    if (stale && source === SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS) {
+    if (stale && source === SHARED_PRODUCT_SOURCE_OPEN_FOOD_FACTS && ownMenuItems.length === 0) {
       void (async () => {
         const refreshed = await fetchOpenFoodFactsProduct(barcode, {
           apiBase: process.env.OFF_API_BASE,
@@ -183,22 +229,25 @@ export async function lookupSharedProductByBarcode(rawBarcode: string): Promise<
         }
       })();
     }
-    return { status: "ok", product: { ...cached, source } as SharedProduct, error: null };
+    return ok({ ...cached, source } as SharedProduct);
   }
+
+  // shared_barcode は shared_products への FK なので、自メニューがあれば cached も必ずある
+  if (ownMenuItems.length > 0) return ok(null);
 
   try {
     const fetched = await fetchOpenFoodFactsProduct(barcode, {
       apiBase: process.env.OFF_API_BASE,
       userAgent: OFF_USER_AGENT,
     });
-    if (!fetched) return { status: "not_found", product: null, error: null };
+    if (!fetched) return ok(null);
     const { error: upsertError } = await upsertSharedProduct(supabase, fetched);
     if (upsertError) {
-      return { status: "error", product: null, error: upsertError };
+      return { status: "error", product: null, prefill: null, ownMenuItems, error: upsertError };
     }
-    return { status: "ok", product: fetched, error: null };
+    return ok(fetched);
   } catch {
-    return { status: "error", product: null, error: "OFFからの取得に失敗しました" };
+    return { status: "error", product: null, prefill: null, ownMenuItems, error: "OFFからの取得に失敗しました" };
   }
 }
 

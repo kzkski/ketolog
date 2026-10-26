@@ -11,6 +11,11 @@ import {
 import type { MenuItem, Restaurant, SharedProduct } from "@/types/database";
 import type { MealType } from "@ketolog/types";
 import { resolveNutrientStoredValue } from "@ketolog/domain/nutrient-input";
+import {
+  barcodeValueSourceLabel,
+  findSameRestaurantBarcodeMenu,
+  type OwnBarcodeMenuMatch,
+} from "@ketolog/domain/barcode-menu-prefill";
 import { pfcGramsFromNullablePer100 } from "@/lib/menu-item-pfc";
 import {
   addMenuItem,
@@ -23,10 +28,6 @@ import {
 } from "../actions/menu-item";
 import { saveMealToLog, type SaveItem } from "../actions/food-log";
 import type { ImportRestaurantItem } from "../actions/import-export";
-import {
-  MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
-  SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
-} from "@/lib/shared-product-source";
 import { buildMenuQrPayloadJson, parseMenuSharePayload } from "@/lib/menu-qr-payload";
 import { BarcodeScanner } from "./BarcodeScanner";
 
@@ -99,6 +100,8 @@ export type MenuItemDrawerProps = {
   registerTargetRestaurantId: string;
   onRegisterTargetChange: (restaurantId: string) => void;
   onOpenStandardFoodSearch?: () => void;
+  /** 同じお店に同じバーコードのメニューがあるとき、そのメニューの編集へ移る（Issue #358） */
+  onEditExistingMenuItem?: (menuItemId: string) => void;
 };
 
 export function MenuItemDrawer({
@@ -119,6 +122,7 @@ export function MenuItemDrawer({
   canRegisterMenu,
   registerDisabledReason,
   onOpenStandardFoodSearch,
+  onEditExistingMenuItem,
 }: MenuItemDrawerProps) {
   const MEMO_MIN_ROWS = 3;
   const MEMO_MAX_ROWS = 10;
@@ -174,6 +178,10 @@ export function MenuItemDrawer({
   const [manualSharedProductPending, setManualSharedProductPending] = useState(false);
   const [lastLookup, setLastLookup] = useState<{ barcode: string; at: number } | null>(null);
   const [servingHint, setServingHint] = useState<string | null>(null);
+  /** 読み取った値の出どころ（自メニュー / 共有 / OFF） */
+  const [valueSourceNote, setValueSourceNote] = useState<string | null>(null);
+  /** 読み取ったバーコードを持つ自分のメニュー（全店舗） */
+  const [ownBarcodeMatches, setOwnBarcodeMatches] = useState<OwnBarcodeMenuMatch[]>([]);
   const [shareQrDataUrl, setShareQrDataUrl] = useState<string | null>(null);
   const [shareQrError, setShareQrError] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState<{ tone: "ok" | "err"; msg: string } | null>(null);
@@ -186,6 +194,15 @@ export function MenuItemDrawer({
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isGroupSuggestionsOpen, setIsGroupSuggestionsOpen] = useState(false);
   const hasLockedSharedBarcode = isEdit && Boolean(existing?.shared_barcode);
+  const duplicateBarcodeMenu = useMemo(
+    () =>
+      findSameRestaurantBarcodeMenu(
+        ownBarcodeMatches,
+        existing ? existing.restaurant_id : registerTargetRestaurantId,
+        existing?.id
+      ),
+    [ownBarcodeMatches, existing, registerTargetRestaurantId]
+  );
   const cameraSupported =
     typeof window !== "undefined" &&
     Boolean(navigator.mediaDevices?.getUserMedia) &&
@@ -227,9 +244,11 @@ export function MenuItemDrawer({
         setScanError(res.error ?? "バーコードの照会に失敗しました");
         return;
       }
-      if (res.status === "not_found" || !res.product) {
+      setOwnBarcodeMatches(res.ownMenuItems);
+      if (res.status === "not_found" || !res.prefill) {
         setCameraResult(null);
         setServingHint(null);
+        setValueSourceNote(null);
         setSharedBarcode(normalized);
         setStandardFoodCode(null);
         setManualSharedProductPending(true);
@@ -238,36 +257,40 @@ export function MenuItemDrawer({
         );
         return;
       }
+      const prefill = res.prefill;
       setManualSharedProductPending(false);
       setScanError(null);
       setCameraResult(res.product);
-      setSharedBarcode(res.product.barcode);
+      setSharedBarcode(normalized);
       setStandardFoodCode(null);
-      setName(res.product.product_name);
-      setProtein(res.product.protein_per_100g?.toString() ?? "");
-      setFat(res.product.fat_per_100g?.toString() ?? "");
-      setCarbs(res.product.carbs_per_100g?.toString() ?? "");
-      if (res.product.serving_size_grams && res.product.serving_size_grams > 0) {
-        setGrams(res.product.serving_size_grams.toString());
-        setServingHint(
-          `OFFの serving_size (${res.product.serving_size}) を1回量に仮入力しました。ラベルで必ず確認してください。`
-        );
-      } else if (res.product.serving_size) {
-        setServingHint(
-          `OFFの serving_size (${res.product.serving_size}) を取得しました。1回量(g)を手動で確認してください。`
-        );
-      } else {
-        setServingHint(null);
+      setValueSourceNote(barcodeValueSourceLabel(prefill));
+      // 編集中のメニューでは入力済みの値を上書きせず、空欄だけ埋める（Issue #358）
+      const fill = (next: string) => (current: string) =>
+        !isEdit || current.trim() === "" ? next : current;
+      setName(fill(prefill.name));
+      setProtein(fill(prefill.protein_per_100g?.toString() ?? ""));
+      setFat(fill(prefill.fat_per_100g?.toString() ?? ""));
+      setCarbs(fill(prefill.carbs_per_100g?.toString() ?? ""));
+      if (prefill.notes) {
+        const prefillNotes = prefill.notes;
+        setNotes((current) => (current.trim() ? current : prefillNotes));
       }
-      if (!notes.trim()) {
-        if (res.product.source === SHARED_PRODUCT_SOURCE_MANUAL_ENTRY) {
-          setNotes(MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES);
-        } else {
-          setNotes(res.product.brand ? `OFF: ${res.product.brand}` : "OFF連携");
+      setServingHint(null);
+      if (isEdit) return;
+      if (prefill.default_grams && prefill.default_grams > 0) {
+        setGrams(prefill.default_grams.toString());
+        if (prefill.source !== "own_menu_item") {
+          setServingHint(
+            `OFFの serving_size (${prefill.serving_size}) を1回量に仮入力しました。ラベルで必ず確認してください。`
+          );
         }
+      } else if (prefill.serving_size) {
+        setServingHint(
+          `OFFの serving_size (${prefill.serving_size}) を取得しました。1回量(g)を手動で確認してください。`
+        );
       }
     },
-    [lastLookup, notes]
+    [lastLookup, isEdit]
   );
 
   const importItemPreviewForQr = useMemo((): ImportRestaurantItem | null => {
@@ -370,6 +393,8 @@ export function MenuItemDrawer({
     setManualSharedProductPending(false);
     setCameraResult(null);
     setServingHint(null);
+    setValueSourceNote(null);
+    setOwnBarcodeMatches([]);
     setScanError(null);
     setError(null);
     setMode("perServing");
@@ -447,6 +472,7 @@ export function MenuItemDrawer({
     setScanError(null);
     setCameraResult(null);
     setServingHint(null);
+    setValueSourceNote(null);
     setMenuQrImportDone(null);
     setCameraOn((v) => !v);
   }, [cameraOn, cameraSupported, hasLockedSharedBarcode]);
@@ -701,6 +727,7 @@ export function MenuItemDrawer({
               manualSharedProductPending={manualSharedProductPending}
               sharedBarcode={sharedBarcode}
               servingHint={servingHint}
+              valueSourceNote={valueSourceNote}
               onDecoded={handleDecodedScan}
               onRuntimeError={reportBarcodeRuntimeError}
               onCameraClosed={closeBarcodeCamera}
@@ -921,6 +948,23 @@ export function MenuItemDrawer({
             </div>
           )}
 
+          {duplicateBarcodeMenu && (
+            <div className="space-y-2 rounded-lg border border-amber-700/60 bg-amber-950/30 px-3 py-2">
+              <p className="text-xs text-amber-300">
+                このお店には同じバーコードのメニュー「{duplicateBarcodeMenu.name}」があります。
+              </p>
+              {onEditExistingMenuItem && (
+                <button
+                  type="button"
+                  onClick={() => onEditExistingMenuItem(duplicateBarcodeMenu.id)}
+                  className="w-full rounded-lg bg-gray-800 py-2 text-sm text-gray-200 transition-colors hover:bg-gray-700"
+                >
+                  既存メニューを編集
+                </button>
+              )}
+            </div>
+          )}
+
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
           {/* 削除ボタン（編集モードのみ） */}
@@ -950,7 +994,7 @@ export function MenuItemDrawer({
             {isEdit ? (
               <button
                 onClick={() => void handleSave()}
-                disabled={saving}
+                disabled={saving || Boolean(duplicateBarcodeMenu)}
                 className="w-full rounded-xl bg-emerald-600 py-3 font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
               >
                 {saving ? "保存中..." : "保存する"}
@@ -979,7 +1023,7 @@ export function MenuItemDrawer({
                 <button
                   type="button"
                   onClick={() => void handleSave()}
-                  disabled={saving || !canRegisterMenu}
+                  disabled={saving || !canRegisterMenu || Boolean(duplicateBarcodeMenu)}
                   title={
                     !canRegisterMenu
                       ? registerDisabledReason

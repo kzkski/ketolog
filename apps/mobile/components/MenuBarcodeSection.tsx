@@ -23,6 +23,8 @@ export type MenuBarcodeSectionProps = {
   manualSharedProductPending: boolean;
   sharedBarcode: string | null;
   servingHint: string | null;
+  /** 読み取った値の出どころ（Issue #358） */
+  valueSourceNote?: string | null;
   onBarcodeData: (raw: string) => void | Promise<void>;
   onRuntimeError: (message: string) => void;
   onCameraClosed: () => void;
@@ -42,6 +44,7 @@ export function MenuBarcodeSection({
   manualSharedProductPending,
   sharedBarcode,
   servingHint,
+  valueSourceNote,
   onBarcodeData,
   onRuntimeError,
   onCameraClosed,
@@ -122,6 +125,7 @@ export function MenuBarcodeSection({
           読み取り完了: {cameraResult.product_name}（{cameraResult.barcode}）
         </Text>
       ) : null}
+      {valueSourceNote ? <Text style={styles.emeraldMutedSm}>{valueSourceNote}</Text> : null}
       {scanError ? <Text style={styles.amberSm}>{scanError}</Text> : null}
       {manualSharedProductPending && sharedBarcode ? (
         <Text style={styles.emeraldMutedSm}>

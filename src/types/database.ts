@@ -43,6 +43,8 @@ export type MenuItem = {
   standard_food_code?: string | null;
   /** `select('*')` で付与。一覧の決定的ソート用 */
   created_at?: string;
+  /** 最終保存日時（Issue #358）。再スキャン時の自メニュー優先に使う */
+  updated_at?: string;
 };
 
 /** お気に入りエントリ（menu_items 行への参照） */

@@ -1,4 +1,4 @@
-import type { ImportData } from "@ketolog/domain/restaurant-import";
+import { dedupeImportItemsBySharedBarcode, type ImportData } from "@ketolog/domain/restaurant-import";
 import type { MenuShareImportItem } from "@ketolog/domain/menu-share-qr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -63,7 +63,7 @@ export async function importRestaurantDataMobile(
       const { data: items, error: itemsErr } = await supabase
         .from("menu_items")
         .insert(
-          r.menuItems.map(({ group, shared_barcode, standard_food_code, is_favorite, ...item }: MenuShareImportItem) => {
+          dedupeImportItemsBySharedBarcode(r.menuItems).map(({ group, shared_barcode, standard_food_code, is_favorite, ...item }: MenuShareImportItem) => {
             void is_favorite;
             const g = group ?? null;
             if (g !== null && !groupOrderMap.has(g)) groupOrderMap.set(g, groupOrderMap.size);

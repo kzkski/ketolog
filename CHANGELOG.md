@@ -16,6 +16,12 @@
 
 ### Changed
 
+## [1.73.1] - 2026-10-26
+
+### Fixed
+
+- **Today / メニュー編集**: 既存メニューに Open Food Facts 未登録のバーコードを付けて手入力で保存すると、毎回エラーになっていた問題を修正。RPC `update_menu_item_with_manual_shared_product` の `INSERT INTO shared_products` で VALUES が列より1つ多かった（#359）。
+
 ## [1.73.0] - 2026-10-26
 
 ### Added

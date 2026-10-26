@@ -1202,6 +1202,9 @@ export function TodayScreen() {
           setMenuEditorState(null);
           setMenuBrowseTabRequest("composition");
         }}
+        onRequestEditExisting={(menuItemId) =>
+          setMenuEditorState({ kind: "edit", menuItemId })
+        }
       />
 
       <AddRestaurantModal

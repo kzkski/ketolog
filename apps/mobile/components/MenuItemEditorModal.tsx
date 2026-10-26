@@ -18,7 +18,6 @@ import { pfcGramsFromNullablePer100 } from "@ketolog/domain/pfc";
 import type { MealType } from "@ketolog/types";
 import {
   MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES,
-  SHARED_PRODUCT_SOURCE_MANUAL_ENTRY,
 } from "@ketolog/domain/shared-product-source";
 import {
   buildMenuQrPayloadJson,
@@ -44,6 +43,11 @@ import {
   lookupSharedProductByBarcodeMobile,
   type SharedProductRow,
 } from "../lib/shared-product-lookup";
+import {
+  barcodeValueSourceLabel,
+  findSameRestaurantBarcodeMenu,
+  type OwnBarcodeMenuMatch,
+} from "@ketolog/domain/barcode-menu-prefill";
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 const MEAL_LABEL: Record<MealType, string> = {
@@ -139,6 +143,8 @@ type Props = {
   onOutboxChanged?: () => void | Promise<void>;
   /** Web の「文科省成分表で検索」: モーダルを閉じて成分表タブへ誘導 */
   onRequestOpenStandardFoodComposition?: () => void;
+  /** 同じお店に同じバーコードのメニューがあるとき、そのメニューの編集へ移る（Issue #358） */
+  onRequestEditExisting?: (menuItemId: string) => void;
 };
 
 export function MenuItemEditorModal({
@@ -154,6 +160,7 @@ export function MenuItemEditorModal({
   onToast,
   onOutboxChanged,
   onRequestOpenStandardFoodComposition,
+  onRequestEditExisting,
 }: Props) {
   const isEdit = state?.kind === "edit";
 
@@ -198,6 +205,10 @@ export function MenuItemEditorModal({
   const [manualSharedProductPending, setManualSharedProductPending] = useState(false);
   const [lastLookup, setLastLookup] = useState<{ barcode: string; at: number } | null>(null);
   const [servingHint, setServingHint] = useState<string | null>(null);
+  /** 読み取った値の出どころ（自メニュー / 共有 / OFF） */
+  const [valueSourceNote, setValueSourceNote] = useState<string | null>(null);
+  /** 読み取ったバーコードを持つ自分のメニュー（全店舗） */
+  const [ownBarcodeMatches, setOwnBarcodeMatches] = useState<OwnBarcodeMenuMatch[]>([]);
   const [menuQrImportDone, setMenuQrImportDone] = useState<string | null>(null);
   const [shareQrGenError, setShareQrGenError] = useState<string | null>(null);
 
@@ -275,6 +286,8 @@ export function MenuItemEditorModal({
     setManualSharedProductPending(false);
     setLastLookup(null);
     setServingHint(null);
+    setValueSourceNote(null);
+    setOwnBarcodeMatches([]);
     setMenuQrImportDone(null);
   }, [mealTypeForLog]);
 
@@ -304,6 +317,8 @@ export function MenuItemEditorModal({
     setManualSharedProductPending(false);
     setLastLookup(null);
     setServingHint(null);
+    setValueSourceNote(null);
+    setOwnBarcodeMatches([]);
     setMenuQrImportDone(null);
   }, [mealTypeForLog]);
 
@@ -408,6 +423,8 @@ export function MenuItemEditorModal({
       setManualSharedProductPending(false);
       setLastLookup(null);
       setServingHint(null);
+      setValueSourceNote(null);
+      setOwnBarcodeMatches([]);
       setMenuQrImportDone(null);
     })();
     return () => {
@@ -476,6 +493,16 @@ export function MenuItemEditorModal({
     [registerRestaurants, registerRestaurantId]
   );
 
+  const duplicateBarcodeMenu = useMemo(
+    () =>
+      findSameRestaurantBarcodeMenu(
+        ownBarcodeMatches,
+        isEdit ? (loadedEdit?.restaurant_id ?? null) : registerRestaurantId,
+        isEdit ? loadedEdit?.id : null
+      ),
+    [ownBarcodeMatches, isEdit, loadedEdit, registerRestaurantId]
+  );
+
   const canRegisterMenu =
     !isEdit &&
     !registerRestaurantsLoading &&
@@ -502,6 +529,8 @@ export function MenuItemEditorModal({
     setManualSharedProductPending(false);
     setCameraResult(null);
     setServingHint(null);
+    setValueSourceNote(null);
+    setOwnBarcodeMatches([]);
     setScanError(null);
     setFormError(null);
     setNutrientMode("perServing");
@@ -523,16 +552,18 @@ export function MenuItemEditorModal({
       setScanLoading(true);
       setScanError(null);
       setLastLookup({ barcode: normalized, at: Date.now() });
-      const res = await lookupSharedProductByBarcodeMobile(supabase, normalized);
+      const res = await lookupSharedProductByBarcodeMobile(supabase, userId, normalized);
       setScanLoading(false);
       if (res.status === "error") {
         setManualSharedProductPending(false);
         setScanError(res.error ?? "バーコードの照会に失敗しました");
         return;
       }
-      if (res.status === "not_found" || !res.product) {
+      setOwnBarcodeMatches(res.ownMenuItems);
+      if (res.status === "not_found" || !res.prefill) {
         setCameraResult(null);
         setServingHint(null);
+        setValueSourceNote(null);
         setSharedBarcode(normalized);
         setStandardFoodCode(null);
         setManualSharedProductPending(true);
@@ -541,36 +572,40 @@ export function MenuItemEditorModal({
         );
         return;
       }
+      const prefill = res.prefill;
       setManualSharedProductPending(false);
       setScanError(null);
       setCameraResult(res.product);
-      setSharedBarcode(res.product.barcode);
+      setSharedBarcode(normalized);
       setStandardFoodCode(null);
-      setName(res.product.product_name);
-      setProtein(res.product.protein_per_100g?.toString() ?? "");
-      setFat(res.product.fat_per_100g?.toString() ?? "");
-      setCarbs(res.product.carbs_per_100g?.toString() ?? "");
-      if (res.product.serving_size_grams && res.product.serving_size_grams > 0) {
-        setGrams(res.product.serving_size_grams.toString());
-        setServingHint(
-          `OFFの serving_size (${res.product.serving_size}) を1回量に仮入力しました。ラベルで必ず確認してください。`
-        );
-      } else if (res.product.serving_size) {
-        setServingHint(
-          `OFFの serving_size (${res.product.serving_size}) を取得しました。1回量(g)を手動で確認してください。`
-        );
-      } else {
-        setServingHint(null);
+      setValueSourceNote(barcodeValueSourceLabel(prefill));
+      // 編集中のメニューでは入力済みの値を上書きせず、空欄だけ埋める（Issue #358）
+      const fill = (next: string) => (current: string) =>
+        !isEdit || current.trim() === "" ? next : current;
+      setName(fill(prefill.name));
+      setProtein(fill(prefill.protein_per_100g?.toString() ?? ""));
+      setFat(fill(prefill.fat_per_100g?.toString() ?? ""));
+      setCarbs(fill(prefill.carbs_per_100g?.toString() ?? ""));
+      if (prefill.notes) {
+        const prefillNotes = prefill.notes;
+        setNotes((current) => (current.trim() ? current : prefillNotes));
       }
-      setNotes((prev) => {
-        if (prev.trim()) return prev;
-        if (res.product?.source === SHARED_PRODUCT_SOURCE_MANUAL_ENTRY) {
-          return MANUAL_SHARED_PRODUCT_DEFAULT_MENU_NOTES;
+      setServingHint(null);
+      if (isEdit) return;
+      if (prefill.default_grams && prefill.default_grams > 0) {
+        setGrams(prefill.default_grams.toString());
+        if (prefill.source !== "own_menu_item") {
+          setServingHint(
+            `OFFの serving_size (${prefill.serving_size}) を1回量に仮入力しました。ラベルで必ず確認してください。`
+          );
         }
-        return res.product?.brand ? `OFF: ${res.product.brand}` : "OFF連携";
-      });
+      } else if (prefill.serving_size) {
+        setServingHint(
+          `OFFの serving_size (${prefill.serving_size}) を取得しました。1回量(g)を手動で確認してください。`
+        );
+      }
     },
-    [lastLookup, supabase]
+    [lastLookup, supabase, userId, isEdit]
   );
 
   const handleDecodedScan = useCallback(
@@ -1103,6 +1138,7 @@ export function MenuItemEditorModal({
                     setScanError(null);
                     setCameraResult(null);
                     setServingHint(null);
+                    setValueSourceNote(null);
                     setMenuQrImportDone(null);
                     setCameraOn((v) => !v);
                   }}
@@ -1124,6 +1160,7 @@ export function MenuItemEditorModal({
                   manualSharedProductPending={manualSharedProductPending}
                   sharedBarcode={sharedBarcode}
                   servingHint={servingHint}
+                  valueSourceNote={valueSourceNote}
                   onBarcodeData={(raw) => void handleDecodedScan(raw)}
                   onRuntimeError={(message) => setScanError(message)}
                   onCameraClosed={() => setCameraOn(false)}
@@ -1366,14 +1403,33 @@ export function MenuItemEditorModal({
                 </View>
               ) : null}
 
+              {duplicateBarcodeMenu ? (
+                <View style={styles.duplicateBox}>
+                  <Text style={styles.amberSm}>
+                    このお店には同じバーコードのメニュー「{duplicateBarcodeMenu.name}」があります。
+                  </Text>
+                  {onRequestEditExisting ? (
+                    <Pressable
+                      onPress={() => onRequestEditExisting(duplicateBarcodeMenu.id)}
+                      style={styles.btnGhostWide}
+                    >
+                      <Text style={styles.btnGhostText}>既存メニューを編集</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
+
               {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
               {isEdit ? (
                 <>
                   <Pressable
                     onPress={() => void handleSaveMenu()}
-                    disabled={busy}
-                    style={[styles.btnPrimaryWide, busy && { opacity: 0.55 }]}
+                    disabled={busy || Boolean(duplicateBarcodeMenu)}
+                    style={[
+                      styles.btnPrimaryWide,
+                      (busy || Boolean(duplicateBarcodeMenu)) && { opacity: 0.55 },
+                    ]}
                   >
                     {busy ? (
                       <ActivityIndicator color="#022c22" />
@@ -1446,8 +1502,11 @@ export function MenuItemEditorModal({
 
                   <Pressable
                     onPress={() => void handleSaveMenu()}
-                    disabled={busy || !canRegisterMenu}
-                    style={[styles.btnPrimaryWide, (busy || !canRegisterMenu) && { opacity: 0.55 }]}
+                    disabled={busy || !canRegisterMenu || Boolean(duplicateBarcodeMenu)}
+                    style={[
+                      styles.btnPrimaryWide,
+                      (busy || !canRegisterMenu || Boolean(duplicateBarcodeMenu)) && { opacity: 0.55 },
+                    ]}
                   >
                     {busy ? (
                       <ActivityIndicator color="#022c22" />
@@ -1702,6 +1761,15 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   error: { color: "#fecaca", fontSize: 13, marginBottom: 10 },
+  duplicateBox: {
+    gap: 8,
+    marginBottom: 10,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(180, 83, 9, 0.6)",
+    backgroundColor: "rgba(69, 26, 3, 0.3)",
+  },
   registerBox: {
     marginBottom: 12,
     padding: 10,

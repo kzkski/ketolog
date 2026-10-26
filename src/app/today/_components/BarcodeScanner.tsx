@@ -18,6 +18,8 @@ export type BarcodeScannerProps = {
   manualSharedProductPending: boolean;
   sharedBarcode: string | null;
   servingHint: string | null;
+  /** 読み取った値の出どころ（Issue #358） */
+  valueSourceNote?: string | null;
   onDecoded: (raw: string) => void | Promise<void>;
   onRuntimeError: (message: string) => void;
   onCameraClosed: () => void;
@@ -38,6 +40,7 @@ export function BarcodeScanner({
   manualSharedProductPending,
   sharedBarcode,
   servingHint,
+  valueSourceNote,
   onDecoded,
   onRuntimeError,
   onCameraClosed,
@@ -224,6 +227,7 @@ export function BarcodeScanner({
           読み取り完了: {cameraResult.product_name}（{cameraResult.barcode}）
         </p>
       )}
+      {valueSourceNote && <p className="text-xs text-emerald-300/90">{valueSourceNote}</p>}
       {scanError && <p className="text-xs text-amber-300">{scanError}</p>}
       {manualSharedProductPending && sharedBarcode && (
         <p className="text-xs text-emerald-300/90">

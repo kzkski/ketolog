@@ -2223,6 +2223,10 @@ export default function TodayClient({
                 }
               : undefined
           }
+          onEditExistingMenuItem={(menuItemId) => {
+            const item = menuItems.find((m) => m.id === menuItemId);
+            if (item) setItemDrawer({ kind: "edit", item });
+          }}
           onAfterSnapshotLog={() => refreshLogForDate(selectedDate)}
           onSnapshotCart={(draft) => {
             const cartKey = `snap:${crypto.randomUUID()}`;

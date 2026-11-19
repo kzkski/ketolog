@@ -10,11 +10,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { toJstDateString } from "@ketolog/domain/date";
+import { getMealTypeForTimeZone } from "@ketolog/domain/meal-timezone";
 import type { OwnBarcodeMenuMatch } from "@ketolog/domain/barcode-menu-prefill";
 import type { MealType } from "@ketolog/types";
 
 import { MenuBarcodeSection } from "../../../components/MenuBarcodeSection";
 import { BarcodeQuickConfirmSheet } from "../../../components/BarcodeQuickConfirmSheet";
+import {
+  MenuItemEditorModal,
+  type MenuItemEditorState,
+} from "../../../components/MenuItemEditorModal";
 import { useAuthSessionContext } from "../../../contexts/AuthSessionContext";
 import { useBarcodeScanLookup } from "../../../hooks/useBarcodeScanLookup";
 import { getOrCreateSnapshotRestaurant } from "../../../lib/get-or-create-snapshot-restaurant";
@@ -47,6 +52,13 @@ export default function ScanBarcodeScreen() {
   const [toast, setToast] = useState<string | null>(null);
   const [snapshotRestaurantId, setSnapshotRestaurantId] = useState<string | null>(null);
   const [snapshotLoadError, setSnapshotLoadError] = useState<string | null>(null);
+  const [menuEditorOpen, setMenuEditorOpen] = useState(false);
+  const [menuEditorState, setMenuEditorState] = useState<MenuItemEditorState | null>(null);
+
+  const mealTypeForLog = useMemo(
+    () => getMealTypeForTimeZone(new Date(), "Asia/Tokyo"),
+    []
+  );
 
   const prefill = result?.lookup.prefill ?? null;
   const isNotFound =
@@ -88,6 +100,22 @@ export default function ScanBarcodeScreen() {
   const goToday = useCallback(() => {
     router.replace("/(app)/today");
   }, [router]);
+
+  const openRegisterMenu = useCallback(() => {
+    const barcode = result?.barcode?.trim();
+    if (!barcode) return;
+    setMenuEditorState({
+      kind: "add",
+      registerRestaurantIdHint: null,
+      initialSharedBarcode: barcode,
+    });
+    setMenuEditorOpen(true);
+  }, [result?.barcode]);
+
+  const closeMenuEditor = useCallback(() => {
+    setMenuEditorOpen(false);
+    setMenuEditorState(null);
+  }, []);
 
   const handleConfirm = useCallback(
     async (input: {
@@ -166,14 +194,20 @@ export default function ScanBarcodeScreen() {
             <View style={styles.notFoundCard}>
               <Text style={styles.notFoundTitle}>登録が見つかりませんでした</Text>
               <Text style={styles.notFoundBody}>
-                このバーコードは Open Food Facts にも、あなたのメニューにも登録されていません。Today
-                からメニューを追加してから記録してください。
+                このバーコードは Open Food Facts にも、あなたのメニューにも登録されていません。メニューを登録してから記録できます。
               </Text>
               {result?.barcode ? (
                 <Text style={styles.notFoundBarcode}>読み取り: {result.barcode}</Text>
               ) : null}
-              <Pressable onPress={goToday} style={styles.todayCta}>
-                <Text style={styles.todayCtaText}>Today でメニューを追加</Text>
+              <Pressable
+                onPress={openRegisterMenu}
+                style={styles.registerMenuCta}
+                disabled={!result?.barcode}
+              >
+                <Text style={styles.registerMenuCtaText}>メニューを登録</Text>
+              </Pressable>
+              <Pressable onPress={goToday} style={styles.todaySecondaryLink}>
+                <Text style={styles.todaySecondaryLinkText}>Today へ戻る</Text>
               </Pressable>
               <Pressable onPress={handleRescan} style={styles.rescanLink}>
                 <Text style={styles.rescanLinkText}>もう一度読み取る</Text>
@@ -208,6 +242,26 @@ export default function ScanBarcodeScreen() {
           </View>
         ) : null}
 
+        <MenuItemEditorModal
+          visible={menuEditorOpen}
+          state={menuEditorState}
+          supabase={supabase}
+          userId={userId}
+          date={toJstDateString()}
+          mealTypeForLog={mealTypeForLog}
+          snapshotRestaurantId={snapshotRestaurantId}
+          onClose={closeMenuEditor}
+          onSaved={async () => {}}
+          onToast={setToast}
+          onRequestOpenStandardFoodComposition={() => {
+            closeMenuEditor();
+            goToday();
+          }}
+          onRequestEditExisting={(menuItemId) =>
+            setMenuEditorState({ kind: "edit", menuItemId })
+          }
+        />
+
         <StatusBar style="light" />
       </SafeAreaView>
     </>
@@ -240,14 +294,16 @@ const styles = StyleSheet.create({
   notFoundTitle: { color: COLORS.danger, fontSize: 16, fontWeight: "600" },
   notFoundBody: { color: COLORS.textMuted, fontSize: 14, lineHeight: 21 },
   notFoundBarcode: { color: COLORS.textMuted, fontSize: 12 },
-  todayCta: {
+  registerMenuCta: {
     marginTop: 8,
     backgroundColor: COLORS.primary,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
   },
-  todayCtaText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  registerMenuCtaText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  todaySecondaryLink: { alignItems: "center", paddingVertical: 6 },
+  todaySecondaryLinkText: { color: COLORS.textMuted, fontSize: 14 },
   rescanLink: { alignItems: "center", paddingVertical: 10 },
   rescanInline: { alignItems: "center", marginTop: 8 },
   rescanLinkText: { color: COLORS.textMuted, fontSize: 14 },

@@ -2,9 +2,11 @@ import { Redirect } from "expo-router";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useAuthSessionContext } from "../contexts/AuthSessionContext";
+import { useAuthenticatedEntryHref } from "../contexts/QuickActionIntentContext";
 
 export default function IndexRoute() {
   const { session, loading, initError } = useAuthSessionContext();
+  const authenticatedEntryHref = useAuthenticatedEntryHref(Boolean(session && !loading));
 
   if (initError) {
     return (
@@ -30,7 +32,7 @@ export default function IndexRoute() {
   }
 
   if (session) {
-    return <Redirect href="/(app)/today" />;
+    return <Redirect href={authenticatedEntryHref} />;
   }
   return <Redirect href="/(auth)/login" />;
 }

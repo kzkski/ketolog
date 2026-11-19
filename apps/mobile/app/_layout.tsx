@@ -7,6 +7,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { AuthSessionProvider, useAuthSessionContext } from "../contexts/AuthSessionContext";
+import { QuickActionIntentProvider } from "../contexts/QuickActionIntentContext";
 import { MissingSupabaseConfigScreen } from "../components/MissingSupabaseConfigScreen";
 import { useEASUpdatePrompt } from "../hooks/useEASUpdatePrompt";
 import { isSupabaseConfigured } from "../lib/supabase";
@@ -26,7 +27,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthSessionProvider>
-        <ConfiguredRootLayout />
+        <QuickActionIntentProvider>
+          <ConfiguredRootLayout />
+        </QuickActionIntentProvider>
       </AuthSessionProvider>
     </GestureHandlerRootView>
   );

@@ -10,6 +10,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Mobile / iOS**: ホーム画面クイックアクション「バーコード読み取り」の準備（Phase 0 スパイク）。`expo-quick-actions` とルートスタブ、起動時意図の受け渡し（Related #364）。
+
 ### Fixed
 
 - **DB / daily_log**: `public.daily_log` ビューを `security_invoker` に変更し、`anon` の過剰 GRANT を剥奪、`authenticated` は SELECT のみに制限した。SECURITY DEFINER による RLS バイパス（他ユーザーの日次集計が見える問題）を解消（[MyVitalRelay#14](https://github.com/kzkski/MyVitalRelay/issues/14)）。

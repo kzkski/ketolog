@@ -2,7 +2,7 @@
 
 ## 現行バージョン
 
-`package.json` の `version` を正とする（本メモ更新時点では **1.38.5**）。
+`package.json` の `version` を正とする（本メモ更新時点では **1.74.0**）。
 版ごとの変更履歴は [CHANGELOG.md](CHANGELOG.md) を参照。
 
 ---
@@ -73,6 +73,12 @@
 ### 目的
 - 一般公開後の継続運用に耐えるプロダクト基盤を整備する。
 - Ketolog の一般公開に加え、Ketovisor 連携を付加価値として提供し、必要に応じて有償提供へ移行する。
+
+### モバイル（Expo）クイック記録
+- **iOS ホーム画面 Quick Action「バーコード読み取り」**（MVP 完了: **1.74.0** / [#364](https://github.com/kzkski/ketolog/issues/364), [#365](https://github.com/kzkski/ketolog/pull/365)）
+  - ホーム長押し → バーコードスキャン → 確認シート → 今日（JST）の `food_log`（自メニュー優先・オフライン outbox 対応）
+  - **Android 同等・Quick Action 枠の拡張・未登録バーコード時のメニュー登録モーダル直行** はバックログ（Phase 2）
+- 配布・実機確認: EAS Build と TestFlight（[ios-testflight-distribution.md](docs/release/ios-testflight-distribution.md)、Actions `Mobile iOS TestFlight Release`）。**main 上の GitHub Flow** を正とする（release ブランチ運用なし）。
 
 ### 候補機能
 - 体組成トラッキング（体重・体脂肪・筋肉量など）

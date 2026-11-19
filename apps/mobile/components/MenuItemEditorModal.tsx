@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -111,7 +111,13 @@ export type StandardFoodDraft = {
 };
 
 export type MenuItemEditorState =
-  | { kind: "add"; registerRestaurantIdHint?: string | null; standardFoodDraft?: StandardFoodDraft }
+  | {
+      kind: "add";
+      registerRestaurantIdHint?: string | null;
+      standardFoodDraft?: StandardFoodDraft;
+      /** スキャン済みバーコードをフォームへ引き継ぐ（Quick Action not_found 等） */
+      initialSharedBarcode?: string;
+    }
   | { kind: "edit"; menuItemId: string };
 
 type MenuRow = {
@@ -607,6 +613,20 @@ export function MenuItemEditorModal({
     },
     [lastLookup, supabase, userId, isEdit]
   );
+
+  const initialBarcodeAppliedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!visible || !state || state.kind !== "add") {
+      if (!visible) initialBarcodeAppliedRef.current = null;
+      return;
+    }
+    const raw = state.initialSharedBarcode?.trim();
+    if (!raw) return;
+    if (initialBarcodeAppliedRef.current === raw) return;
+    initialBarcodeAppliedRef.current = raw;
+    void lookupOffProductBarcode(raw);
+  }, [visible, state, lookupOffProductBarcode]);
 
   const handleDecodedScan = useCallback(
     async (raw: string) => {

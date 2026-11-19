@@ -79,6 +79,20 @@ const config: ExpoConfig = {
       },
     ],
     ["./plugins/withIosCameraUsageDescription", { description: cameraUsageDescription }],
+    [
+      "expo-quick-actions",
+      {
+        iosActions: [
+          {
+            id: "scan-barcode",
+            title: "バーコード読み取り",
+            subtitle: "今日の食事に記録",
+            icon: "symbol:barcode.viewfinder",
+            params: { href: "/(app)/today/scan-barcode" },
+          },
+        ],
+      },
+    ],
   ],
 };
 

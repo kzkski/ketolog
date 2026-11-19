@@ -10,15 +10,17 @@
 
 ## [Unreleased]
 
-### Added
-
-- **Mobile / iOS**: ホーム画面クイックアクション「バーコード読み取り」から、バーコードを読んで今日（JST）の食事ログに記録できる（自メニュー優先・確認シート）。未登録バーコードは Today へ誘導。Quick Action 起動経路込み（Related #364）。
-
 ### Fixed
 
 - **DB / daily_log**: `public.daily_log` ビューを `security_invoker` に変更し、`anon` の過剰 GRANT を剥奪、`authenticated` は SELECT のみに制限した。SECURITY DEFINER による RLS バイパス（他ユーザーの日次集計が見える問題）を解消（[MyVitalRelay#14](https://github.com/kzkski/MyVitalRelay/issues/14)）。
 
 ### Changed
+
+## [1.74.0] - 2026-11-19
+
+### Added
+
+- **Mobile / iOS**: ホーム画面クイックアクション「バーコード読み取り」から、バーコードを読んで今日（JST）の食事ログに記録できる（自メニュー優先・確認シート）。未登録バーコードは Today へ誘導。Quick Action 起動経路込み（Related #364）。
 
 ## [1.73.1] - 2026-10-26
 
